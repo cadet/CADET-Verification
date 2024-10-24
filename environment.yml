@@ -1,0 +1,11 @@
+name: reference_solutions
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - conda
+  - cadet
+  - pip
+  - pip:
+      - cadet-process
+      - cadet-rdm

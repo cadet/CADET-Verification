@@ -1,0 +1,7 @@
+{
+  "__example/path/to/repo__": {
+    "source_repo_location": "git@jugit.fz-juelich.de:IBG-1/ModSim/cadet/agile_cadet_rdm_presentation_output.git",
+    "branch_name": "output_from_master_3910c84_2023-10-25_00-17-23",
+    "commit_hash": "6e3c26527999036e9490d2d86251258fe81d46dc"
+  }
+}
