@@ -19,35 +19,18 @@ import numpy as np
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import utility.convergence as convergence
 import bench_func
 import bench_configs
 
-#%% user definitions
-
-rdm_debug_mode = True # Run cadet-rdm in debug mode to test if the script works
-
-small_test = True # small test set (less numerical refinement steps)
-
-n_jobs = -1 # for parallelization on the number of simulations
-
-database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
-    "/-/raw/core_tests/cadet_config/test_cadet-core/chromatography/"
-
-sys.path.append(str(Path(".")))
-project_repo = ProjectRepo()
-output_path = project_repo.output_path / "test_cadet-core" / "chromatography"
-os.makedirs(output_path, exist_ok=True)
-
-# specify a source build cadet_path and make sure the commit hash is visible
-cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master7_preV5Commit_21c653\aRELEASE\bin\cadet-cli.exe"
-Cadet.cadet_path = cadet_path
-
-commit_message = f"Rerun of CADET-Core chromatography verification simulations" 
 
 # %% Run with CADET-RDM
 
-with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
+def chromatography_tests(n_jobs, database_path, small_test,
+                          output_path, cadet_path):
+
+    os.makedirs(output_path, exist_ok=True)
+    
+    Cadet.cadet_path = cadet_path  
     
     # Define settings and benchmarks
     

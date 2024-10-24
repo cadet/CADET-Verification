@@ -24,27 +24,6 @@ from cadetrdm import ProjectRepo
 
 import bench_func
 
-# #%% user definitions
-
-# rdm_debug_mode = True # Run cadet-rdm in debug mode to test if the script works
-
-# small_test = True # small test set (less numerical refinement steps)
-
-# # # TODO: parallelize
-# # # n_jobs = -1 # for parallelization on the number of simulations
-
-# # # TODO: add settings to database
-# # # database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
-# # #     "/-/raw/core_tests/cadet_config/test_cadet-core/crystallization/"
-
-# sys.path.append(str(Path(".")))
-# project_repo = ProjectRepo()
-# output_path = project_repo.output_path / "test_cadet-core" / "crystallization"
-
-# # # specify a source build cadet_path and make sure the commit hash is visible
-# # cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master7_preV5Commit_21c653\aRELEASE\bin\cadet-cli.exe"
-
-# commit_message = f"Rerun of CADET-Core crystallization verification simulations" 
 
 #%% Helper functions
 
@@ -503,95 +482,95 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     Cadet.cadet_path = cadet_path    
 
-    # # %% Verify PBM_CSTR_growth
+    # %% Verify PBM_CSTR_growth
     
-    # N_x_ref = 800 + 2 if small_test else 2000
-    # ## grid for EOC
-    # N_x_test_c1 = [50, 100, 200, 400] if small_test else [50, 100, 200, 400, 800, 1600, ]
-    # N_x_test_c1 = np.array(N_x_test_c1) + 2
+    N_x_ref = 800 + 2 if small_test else 2000
+    ## grid for EOC
+    N_x_test_c1 = [50, 100, 200, 400] if small_test else [50, 100, 200, 400, 800, 1600, ]
+    N_x_test_c1 = np.array(N_x_test_c1) + 2
     
-    # EOC_c1 = get_EOC(N_x_ref, N_x_test_c1, PBM_CSTR_growth, 1000e-6, output_path)
-    # print("PBM_CSTR_growth EOC:\n", EOC_c1)
-    # data = {
-    #     "Nx" : N_x_test_c1.tolist(),
-    #     "EOC" : EOC_c1.tolist()
-    # }
+    EOC_c1 = get_EOC(N_x_ref, N_x_test_c1, PBM_CSTR_growth, 1000e-6, output_path)
+    print("PBM_CSTR_growth EOC:\n", EOC_c1)
+    data = {
+        "Nx" : N_x_test_c1.tolist(),
+        "EOC" : EOC_c1.tolist()
+    }
     
-    # # Write the dictionary to a JSON file
-    # with open(str(output_path) + '/PBM_CSTR_growth.json', 'w') as json_file:
-    #     json.dump(data, json_file, indent=4)
+    # Write the dictionary to a JSON file
+    with open(str(output_path) + '/PBM_CSTR_growth.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
     
-    # # %% Verify PBM_CSTR_growthSizeDep
+    # %% Verify PBM_CSTR_growthSizeDep
     
-    # N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = 700 + 2 if small_test else 1000 + 2
     
-    # N_x_test_c2 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
-    # N_x_test_c2 = np.asarray(N_x_test_c2) + 2
+    N_x_test_c2 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
+    N_x_test_c2 = np.asarray(N_x_test_c2) + 2
     
-    # EOC_c2 = get_EOC(N_x_ref, N_x_test_c2, PBM_CSTR_growthSizeDep, 1000e-6, output_path)
-    # print("PBM_CSTR_growthSizeDep EOC:\n", EOC_c2)
-    # data = {
-    #     "Nx" : N_x_test_c2.tolist(),
-    #     "EOC" : EOC_c2.tolist()
-    # }
+    EOC_c2 = get_EOC(N_x_ref, N_x_test_c2, PBM_CSTR_growthSizeDep, 1000e-6, output_path)
+    print("PBM_CSTR_growthSizeDep EOC:\n", EOC_c2)
+    data = {
+        "Nx" : N_x_test_c2.tolist(),
+        "EOC" : EOC_c2.tolist()
+    }
     
-    # # Write the dictionary to a JSON file
-    # with open(str(output_path) + '/PBM_CSTR_growthSizeDep.json', 'w') as json_file:
-    #     json.dump(data, json_file, indent=4)
+    # Write the dictionary to a JSON file
+    with open(str(output_path) + '/PBM_CSTR_growthSizeDep.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
     
-    # # %% Verify PBM_CSTR_primaryNucleationAndGrowth
+    # %% Verify PBM_CSTR_primaryNucleationAndGrowth
     
-    # N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = 700 + 2 if small_test else 1000 + 2
     
-    # N_x_test_c3 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
-    # N_x_test_c3 = np.asarray(N_x_test_c3) + 2
+    N_x_test_c3 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
+    N_x_test_c3 = np.asarray(N_x_test_c3) + 2
     
-    # EOC_c3 = get_EOC(N_x_ref, N_x_test_c3, PBM_CSTR_primaryNucleationAndGrowth, 1000e-6, output_path)
-    # print("PBM_CSTR_primaryNucleationAndGrowth EOC:\n", EOC_c3)
-    # data = {
-    #     "Nx" : N_x_test_c3.tolist(),
-    #     "EOC" : EOC_c3.tolist()
-    # }
+    EOC_c3 = get_EOC(N_x_ref, N_x_test_c3, PBM_CSTR_primaryNucleationAndGrowth, 1000e-6, output_path)
+    print("PBM_CSTR_primaryNucleationAndGrowth EOC:\n", EOC_c3)
+    data = {
+        "Nx" : N_x_test_c3.tolist(),
+        "EOC" : EOC_c3.tolist()
+    }
     
-    # # Write the dictionary to a JSON file
-    # with open(str(output_path) + '/PBM_CSTR_primaryNucleationAndGrowth.json', 'w') as json_file:
-    #     json.dump(data, json_file, indent=4)
+    # Write the dictionary to a JSON file
+    with open(str(output_path) + '/PBM_CSTR_primaryNucleationAndGrowth.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
     
-    # # %% Verify PBM_CSTR_primarySecondaryNucleationAndGrowth
+    # %% Verify PBM_CSTR_primarySecondaryNucleationAndGrowth
     
-    # N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = 700 + 2 if small_test else 1000 + 2
     
-    # N_x_test_c4 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
-    # N_x_test_c4 = np.asarray(N_x_test_c4) + 2
+    N_x_test_c4 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
+    N_x_test_c4 = np.asarray(N_x_test_c4) + 2
     
-    # EOC_c4 = get_EOC(N_x_ref, N_x_test_c4, PBM_CSTR_primarySecondaryNucleationAndGrowth, 1000e-6, output_path)
-    # print("PBM_CSTR_primaryNucleationAndGrowth EOC:\n", EOC_c4)
-    # data = {
-    #     "Nx" : N_x_test_c4.tolist(),
-    #     "EOC" : EOC_c4.tolist()
-    # }
+    EOC_c4 = get_EOC(N_x_ref, N_x_test_c4, PBM_CSTR_primarySecondaryNucleationAndGrowth, 1000e-6, output_path)
+    print("PBM_CSTR_primaryNucleationAndGrowth EOC:\n", EOC_c4)
+    data = {
+        "Nx" : N_x_test_c4.tolist(),
+        "EOC" : EOC_c4.tolist()
+    }
     
-    # # Write the dictionary to a JSON file
-    # with open(str(output_path) + '/PBM_CSTR_primarySecondaryNucleationAndGrowth.json', 'w') as json_file:
-    #     json.dump(data, json_file, indent=4)
+    # Write the dictionary to a JSON file
+    with open(str(output_path) + '/PBM_CSTR_primarySecondaryNucleationAndGrowth.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
     
-    # # %% Verify PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion
+    # %% Verify PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion
     
-    # N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = 700 + 2 if small_test else 1000 + 2
     
-    # N_x_test_c5 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
-    # N_x_test_c5 = np.asarray(N_x_test_c5) + 2
+    N_x_test_c5 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
+    N_x_test_c5 = np.asarray(N_x_test_c5) + 2
     
-    # EOC_c5 = get_EOC(N_x_ref, N_x_test_c5, PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion, 1000e-6, output_path)
-    # print("PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion EOC:\n", EOC_c5)
-    # data = {
-    #     "Nx" : N_x_test_c5.tolist(),
-    #     "EOC" : EOC_c5.tolist()
-    # }
+    EOC_c5 = get_EOC(N_x_ref, N_x_test_c5, PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion, 1000e-6, output_path)
+    print("PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion EOC:\n", EOC_c5)
+    data = {
+        "Nx" : N_x_test_c5.tolist(),
+        "EOC" : EOC_c5.tolist()
+    }
     
-    # # Write the dictionary to a JSON file
-    # with open(str(output_path) + '/PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion.json', 'w') as json_file:
-    #     json.dump(data, json_file, indent=4)
+    # Write the dictionary to a JSON file
+    with open(str(output_path) + '/PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
     
     # %% Verify PBM_DPFR_primarySecondaryNucleationGrowth
     # This is a special case, we have Nx and Ncol
