@@ -428,7 +428,7 @@ def calculate_relative_L1_norm(predicted, analytical, x_grid):
     return L1_norm/area
 
 def get_slope(error):
-    return np.array([np.log2(error[i] / error[i-1]) for i in range (1, len(error))])
+    return -np.array([np.log2(error[i] / error[i-1]) for i in range (1, len(error))])
 
 def get_EOC(N_x_ref, N_x_test, target_model, xmax, output_path): 
     
@@ -470,7 +470,7 @@ def get_EOC(N_x_ref, N_x_test, target_model, xmax, output_path):
 
     slopes = get_slope(relative_L1_norms) ## calculate slopes
     
-    return -np.array(slopes)
+    return np.array(slopes)
 
 
 # %% Define crystallization tests
