@@ -33,9 +33,9 @@ import MCT
 
 #%% User Input
 
-commit_message = f"Test run of CADET-Core verification simulations with reduced discretization refinements"
+commit_message = f"Small test run of CADET-Core verification simulations"
 
-rdm_debug_mode = True # Run CADET-RDM in debug mode to test if the script works
+rdm_debug_mode = False # Run CADET-RDM in debug mode to test if the script works
 
 small_test = True # Defines a smaller test set (less numerical refinement steps)
 
@@ -64,20 +64,20 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
         chromatography.chromatography_tests(
             n_jobs=n_jobs, database_path=database_path+"chromatography/",
             small_test=small_test,
-            output_path=output_path, cadet_path=cadet_path
+            output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
             )
     
     if run_crystallization_tests:
         crystallization.crystallization_tests(
             n_jobs=n_jobs, database_path=database_path+"crystallization/",
             small_test=small_test,
-            output_path=output_path, cadet_path=cadet_path
+            output_path=str(output_path) + "/crystallization", cadet_path=cadet_path
             )
     
     if run_MCT_tests:
         MCT.MCT_tests(
             n_jobs=n_jobs, database_path=database_path+"mct/",
             small_test=small_test,
-            output_path=output_path, cadet_path=cadet_path
+            output_path=str(output_path) + "/mct", cadet_path=cadet_path
             )
     
