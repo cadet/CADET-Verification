@@ -15,7 +15,8 @@ The results of the verification studies can be accessed in the [CADET-Verificati
 
 CADET-Verification must be run for deployment and on demand, specifically when critical changes are made to the simulator.
 
-The tests are located in the `src` folder and have descriptive names, so that running a subset of the tests is also possible.
+The tests are located in the `src` folder.
+The main script is called `verify_cadet-core`, please refer to the documentation therein for further instruction.
 
 The reference data used in some of the tests implemented in CADET-Core can be generated using the corresponding tests defined in CADET-Verification.
 
