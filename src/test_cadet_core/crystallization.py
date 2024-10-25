@@ -576,8 +576,8 @@ def crystallization_tests(n_jobs, database_path, small_test,
     # This is a special case, we have Nx and Ncol
     # Here we test EOC long each coordinate
     
-    N_x_ref   = 120 if small_test else 500 + 2
-    N_col_ref = 120 if small_test else 500
+    N_x_ref   = 120 if small_test else 200 + 2 # very fine reference: 500 + 2
+    N_col_ref = 120 if small_test else 200 # very fine reference: 500
     
     x_max = 900e-6 # um
     
@@ -599,7 +599,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     ## EOC, Nx
     
-    N_x_test_c6 = [20, 40, 80, ] if small_test else [25, 50, 100, 200, 400, ]
+    N_x_test_c6 = [20, 40, 80, ] if small_test else [20, 40, 80, 160, ] # very fine grid: [25, 50, 100, 200, 400, ]
     N_x_test_c6 = np.asarray(N_x_test_c6) + 2
     
     n_xs = []   ## store the result nx here
@@ -625,7 +625,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     ## EOC, Ncol
     
-    N_col_test_c6 = [20, 40, 80, ] if small_test else [25, 50, 100, 200, 400, ]   ## grid for EOC
+    N_col_test_c6 = [20, 40, 80, ] if small_test else [20, 40, 80, 160, ] # very fine grid: [25, 50, 100, 200, 400, ]   ## grid for EOC
     N_col_test_c6 = np.asarray(N_col_test_c6)
     
     n_xs = []   ## store the result nx here
