@@ -22,6 +22,34 @@ import os
 import h5py
 import shutil
 from colorama import Fore
+import platform
+from pathlib import Path
+
+def get_cadet_path():
+    install_path = None
+    
+    executable = 'cadet-cli'
+    if install_path is None:
+        try:
+            if platform.system() == 'Windows':
+                executable += '.exe'
+            executable_path = Path(shutil.which(executable))
+        except TypeError:
+            raise FileNotFoundError(
+                "CADET could not be found. Please set an install path"
+            )
+        install_path = executable_path.parent.parent
+    
+    install_path = Path(install_path)
+    cadet_bin_path = install_path / "bin" / executable
+    
+    if cadet_bin_path.exists():
+        return cadet_bin_path
+        
+    else:
+        raise FileNotFoundError(
+            "CADET could not be found. Please check the path"
+        )
 
 _DG_models_ = [
     "GENERAL_RATE_MODEL",
