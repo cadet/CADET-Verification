@@ -52,8 +52,8 @@ sys.path.append(str(Path(".")))
 project_repo = ProjectRepo()
 output_path = project_repo.output_path / "test_cadet-core"
 
-# Specify a source build cadet_path and make sure the commit hash is visible
-cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master7_preV5Commit_21c653\aRELEASE\bin\cadet-cli.exe"
+# The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the full path below
+cadet_path = convergence.get_cadet_path()
  
 
 # %% Run with CADET-RDM
