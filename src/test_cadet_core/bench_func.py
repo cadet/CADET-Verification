@@ -16,6 +16,15 @@ import os
 from joblib import Parallel, delayed
 import copy
 
+# TODO needed for connections matrix of 2D bulk-flow models
+import settings_2Dchromatography
+
+# TODO
+# 1) jedes setting in einem eigenen Skript
+# 2) cadet rdm commit ding drum herum
+# 2) make the generation of h5 files for the convergence solutions optional,
+#    i.e. only generate convergence.json and reference simulation h5 files
+# 3) adapt to systems
 
 # %% Import packages and define helper functions
 
@@ -225,6 +234,51 @@ def create_object_from_config(
                                               unit_id]['discretization']['PAR_POLYDEG'] = par_method
                 config_data['input']['model']['unit_' +
                                               unit_id]['discretization']['PAR_NELEM'] = par_cells
+        if rad_method is not None:
+            
+            config_data['input']['model']['unit_'+unit_id].PORTS = (rad_method + 1 ) * rad_cells
+            
+            if rad_method == 0:
+                config_data['input']['model']['unit_' +
+                                              unit_id]['discretization']['NRAD'] = rad_cells
+            else:
+                config_data['input']['model']['unit_' +
+                                              unit_id]['discretization']['RAD_POLYDEG'] = rad_method
+                config_data['input']['model']['unit_' +
+                                              unit_id]['discretization']['RAD_NELEM'] = rad_cells
+
+            if kwargs.get('rad_inlet_profile', None) is None:
+                # if we have more than 2 units (ie more than 1 inlet), there are radial zones defined
+                n_units = config_data['input']['model']['nunits']
+                add_inlet_per_port = n_units - 1 if n_units > 2 else False
+            else:
+                add_inlet_per_port = kwargs.get('rad_inlet_profile')
+                n_units = (rad_method + 1 ) * rad_cells + 1
+            config_data['input']['model'].nunits = n_units
+                
+            connections, rad_coords = settings_2Dchromatography.generate_connections_matrix(
+                rad_method=rad_method, rad_cells=rad_cells,
+                velocity=config_data['input']['model']['unit_' +
+                                                       unit_id].VELOCITY,
+                col_radius=config_data['input']['model']['unit_' +
+                                                         unit_id].COL_RADIUS,
+                add_inlet_per_port=add_inlet_per_port, add_outlet_per_port=False
+            )
+
+            if add_inlet_per_port is True:
+                for rad in range(rad_cells * (rad_method + 1)):
+                
+                    config_data['input']['model']['unit_' +
+                                                  str(rad + 1).zfill(3)] = copy.deepcopy(config_data['input']['model']['unit_001'])
+    
+                    if kwargs.get('rad_inlet_profile', None) is not None:
+                        config_data['input']['model']['unit_001'].sec_000.CONST_COEFF = kwargs['rad_inlet_profile'](
+                            rad_coords[rad], config_data['input']['model']['unit_000'].COL_RADIUS)
+
+            config_data['input'].model.connections.switch_000.connections = connections
+            
+            if 'radial_init_conc' in kwargs:
+                config_data['input']['model']['unit_'+unit_id].init_c = kwargs['radial_init_conc'](np.array(rad_coords))
 
         if 'LINEAR_SOLVER' in kwargs:
             config_data['input']['model']['unit_' +
@@ -398,6 +452,8 @@ def generate_convergence_data(
             method_name = 'FV'
         else:
             method_name = 'DG_P' + str(ax_method)
+            if rad_method is not None:
+                method_name += 'radP' + str(rad_method)
             if par_method is not None:
                 method_name += 'parP' + str(par_method)
 

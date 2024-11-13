@@ -16,7 +16,11 @@ import copy
 
 import bench_func
 
+import settings_2Dchromatography  # TODO
+
 # %% benchmark templates
+
+# TODO add Langmuir setting used in Breuer et al
 
 _benchmark_settings_ = [
     'full_chromatography_benchmark',
@@ -694,6 +698,141 @@ def full_chromatography_benchmark(
                     LWE_chromatography_benchmark(
                         disc_method, test_size, include_sens, ref_files)
                     )
+
+    return benchmark_config
+
+
+def dg2DLRMP_samsBenchmark(small_test=False, **kwargs):
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_2Dchromatography.SamDiss_2DVerificationSetting(USE_MODIFIED_NEWTON=1, axMethod=1, **kwargs)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '000'
+        ],
+        'which': [
+            'radial_outlet' # radial_outlet outlet_port_000
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [2]
+        ],
+        'ax_discs': [
+            # [[16, 16, 16, 16, 16]]
+            [bench_func.disc_list(4, 6 if not small_test else 4)]
+        ],
+        'rad_methods': [
+            [2]
+        ],
+        'rad_discs': [
+            [bench_func.disc_list(3, 6 if not small_test else 4)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
+        ]
+    }
+
+    return benchmark_config
+
+
+def fv2DLRMP_samsBenchmark(small_test=False, **kwargs):
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_2Dchromatography.SamDiss_2DVerificationSetting(
+                axMethod=0, parNElem=1, USE_MODIFIED_NEWTON=0, **kwargs)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '000'
+        ],
+        'which': [
+            'radial_outlet' # radial_outlet outlet_port_000
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, 6 if not small_test else 3)]
+        ],
+        'rad_methods': [
+            [0]
+        ],
+        'rad_discs': [
+            [bench_func.disc_list(3, 6 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
+        ]
+    }
+
+    return benchmark_config
+
+
+def fv2DGRM_samsBenchmark(small_test=False, **kwargs):
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_2Dchromatography.SamDiss_2DVerificationSetting(
+                axMethod=0, USE_MODIFIED_NEWTON=0, **kwargs)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '000'
+        ],
+        'which': [
+            'radial_outlet' # radial_outlet outlet_port_000
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(16, 5 if not small_test else 4)]
+        ],
+        'rad_methods': [
+            [0]
+        ],
+        'rad_discs': [
+            [bench_func.disc_list(3*4, 5 if not small_test else 4)]
+        ],
+        'par_methods': [
+            [0]
+        ],
+        'par_discs': [
+            [bench_func.disc_list(4, 5 if not small_test else 4)]
+        ]
+    }
 
     return benchmark_config
 
