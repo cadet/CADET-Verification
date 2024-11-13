@@ -2915,14 +2915,17 @@ def convergency_table(method,
                 "Unknown error Type " + error_type + "."
             )
 
+        # we assume that all spatial directions are refined at the same rate and thus only consider one direction to compute the EOC
+        if transport_model is not None and re.search("2D", transport_model):
+            eocDOF = calculate_DOFs(disc[0], method[0], full_DOFs=False, model=transport_model, singleDirection=True)
+        else:
+            eocDOF = calculate_DOFs(disc, method, full_DOFs=False, model=transport_model)
+            
         table.append(current_errors)
         header.append(table_error_name + " error")
         table.append(
             np.insert(
-                calculate_eoc(
-                    # we assume that all spatial directions are refined at the same rate and thus only consider one direction to compute the EOC
-                    calculate_DOFs(disc[0], method[0], full_DOFs=False, model=transport_model, singleDirection=True),
-                    current_errors), 0, 0.0
+                calculate_eoc(eocDOF, current_errors), 0, 0.0
             )
         )
         header.append(table_error_name + " EOC")
