@@ -21,7 +21,6 @@ import re
 import os
 import h5py
 import shutil
-from colorama import Fore
 import platform
 from pathlib import Path
 
