@@ -2,10 +2,16 @@ name: reference_solutions
 channels:
   - conda-forge
 dependencies:
-  - python=3.10
+  - python=3.12
   - conda
   - cadet
   - pip
   - pip:
-      - cadet-process
+      - scipy
+      - numpy
+      - matplotlib
+      - pytest
+      - pandas
+      - h5py
+      - joblib
       - cadet-rdm
