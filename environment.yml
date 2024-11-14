@@ -1,4 +1,4 @@
-name: reference_solutions
+name: verify
 channels:
   - conda-forge
 dependencies:
