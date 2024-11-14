@@ -63,7 +63,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     if run_chromatography_tests:
         chromatography.chromatography_tests(
             n_jobs=n_jobs, database_path=database_path+"chromatography/",
-            small_test=small_test,
+            small_test=small_test, sensitivities=True,
             output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
             )
     

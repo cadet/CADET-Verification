@@ -185,16 +185,7 @@ def run_benchmark(
 # %% FV benchmark configuration used in CADET-Core tests
 
 
-def fv_benchmark(small_test=False, include_sens=True):
-
-    if include_sens:
-        sens_vec = [
-            True, True, True, True, True, True
-        ]
-    else:
-        sens_vec = [
-            False, False, False, False, False, False
-        ]
+def fv_benchmark(small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -205,7 +196,7 @@ def fv_benchmark(small_test=False, include_sens=True):
             'configuration_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.json',
             'configuration_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.json'
         ],
-        'include_sens': sens_vec,
+        'include_sens': [True] * 6 if sensitivities else [False] * 6,
         'ref_files': [
             [None], [None], [None], [None], [None], [None]
         ],
@@ -247,7 +238,7 @@ def fv_benchmark(small_test=False, include_sens=True):
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(small_test=False):
+def dg_benchmark(small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -258,9 +249,7 @@ def dg_benchmark(small_test=False):
             'configuration_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.json',
             'configuration_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.json'
         ],
-        'include_sens': [
-            True, False, False, False, False, False
-        ],
+        'include_sens': [True] * 6 if sensitivities else [False] * 6,
         'ref_files': [
             [None], [None], [None], [None], [None], [None]
         ],
@@ -303,7 +292,7 @@ def dg_benchmark(small_test=False):
 # %% Radial flow (FV) benchmark configuration used in CADET-Core tests
 
 
-def radial_flow_benchmark(small_test=False):
+def radial_flow_benchmark(small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -311,9 +300,7 @@ def radial_flow_benchmark(small_test=False):
             'radial/configuration_radLRMP_dynLin_1comp_sensbenchmark1_FV_Z32.json',
             'radial/configuration_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json'
         ],
-        'include_sens': [
-            True, True, True
-        ],
+        'include_sens': [True] * 3 if sensitivities else [False] * 3,
         'ref_files': [
             [None], [None], [None]
         ],
