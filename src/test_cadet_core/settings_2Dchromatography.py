@@ -425,7 +425,7 @@ def SamDiss_2DVerificationSetting(
                 plt.legend()
             plt.title(f'Column bulk at t = {zeitpunkt}')
             plt.xlabel('$time~/~s$')
-            plt.ylabel('$concentration~/~mol \cdot L^{-1} $')
+            plt.ylabel(r'$concentration~/~mol \cdot L^{-1} $')
             plt.show()
 
         return model

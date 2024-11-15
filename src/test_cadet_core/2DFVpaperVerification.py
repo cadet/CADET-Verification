@@ -5,10 +5,6 @@ Created on Nov 2024
 @author: jmbr
 """
 
-
-import os
-import bench_func
-
 #%%
 
 import utility.convergence as convergence
@@ -40,7 +36,10 @@ output_path = project_repo.output_path / "test_cadet-core" / "2D_chromatography"
 cadet_path = convergence.get_cadet_path()
 Cadet.cadet_path = cadet_path
 
-commit_message = f"Benchmark 2DGRM FV radial inlet variance convergence"
+cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET_PR2DmodelsDG\out\install\aRELEASE\bin\cadet-cli.exe"
+Cadet.cadet_path = cadet_path
+
+commit_message = f"Benchmark 2DGRM FV 3-zone radial inlet variance convergence"
 with project_repo.track_results(results_commit_message=commit_message, debug=True):
 
     os.makedirs(output_path, exist_ok=True)
@@ -75,6 +74,8 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
     
     def fv2D_noRadFlowBenchmark(small_test=False, **kwargs):
 
+        nDisc = 8 if not small_test else 4
+        
         benchmark_config = {
             'cadet_config_jsons': [
                 settings_2Dchromatography.SamDiss_2DVerificationSetting(
@@ -102,24 +103,23 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
                 [0]
             ],
             'ax_discs': [
-                [bench_func.disc_list(4, 8 if not small_test else 6)]
+                [bench_func.disc_list(4, nDisc)]
             ],
             'rad_methods': [
                 [0]
             ],
             'rad_discs': [
-                [bench_func.disc_list(3, 8 if not small_test else 6)]
+                [bench_func.disc_list(3, nDisc)]
             ],
             'par_methods': [
                 [0]
             ],
             'par_discs': [
-                [[1] * 8 if not small_test else [1] * 6]
+                [[1] * nDisc]
             ]
         }
 
         return benchmark_config
-    
     
     # %% create benchmark configuration
     
