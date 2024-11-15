@@ -3001,7 +3001,7 @@ def recalculate_results(file_path, models,
         in variable 'models'.
     ncomp : int
         Number of components for each model, defaults to search string
-        '_\d+comp_' in variable 'models'.
+        '_/d+comp_' in variable 'models'.
     nbound : int
         Number of total bound states for each model, defaults to ncomp
         (mult. parTypes not supported).
@@ -3029,7 +3029,7 @@ def recalculate_results(file_path, models,
                     nor given in model name: " + models[modelIdx])
         if ncomp is None:
             try:
-                ncomp = int(re.search('(_)(\d+)(comp)',
+                ncomp = int(re.search(r'(_)(\d+)(comp)',
                                       models[modelIdx],
                                       re.IGNORECASE).group(2))
             except:
