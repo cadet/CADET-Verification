@@ -40,7 +40,7 @@ def get_cadet_path():
         install_path = executable_path.parent.parent
     
     install_path = Path(install_path)
-    cadet_bin_path = install_path / "bin" / executable
+    cadet_bin_path = install_path
     
     if cadet_bin_path.exists():
         return cadet_bin_path

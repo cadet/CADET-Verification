@@ -72,11 +72,11 @@ def run_simulation(model, cadet_path):
         Cadet.cadet_path = cadet_path
     model[0].save()
     data = model[0].run()
-    if not data.returncode == 0:
+    if not data.return_code == 0:
         #     (f"simulation completed successfully")
         #     model.load()
         # else:
-        print(data)
+        print(data.error_message)
         raise Exception(f"simulation failed")
 
 
