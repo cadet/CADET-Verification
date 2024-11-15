@@ -128,7 +128,7 @@ def create_object_from_database(
 
         config_data = json.loads(url.read().decode())
 
-    setting_name = re.search('configuration_(.*?)(?:\.json|_FV|_DG)',
+    setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
                              cadet_config_json_name).group(1)
 
     return create_object_from_config(
@@ -330,7 +330,7 @@ def generate_convergence_data(
     """
     GRM_setting = 0 if par_method is None else 1
 
-    setting_name = re.search('configuration_(.*?)(?:\.json|_FV|_DG)',
+    setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
                              cadet_config_json)
     if setting_name is None:
         setting_name = cadet_config_json
@@ -870,7 +870,7 @@ def run_convergence_analysis_core(
 
     for modelIdx in range(0, len(cadet_config_jsons)):
 
-        setting_name = re.search('configuration_(.*?)(?:\.json|_FV|_DG)',
+        setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
                                  cadet_config_jsons[modelIdx])
         if setting_name is None:
             setting_name = cadet_config_jsons[modelIdx]
