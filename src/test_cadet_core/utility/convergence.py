@@ -619,7 +619,6 @@ def get_particle_coordinates(simulation, unit='001'):
     return np.squeeze(
         sim_go_to(
             get_simulation(simulation).root, ['output',
-                                              'solution',
                                               'coordinates',
                                               'unit_' + unit,
                                               'particle_coordinates']
@@ -657,7 +656,6 @@ def get_radial_coordinates(simulation, unit='001'):
     return np.squeeze(
         sim_go_to(
             get_simulation(simulation).root, ['output',
-                                              'solution',
                                               'coordinates',
                                               'unit_' + unit,
                                               'radial_coordinates']
