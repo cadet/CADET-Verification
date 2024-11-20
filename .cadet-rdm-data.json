@@ -8,6 +8,6 @@
     "output_folder_name": "output",
     "output_remotes": {
       "origin": "git@github.com:cadet/CADET-Verification-Output.git"
-    }}
+    }
   }
 }
