@@ -525,12 +525,14 @@ def get_commit_hash(simulation):
     np.array
         Solution vector.
     """
-    return np.squeeze(
-        sim_go_to(
-            get_simulation(simulation).root, ['meta',
-                                              'CADET_COMMIT']
-        )
-    )
+    
+    simRoot = get_simulation(simulation).root
+    commit_info = sim_go_to(simRoot, ['meta', 'cadet_commit']).decode('utf-8')
+    
+    if commit_info == 'GITDIR-NOTFOUND':
+        commit_info = 'v.' + sim_go_to(simRoot, ['meta', 'cadet_version']).decode('utf-8') + ' commit'
+    
+    return commit_info
 
 def get_compute_time(simulation):
     """Get compute time from simulation
