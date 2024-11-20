@@ -6,6 +6,8 @@
   "cadet_rdm_version": "0.0.40",
   "output_remotes": {
     "output_folder_name": "output",
-    "output_remotes": {}
+    "output_remotes": {
+      "origin": "git@github.com:cadet/CADET-Verification-Output.git"
+    }}
   }
 }
