@@ -24,7 +24,7 @@ To run in a Docker container:
 ```bash
 # 1. if necessary make changes in the Dockerfile
 docker build -t cadet-verification . # build Docker container
-docker run -v .:/workingdir -w /workingdir cadet-verification python src/test_cadet_core/verify_cadet-core.py
+docker run -v $(pwd):/workingdir -w /workingdir cadet-verification python src/test_cadet_core/verify_cadet-core.py
 ```
 
 
