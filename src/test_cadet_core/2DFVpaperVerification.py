@@ -32,12 +32,8 @@ sys.path.append(str(Path(".")))
 project_repo = ProjectRepo()
 output_path = project_repo.output_path / "test_cadet-core" / "2D_chromatography"
 
-# specify a source build cadet_path
-cadet_path = convergence.get_cadet_path()
-Cadet.cadet_path = cadet_path
-
-cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET_PR2DmodelsDG\out\install\aRELEASE\bin\cadet-cli.exe"
-Cadet.cadet_path = cadet_path
+# The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
+cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
 
 commit_message = f"Benchmark 2DGRM FV 3-zone radial inlet variance convergence"
 with project_repo.track_results(results_commit_message=commit_message, debug=True):
@@ -74,7 +70,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
     
     def fv2D_noRadFlowBenchmark(small_test=False, **kwargs):
 
-        nDisc = 8 if not small_test else 6
+        nDisc = 8 if not small_test else 4
         
         benchmark_config = {
             'cadet_config_jsons': [
@@ -135,6 +131,8 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
     config_names.extend(["2DGRM_dynLin_1Comp"])
     
     # %% Run convergence analysis
+    
+    Cadet.cadet_path = cadet_path
     
     bench_func.run_convergence_analysis(
         database_path=database_path, output_path=output_path,
