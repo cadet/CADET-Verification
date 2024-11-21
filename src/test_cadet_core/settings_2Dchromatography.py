@@ -91,8 +91,21 @@ def lgl_nodes_weights(poly_deg):
 
 
 def generate_connections_matrix(rad_method, rad_cells,
-                                velocity, col_radius,
+                                velocity, porosity, col_radius,
                                 add_inlet_per_port=True, add_outlet_per_port=False):
+    """Computes the connections matrix with const. velocity flow rates, and radial coordinates.
+    Equidistant cell/element spacing is assumed.
+    
+    Parameters
+    ----------
+    porosity : float
+        column porosity (constant)
+    
+    Returns
+    -------
+    List of float, List of float
+        Connections matrix, radial coordinates.
+    """
 
     nRadPoints = (rad_method + 1) * rad_cells
 
@@ -136,7 +149,7 @@ def generate_connections_matrix(rad_method, rad_cells,
     flowRates = []
     columnIdx = 0  # always needs to be the first unit
     for rad in range(nRadPoints):
-        flowRates.append(subcellCrossSectionAreas[rad] * velocity)
+        flowRates.append(subcellCrossSectionAreas[rad] * porosity * velocity)
     # create connections matrix
     connections = []
     # add inlet connections
@@ -345,7 +358,7 @@ def SamDiss_2DVerificationSetting(
     if re.search("2D", column.UNIT_TYPE):
         connections, rad_coords = generate_connections_matrix(
             rad_method=radMethod, rad_cells=radNElem,
-            velocity=column.VELOCITY, col_radius=column.COL_RADIUS,
+            velocity=column.VELOCITY, porosity=column.COL_POROSITY, col_radius=column.COL_RADIUS,
             add_inlet_per_port=nInlets, add_outlet_per_port=False
         )
 

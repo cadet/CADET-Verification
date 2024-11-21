@@ -260,6 +260,8 @@ def create_object_from_config(
                 rad_method=rad_method, rad_cells=rad_cells,
                 velocity=config_data['input']['model']['unit_' +
                                                        unit_id].VELOCITY,
+                porosity=config_data['input']['model']['unit_' +
+                                                       unit_id].COL_POROSITY,
                 col_radius=config_data['input']['model']['unit_' +
                                                          unit_id].COL_RADIUS,
                 add_inlet_per_port=add_inlet_per_port, add_outlet_per_port=False
