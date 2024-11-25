@@ -228,12 +228,12 @@ def SamDiss_2DVerificationSetting(
     column.COL_DISPERSION_RADIAL = kwargs.get('col_dispersion_radial', 5e-8)
     column.FILM_DIFFUSION = kwargs.get('film_diffusion', 6.9e-6)
     column.PAR_DIFFUSION = kwargs.get('par_diffusion', 6.07e-11)
-    column.PAR_SURFDIFFUSION = kwargs.get('par_surfdiffusion', 0.0)  # 1e-11)
+    column.PAR_SURFDIFFUSION = kwargs.get('par_surfdiffusion', 0.0)
 
     # binding parameters
     column.nbound = 1
     column.adsorption_model = kwargs.get('adsorption_model', 'LINEAR')
-    column.adsorption.is_kinetic = kwargs.get('adsorption.is_kinetic', 1)
+    column.adsorption.is_kinetic = kwargs.get('adsorption.is_kinetic', 0)
     column.adsorption.lin_ka = 3.55
     column.adsorption.lin_kd = 0.1
 
@@ -392,9 +392,10 @@ def SamDiss_2DVerificationSetting(
     model.model.connections.NSWITCHES = 1
     model.model.connections.switch_000.SECTION = 0
     model.model.connections.switch_000.connections = connections
+    model.model.connections.connections_include_ports = 1
 
     model.solver.sections.SECTION_CONTINUITY = [0,]
-    model.solver.USER_SOLUTION_TIMES = np.linspace(0, 1500, 1501)
+    model.solver.USER_SOLUTION_TIMES = np.linspace(1, 1500, 1500) if kwargs.get('analytical_reference', False) else np.linspace(0, 1500, 1501)
 
     if not run:
         return {'input': model}

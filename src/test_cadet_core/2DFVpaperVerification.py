@@ -35,7 +35,29 @@ output_path = project_repo.output_path / "test_cadet-core" / "2D_chromatography"
 # The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
 cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
 
+
+
 commit_message = f"Benchmark 2DGRM FV 3-zone radial inlet variance convergence"
+
+
+rad_inlet_profile=None
+# def rad_inlet_profile(r, r_max):
+#     return np.sin(r / r_max * np.pi) + 0.1 # r * 100 #
+#     # return 1.0 # np.sin(r / r_max * (0.5 * np.pi) + 0.25 * np.pi)
+
+setting = {
+    # 'film_diffusion' : 0.0,
+    # 'col_dispersion_radial' : 0.0,
+    'analytical_reference' : True, # If set to true, solution time 0.0 is ignored since its not computed by the analytical solution (CADET-Semi-Analytic)
+    'nRadialZones' : 3,
+    'name' : '2DGRM3Zone_dynLin_1Comp', # 2DGRMsd_reqLin_1Comp # 2DGRM_dynLin_1Comp
+    'adsorption_model' : 'LINEAR',
+    'adsorption.is_kinetic' : 1,
+    'surface_diffusion' : 0.0 # 1e-11 # 0.0
+    }
+
+rerun_sims=False
+
 with project_repo.track_results(results_commit_message=commit_message, debug=True):
 
     os.makedirs(output_path, exist_ok=True)
@@ -52,7 +74,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
     cadet_configs = []
     config_names = []
     include_sens = []
-    ref_files = []
+    ref_files = [['ref_2DGRM3Zone_dynLin_1Comp.h5']]
     unit_IDs = []
     which = []
     idas_abstol = []
@@ -62,21 +84,17 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
     rad_discs = []
     par_methods = []
     par_discs = []
-    
-    rad_inlet_profile=None
-    # def rad_inlet_profile(r, r_max):
-    #     return np.sin(r / r_max * np.pi) + 0.1 # r * 100 #
-    #     # return 1.0 # np.sin(r / r_max * (0.5 * np.pi) + 0.25 * np.pi)
+
     
     def fv2D_noRadFlowBenchmark(small_test=False, **kwargs):
 
-        nDisc = 8 if not small_test else 4
+        nDisc = 8 if not small_test else 6
+        nRadialZones=kwargs.get('nRadialZones',3)
         
         benchmark_config = {
             'cadet_config_jsons': [
                 settings_2Dchromatography.SamDiss_2DVerificationSetting(
-                    # film_diffusion=0.0,
-                    nRadialZones=3,
+                    radNElem=nRadialZones,
                     rad_inlet_profile=rad_inlet_profile,
                     USE_MODIFIED_NEWTON=0, axMethod=0, **kwargs)
             ],
@@ -105,13 +123,13 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
                 [0]
             ],
             'rad_discs': [
-                [bench_func.disc_list(3, nDisc)]
+                [bench_func.disc_list(nRadialZones, nDisc)]
             ],
             'par_methods': [
                 [0]
             ],
-            'par_discs': [
-                [bench_func.disc_list(3, nDisc)]
+            'par_discs': [ # same number of particle cells as radial cells
+                [bench_func.disc_list(nRadialZones, nDisc)]
             ]
         }
 
@@ -119,7 +137,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
     
     # %% create benchmark configuration
     
-    addition = fv2D_noRadFlowBenchmark(small_test=small_test)
+    addition = fv2D_noRadFlowBenchmark(small_test=small_test, **setting)
     
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -128,7 +146,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
         par_methods=par_methods, par_discs=par_discs,
         addition=addition)
 
-    config_names.extend(["2DGRM_dynLin_1Comp"])
+    config_names.extend([setting['name']])
     
     # %% Run convergence analysis
     
@@ -149,5 +167,5 @@ with project_repo.track_results(results_commit_message=commit_message, debug=Tru
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=rad_inlet_profile,
-        rerun_sims=True
+        rerun_sims=rerun_sims
     )
