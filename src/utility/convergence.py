@@ -1334,7 +1334,7 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
     np.array
         Solution at output_coords.
     """
-    if np.any(output_coords > domain_end) or np.any(output_coords < 0.0):
+    if np.any(output_coords - domain_end > 1e-17) or np.any(output_coords < 0.0):
         raise ValueError(
             "get_interpolated_solution: Output coordinates not within [0, L]"
         )
