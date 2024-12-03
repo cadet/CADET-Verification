@@ -41,6 +41,9 @@ small_test = False # Defines a smaller test set (less numerical refinement steps
 
 n_jobs = -1 # For parallelization on the number of simulations
 
+delete_h5_files = True # delete h5 files (but keep convergence tables and plots)
+exclude_files = None # ["file1", "file2"] # specify h5 files that should not be deleted
+
 run_chromatography_tests = True
 run_crystallization_tests = True
 run_MCT_tests = True
@@ -67,6 +70,9 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
             )
     
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/chromatography", exclude_files=exclude_files)
+        
     if run_crystallization_tests:
         crystallization.crystallization_tests(
             n_jobs=n_jobs, database_path=database_path+"crystallization/",
@@ -74,6 +80,9 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             output_path=str(output_path) + "/crystallization", cadet_path=cadet_path
             )
     
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/crystallization", exclude_files=exclude_files)
+        
     if run_MCT_tests:
         MCT.MCT_tests(
             n_jobs=n_jobs, database_path=database_path+"mct/",
@@ -81,3 +90,6 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             output_path=str(output_path) + "/mct", cadet_path=cadet_path
             )
     
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/mct", exclude_files=exclude_files)
+        
