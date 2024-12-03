@@ -3346,6 +3346,50 @@ def mult_sim_rerun(file_path, cadet_path, n_wdh):
             print(file + " kein h5")
 
 
+def delete_h5_files(directory, exclude_files=None):
+    """
+    Deletes all .h5 files in the specified directory, excluding files whose names (without extension) 
+    are in the exclusion list.
+
+    Parameters:
+        directory (str): The path of the directory to clean up.
+        exclude_files (list, optional): List of file names (without extensions) to exclude from deletion.
+    """
+    if not os.path.exists(directory):
+        print(f"Directory {directory} does not exist.")
+        return
+
+    if not os.path.isdir(directory):
+        print(f"Provided path {directory} is not a directory.")
+        return
+
+    if exclude_files is None:
+        exclude_files = []
+
+    # Convert exclude_files to a set for fast lookup
+    exclude_set = set(exclude_files)
+    
+    deleted_files = 0
+    for filename in os.listdir(directory):
+        # Extract the base name (without extension)
+        base_name, ext = os.path.splitext(filename)
+        if ext == '.h5' and base_name not in exclude_set:
+            file_path = os.path.join(directory, filename)
+            try:
+                os.remove(file_path)
+                print(f"Deleted: {file_path}")
+                deleted_files += 1
+            except Exception as e:
+                print(f"Error deleting {file_path}: {e}")
+        elif base_name in exclude_set:
+            print(f"Skipping excluded file: {filename}")
+
+    if deleted_files == 0:
+        print("No .h5 files deleted in the directory.")
+    else:
+        print(f"Deleted {deleted_files} .h5 file(s).")
+
+
 if __name__ == '__main__':
 
     test_eoc()
