@@ -103,8 +103,8 @@ def PBM_CSTR_growth(n_x, output_path):
     model.root.input.model.unit_001.ncomp = n_x
     model.root.input.model.unit_001.use_analytic_jacobian = 1  # jacobian enabled
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_volume = 500e-6
-    model.root.input.model.unit_001.porosity = 1
+    model.root.input.model.unit_001.init_liquid_volume = 500e-6
+    model.root.input.model.unit_001.const_solid_volume = 0.0
     model.root.input.model.unit_001.adsorption_model = 'NONE'
 
     # crystallization
