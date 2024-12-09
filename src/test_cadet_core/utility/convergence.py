@@ -2802,8 +2802,7 @@ def std_plot(x_axis, y_axis, **kwargs):
             str(x_axis.ndim)
         )
 
-
-def std_plot_prep(**kwargs):
+def std_plot_prep(benchmark_plot=True, **kwargs):
     """Create standard plot setting.
 
     Parameters
@@ -2839,19 +2838,21 @@ def std_plot_prep(**kwargs):
         y_label = None
     if 'shape' in kwargs:
         shape = kwargs.pop('shape')
-    else:
+    elif benchmark_plot:
         shape = [20, 10]
+    else:
+        shape = [10, 10]
     if 'font_size_fac' in kwargs:
         font_size_factor = kwargs.pop('font_size_fac')
     else:
         font_size_factor = 1.5
     if 'x_scale' in kwargs:
         x_scale = kwargs.pop('x_scale')
-    else:
+    elif benchmark_plot:
         x_scale = 'log'
     if 'y_scale' in kwargs:
         y_scale = kwargs.pop('y_scale')
-    else:
+    elif benchmark_plot:
         y_scale = 'log'
     if 'x_lim' in kwargs:
         x_lim = kwargs['x_lim']
@@ -2871,19 +2872,21 @@ def std_plot_prep(**kwargs):
     # elif y_lim is not None:
     #     y_ticks = np.logspace(y_lim[0], y_lim[1], num=12, endpoint=True)
 
-    if 'linewidth' not in kwargs:
+    if 'linewidth' not in kwargs and benchmark_plot:
         kwargs['linewidth'] = 3
-    if 'marker' not in kwargs:
+    if 'marker' not in kwargs and benchmark_plot:
         kwargs['marker'] = 'o'
-    if 'markersize' not in kwargs:
+    if 'markersize' not in kwargs and benchmark_plot:
         kwargs['markersize'] = 12
 
     plt.rcParams["figure.figsize"] = (shape[0], shape[1])
 
     plt.legend(fontsize=15*font_size_factor)
     plt.grid()
-    plt.yscale(y_scale)
-    plt.xscale(x_scale)
+    if benchmark_plot or 'y_scale' in kwargs:
+        plt.yscale(y_scale)
+    if benchmark_plot or 'x_scale' in kwargs:
+        plt.xscale(x_scale)
     if x_label is not None:
         plt.xlabel(x_label, fontsize=15*font_size_factor)
     if x_label is not None:
@@ -3377,17 +3380,14 @@ def delete_h5_files(directory, exclude_files=None):
             file_path = os.path.join(directory, filename)
             try:
                 os.remove(file_path)
-                print(f"Deleted: {file_path}")
                 deleted_files += 1
             except Exception as e:
                 print(f"Error deleting {file_path}: {e}")
-        elif base_name in exclude_set:
-            print(f"Skipping excluded file: {filename}")
 
     if deleted_files == 0:
-        print("No .h5 files deleted in the directory.")
+        print("No .h5 files deleted in the {directory} directory.")
     else:
-        print(f"Deleted {deleted_files} .h5 file(s).")
+        print(f"Deleted {deleted_files} .h5 file(s) in the {directory} directory.")
 
 
 if __name__ == '__main__':
