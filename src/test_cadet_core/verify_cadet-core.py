@@ -37,7 +37,7 @@ commit_message = f"Full run of CADET-Core verification"
 
 rdm_debug_mode = False # Run CADET-RDM in debug mode to test if the script works
 
-small_test = False # Defines a smaller test set (less numerical refinement steps)
+small_test = True # Defines a smaller test set (less numerical refinement steps)
 
 n_jobs = -1 # For parallelization on the number of simulations
 
