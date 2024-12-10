@@ -22,7 +22,7 @@ RUN git clone https://github.com/cadet/CADET-core CADET
 
 #RUN git checkout
 
-RUN mkdir -p CADET/build 
+RUN mkdir -p CADET/build
 
 WORKDIR CADET/build
 
@@ -46,4 +46,13 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
 
 RUN micromamba install -y -n base -f /tmp/environment.yml && \
     micromamba clean --all --yes
+
+RUN git config --global --add safe.directory /workingdir && \
+    git config --global --add safe.directory /workingdir/output && \
+    git config --global user.name "IBG RDM DOCKER_USER" && \
+    git config --global user.email "cadet@fz-juelich.de"
+
+RUN git clone https://github.com/cadet/CADET-Verification.git /tmp/CADET-Verification
+WORKDIR CADET-Verification
+RUN git clone https://github.com/cadet/CADET-Verification-Output.git /tmp/CADET-Verification/output
 
