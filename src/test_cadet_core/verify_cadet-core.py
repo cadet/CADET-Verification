@@ -33,11 +33,11 @@ import MCT
 
 #%% User Input
 
-commit_message = f"Full run of CADET-Core verification"
+commit_message = f"Reduced run to verify CADET-Core v5.0.3 release"
 
 rdm_debug_mode = False # Run CADET-RDM in debug mode to test if the script works
 
-small_test = False # Defines a smaller test set (less numerical refinement steps)
+small_test = True # Defines a smaller test set (less numerical refinement steps)
 
 n_jobs = -1 # For parallelization on the number of simulations
 
@@ -56,7 +56,7 @@ project_repo = ProjectRepo()
 output_path = project_repo.output_path / "test_cadet-core"
 
 # The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
-cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
+cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET_master\out\install\aRELEASE" # convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
  
 
 # %% Run with CADET-RDM
