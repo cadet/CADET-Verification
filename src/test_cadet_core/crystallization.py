@@ -156,7 +156,7 @@ def PBM_CSTR_growth(n_x, output_path):
     model.root.input.model.solver.schur_safety = 1e-8
 
     # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 8
+    model.root.input.solver.nthreads = 1
 
     # Tolerances for the time integrator
     model.root.input.solver.time_integrator.abstol = 1e-6
@@ -437,7 +437,10 @@ def get_EOC(N_x_ref, N_x_test, target_model, xmax, output_path):
     model = target_model(N_x_ref, output_path)
     model.save()
     data = model.run()
-    model.load() 
+    if not data.return_code == 0:
+        print(data.error_message)
+        raise Exception(f"simulation failed")
+    model.load()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
 
@@ -455,6 +458,9 @@ def get_EOC(N_x_ref, N_x_test, target_model, xmax, output_path):
         model = target_model(Nx, output_path)
         model.save()
         data = model.run()
+        if not data.return_code == 0:
+            print(data.error_message)
+            raise Exception(f"simulation failed")
         model.load() 
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -586,6 +592,9 @@ def crystallization_tests(n_jobs, database_path, small_test,
     model = PBM_DPFR_primarySecondaryNucleationGrowth(N_x_ref, N_col_ref, output_path)
     model.save()
     data = model.run()
+    if not data.return_code == 0:
+        print(data.error_message)
+        raise Exception(f"simulation failed")
     model.load() 
     
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
@@ -607,6 +616,9 @@ def crystallization_tests(n_jobs, database_path, small_test,
         model = PBM_DPFR_primarySecondaryNucleationGrowth(Nx, N_col_ref, output_path)
         model.save()
         data = model.run()
+        if not data.return_code == 0:
+            print(data.error_message)
+            raise Exception(f"simulation failed")
         model.load() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -633,6 +645,9 @@ def crystallization_tests(n_jobs, database_path, small_test,
         model = PBM_DPFR_primarySecondaryNucleationGrowth(N_x_ref+2, Ncol, output_path)
         model.save()
         data = model.run()
+        if not data.return_code == 0:
+            print(data.error_message)
+            raise Exception(f"simulation failed")
         model.load() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
