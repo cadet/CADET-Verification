@@ -73,8 +73,8 @@ def MCT_tests(n_jobs, database_path, small_test,
 
     plt.plot(time, channel1, label='channel 1')
     plt.legend(fontsize=20)
-    plt.show()
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.show()
     
     model.save()
     
@@ -95,8 +95,8 @@ def MCT_tests(n_jobs, database_path, small_test,
 
     plt.plot(time, channel1, label='channel 1')
     plt.legend(fontsize=20)
-    plt.show()
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.show()
     
     model.save()
     
@@ -119,8 +119,8 @@ def MCT_tests(n_jobs, database_path, small_test,
     plt.plot(time, channel1, label='channel 1')
     plt.plot(time, channel2, label='channel 2')
     plt.legend(fontsize=20)
-    plt.show()
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.show()
     
     model.save()
     
@@ -145,8 +145,8 @@ def MCT_tests(n_jobs, database_path, small_test,
     plt.plot(time, channel2, label='channel 2')
     plt.plot(time, channel3, label='channel 3')
     plt.legend(fontsize=20)
-    plt.show()
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.show()
     
     model.save()
     
