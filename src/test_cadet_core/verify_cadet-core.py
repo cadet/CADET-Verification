@@ -30,20 +30,22 @@ import bench_configs
 import chromatography
 import crystallization
 import MCT
+import systems
 
 #%% User Input
 
 commit_message = f"Full run of CADET-Core verification"
 
-rdm_debug_mode = False # Run CADET-RDM in debug mode to test if the script works
+rdm_debug_mode = 1 # Run CADET-RDM in debug mode to test if the script works
 
-small_test = False # Defines a smaller test set (less numerical refinement steps)
+small_test = 1 # Defines a smaller test set (less numerical refinement steps)
 
 n_jobs = -1 # For parallelization on the number of simulations
 
-run_chromatography_tests = True
-run_crystallization_tests = True
-run_MCT_tests = True
+run_chromatography_tests = 0
+run_chromatography_system_tests = True
+run_crystallization_tests = 0
+run_MCT_tests = 0
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
@@ -64,6 +66,13 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
         chromatography.chromatography_tests(
             n_jobs=n_jobs, database_path=database_path+"chromatography/",
             small_test=small_test, sensitivities=True,
+            output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
+            )
+    
+    if run_chromatography_system_tests:
+        systems.chromatography_systems_tests(
+            n_jobs=n_jobs, database_path=database_path+"chromatography/",
+            small_test=small_test,
             output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
             )
     
