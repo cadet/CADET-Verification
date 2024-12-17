@@ -12,12 +12,27 @@ import timeit
 import time
 import pandas as pd
 
+import bench_func
+
 from cadet import Cadet
 Cadet.cadet_path = r'C:\Users\pbzit\source\Test\out\install\aRELEASE\bin\cadet-cli'
 
 #%% General model options
 
-def model(nelem,polydeg,exactInt, component):
+def SMB_model1(nelem,polydeg,exactInt, component):
+    
+    ncolumns = 8
+
+    ts = 1552  
+    QD = 4.14e-8
+    QE = 3.48e-8
+    QF = 2.00e-8
+    QR = 2.66e-8
+    Q2 = 1.05e-7
+    Q3 = Q2 + QF
+    Q4 = Q3 - QR
+    Q1 = Q4 + QD
+    
     #Setting up the model
     smb_model = Cadet()
 
@@ -63,9 +78,9 @@ def model(nelem,polydeg,exactInt, component):
     #Isotherm specification
     smb_model.root.input.model.unit_004.adsorption_model = 'LINEAR'
     smb_model.root.input.model.unit_004.adsorption.is_kinetic = False    # Kinetic binding
-    if component == 1
+    if component == 1:
         smb_model.root.input.model.unit_004.adsorption.LIN_KA = [0.54] #[0.54, 0.28]      # m^3 / (mol * s)   (mobile phase)
-    elif component == 2
+    elif component == 2:
         smb_model.root.input.model.unit_004.adsorption.LIN_KA = [0.28] #[0.54, 0.28]      # m^3 / (mol * s)   (mobile phase)
     smb_model.root.input.model.unit_004.adsorption.LIN_KD = [1] #[1,1]      # 1 / s (desorption)
     #Initial conditions
@@ -321,49 +336,139 @@ def model(nelem,polydeg,exactInt, component):
     smb_model.root.input['return'].unit_011 = smb_model.root.input['return'].unit_000
 
 
-    #Saving data - do not touch
-    if component == 1
-        smb_model.filename = 'ModelDG1.h5'
-    elif component == 2
-        smb_model.filename = 'ModelDG2.h5'
-    smb_model.save()
+    # #Saving data - do not touch
+    # if component == 1:
+    #     smb_model.filename = 'ModelDG1.h5'
+    # elif component == 2:
+    #     smb_model.filename = 'ModelDG2.h5'
+    # smb_model.save()
 
-    #run model
-    start = timeit.default_timer()
-    data = smb_model.run()
-    stop = timeit.default_timer()
+    # #run model
+    # start = timeit.default_timer()
+    # data = smb_model.run()
+    # stop = timeit.default_timer()
     
-    if data.returncode == 0:
-        print("Simulation completed successfully")
-        smb_model.load()   
-        df = pd.DataFrame({'Time': smb_model.root.output.solution.solution_times,
-                       'C0_E': smb_model.root.output.solution.unit_002.solution_outlet[:,0],
-                       'C0_R': smb_model.root.output.solution.unit_003.solution_outlet[:,0],})
-        return df, smb_model.root.meta.time_sim, stop - start
-    else:
-        print(data)
-        return [], [], []
+    # if data.returncode == 0:
+    #     print("Simulation completed successfully")
+    #     smb_model.load()   
+    #     df = pd.DataFrame({'Time': smb_model.root.output.solution.solution_times,
+    #                    'C0_E': smb_model.root.output.solution.unit_002.solution_outlet[:,0],
+    #                    'C0_R': smb_model.root.output.solution.unit_003.solution_outlet[:,0],})
+    #     return df, smb_model.root.meta.time_sim, stop - start
+    # else:
+    #     print(data)
+    #     return [], [], []
     
+    return smb_model
+
+
+def smb1_systems_tests(n_jobs, database_path, output_path,
+                                 cadet_path, small_test=False, **kwargs):
+
+    nDisc = 4 if small_test else 6
     
+    benchmark_config = {
+        'cadet_config_jsons': [
+            SMB_model1(2,4,1,1)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '000'
+        ],
+        'which': [
+            'outlet'
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, nDisc)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
+        ]
+    }
+
+    return benchmark_config
 
 
+def chromatography_systems_tests(n_jobs, database_path, small_test,
+                                 output_path, cadet_path):
+
+    cadet_configs = []
+    config_names = []
+    include_sens = []
+    ref_files = [] # [[ref1], [ref2]]
+    unit_IDs = []
+    which = []
+    idas_abstol = []
+    ax_methods = []
+    ax_discs = []
+    rad_methods = []
+    rad_discs = []
+    par_methods = []
+    par_discs = []
+    
+    # %% create benchmark configurations
+    
+    addition = smb1_systems_tests(n_jobs, database_path, output_path, # todo
+                                            cadet_path, small_test=small_test)
+    
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        idas_abstol,
+        ax_methods, ax_discs, rad_methods=rad_methods, rad_discs=rad_discs,
+        par_methods=par_methods, par_discs=par_discs,
+        addition=addition)
+    
+    config_names.extend([setting['smb1']])
+    
+    addition = smb2_systems_tests(n_jobs=, database_path, output_path, # todo
+                                            cadet_path, small_test=small_test)
+    
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        idas_abstol,
+        ax_methods, ax_discs, rad_methods=rad_methods, rad_discs=rad_discs,
+        par_methods=par_methods, par_discs=par_discs,
+        addition=addition)
+    
+    config_names.extend([setting['smb2']])
+    
+    # %% Run convergence analysis
+    
+    Cadet.cadet_path = cadet_path
+    
+    bench_func.run_convergence_analysis(
+        database_path=database_path, output_path=output_path,
+        cadet_path=cadet_path,
+        cadet_configs=cadet_configs,
+        cadet_config_names=config_names,
+        include_sens=include_sens,
+        ref_files=ref_files,
+        unit_IDs=unit_IDs,
+        which=which,
+        ax_methods=ax_methods, ax_discs=ax_discs,
+        rad_methods=rad_methods, rad_discs=rad_discs,
+        par_methods=par_methods, par_discs=par_discs,
+        idas_abstol=idas_abstol,
+        n_jobs=n_jobs,
+        rad_inlet_profile=None,
+        rerun_sims=rerun_sims
+    )
 
 
-
-ncolumns = 8
-
-ts = 1552  
-QD = 4.14e-8
-QE = 3.48e-8
-QF = 2.00e-8
-QR = 2.66e-8
-Q2 = 1.05e-7
-Q3 = Q2 + QF
-Q4 = Q3 - QR
-Q1 = Q4 + QD
-
-df, rt, rt1 = model(2,4,1,1)
-df, rt, rt1 = model(2,4,1,2)
 
 
 
