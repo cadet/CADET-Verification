@@ -30,7 +30,7 @@ import bench_configs
 import chromatography
 import crystallization
 import MCT
-import systems
+import chrom_systems
 
 #%% User Input
 
@@ -70,10 +70,10 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             )
     
     if run_chromatography_system_tests:
-        systems.chromatography_systems_tests(
-            n_jobs=n_jobs, database_path=database_path+"chromatography/",
+        chrom_systems.chromatography_systems_tests(
+            n_jobs=n_jobs, database_path=None,
             small_test=small_test,
-            output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
+            output_path=str(output_path) + "/chromatography/systems", cadet_path=cadet_path
             )
     
     if run_crystallization_tests:
