@@ -84,11 +84,11 @@ def SMB_model1(nelem,polydeg,exactInt):
     
     ### Grid cells in column and particle: the most important ones - ensure grid-independent solutions
     smb_model.model.unit_004.discretization.SPATIAL_METHOD = "DG"
-    smb_model.model.unit_004.discretization.nelem = nelem 
+    smb_model.model.unit_004.discretization.NELEM = nelem 
     
     #Polynomial order 
-    smb_model.model.unit_004.discretization.polydeg = polydeg
-    smb_model.model.unit_004.discretization.exact_integration = exactInt
+    smb_model.model.unit_004.discretization.POLYDEG = polydeg
+    smb_model.model.unit_004.discretization.EXACT_INTEGRATION = exactInt
 
     ### Bound states - for zero the compound does not bind, >1 = multiple binding sites
     smb_model.model.unit_004.discretization.nbound = np.ones(n_comp,dtype=int)
@@ -427,7 +427,8 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=None,
-        rerun_sims=True
+        rerun_sims=True,
+        system_refinement_IDs=['004', '005', '006', '007', '008', '009', '010', '011']
     )
 
 
