@@ -193,42 +193,48 @@ def create_object_from_config(
     if 'USE_MODIFIED_NEWTON' in kwargs:
         config_data['input']['solver']['time_integrator']['USE_MODIFIED_NEWTON'] = kwargs['USE_MODIFIED_NEWTON']
 
-    if unit_id is not None:
-        if ax_method == 0:
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['SPATIAL_METHOD'] = "FV"
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['NCOL'] = ax_cells
-            if 'WENO_ORDER' in kwargs.keys():
+    if kwargs.get('system_refinement_IDs', None) is not None:
+        refinement_IDs = kwargs['system_refinement_IDs']
+    else:
+        refinement_IDs = [unit_id]
+        
+    for tmpID in refinement_IDs:
+        if tmpID is not None:
+            if ax_method == 0:
                 config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['weno']['WENO_ORDER'] = kwargs['WENO_ORDER']
-        else:
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['SPATIAL_METHOD'] = "DG"
-            if rad_method is None:
+                                              tmpID]['discretization']['SPATIAL_METHOD'] = "FV"
                 config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['POLYDEG'] = ax_method
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['NELEM'] = ax_cells
+                                              tmpID]['discretization']['NCOL'] = ax_cells
+                if 'WENO_ORDER' in kwargs.keys():
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['weno']['WENO_ORDER'] = kwargs['WENO_ORDER']
             else:
                 config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['AX_POLYDEG'] = ax_method
+                                              tmpID]['discretization']['SPATIAL_METHOD'] = "DG"
+                if rad_method is None:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['POLYDEG'] = ax_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['NELEM'] = ax_cells
+                else:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['AX_POLYDEG'] = ax_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['AX_NELEM'] = ax_cells
+    
+            if par_method is not None:
+                if par_method == 0:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['NPAR'] = par_cells
+                else:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['PAR_POLYDEG'] = par_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['PAR_NELEM'] = par_cells
+    
+            if 'LINEAR_SOLVER' in kwargs:
                 config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['AX_NELEM'] = ax_cells
-
-        if par_method is not None:
-            if par_method == 0:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['NPAR'] = par_cells
-            else:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['PAR_POLYDEG'] = par_method
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['PAR_NELEM'] = par_cells
-
-        if 'LINEAR_SOLVER' in kwargs:
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['LINEAR_SOLVER'] = kwargs['LINEAR_SOLVER']
+                                              tmpID]['discretization']['LINEAR_SOLVER'] = kwargs['LINEAR_SOLVER']
 
     # Create configuration name
     if rad_method is not None:
