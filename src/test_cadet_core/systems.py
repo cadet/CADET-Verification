@@ -8,21 +8,18 @@ Created on Thu Jul 13 15:12:37 2023
 
 import numpy as np
 import matplotlib.pyplot as plt
-import timeit
-import time
 import pandas as pd
 
 import bench_func
+import bench_configs
 
 from cadet import Cadet
 Cadet.cadet_path = r'C:\Users\pbzit\source\Test\out\install\aRELEASE\bin\cadet-cli'
-
+cadet_path = Cadet.cadet_path
 #%% General model options
 
-def SMB_model1(nelem,polydeg,exactInt, component):
+def SMB_model1(nelem,polydeg,exactInt):
     
-    ncolumns = 8
-
     ts = 1552  
     QD = 4.14e-8
     QE = 3.48e-8
@@ -41,7 +38,7 @@ def SMB_model1(nelem,polydeg,exactInt, component):
     smb_model.root.input.model.nunits = 12
     
     #Specify # of components (salt,proteins)
-    n_comp  = 1
+    n_comp  = 2
     
     #First unit operation: inlet
     ## Feed
@@ -78,14 +75,11 @@ def SMB_model1(nelem,polydeg,exactInt, component):
     #Isotherm specification
     smb_model.root.input.model.unit_004.adsorption_model = 'LINEAR'
     smb_model.root.input.model.unit_004.adsorption.is_kinetic = False    # Kinetic binding
-    if component == 1:
-        smb_model.root.input.model.unit_004.adsorption.LIN_KA = [0.54] #[0.54, 0.28]      # m^3 / (mol * s)   (mobile phase)
-    elif component == 2:
-        smb_model.root.input.model.unit_004.adsorption.LIN_KA = [0.28] #[0.54, 0.28]      # m^3 / (mol * s)   (mobile phase)
-    smb_model.root.input.model.unit_004.adsorption.LIN_KD = [1] #[1,1]      # 1 / s (desorption)
+    smb_model.root.input.model.unit_004.adsorption.LIN_KA = [0.54, 0.28] # m^3 / (mol * s)   (mobile phase)
+    smb_model.root.input.model.unit_004.adsorption.LIN_KD = [1,1]      # 1 / s (desorption)
     #Initial conditions
-    smb_model.root.input.model.unit_004.init_c = [0]
-    smb_model.root.input.model.unit_004.init_q = [0] #salt starts at max capacity
+    smb_model.root.input.model.unit_004.init_c = [0, 0]
+    smb_model.root.input.model.unit_004.init_q = [0, 0] #salt starts at max capacity
     
     
     ### Grid cells in column and particle: the most important ones - ensure grid-independent solutions
@@ -144,8 +138,8 @@ def SMB_model1(nelem,polydeg,exactInt, component):
         smb_model.root.input.solver.sections.section_times.append((8*i+8)*switch_time)    
     
     ## Feed and Eluent concentration
-    smb_model.root.input.model.unit_000.sec_000.const_coeff = [2.78] #Inlet flowrate concentration
-    smb_model.root.input.model.unit_001.sec_000.const_coeff = [0] #Desorbent stream
+    smb_model.root.input.model.unit_000.sec_000.const_coeff = [2.78, 2.78] #Inlet flowrate concentration
+    smb_model.root.input.model.unit_001.sec_000.const_coeff = [0, 0] #Desorbent stream
     
     
     #Connections
@@ -335,32 +329,17 @@ def SMB_model1(nelem,polydeg,exactInt, component):
     smb_model.root.input['return'].unit_010 = smb_model.root.input['return'].unit_000
     smb_model.root.input['return'].unit_011 = smb_model.root.input['return'].unit_000
 
-
-    # #Saving data - do not touch
-    # if component == 1:
-    #     smb_model.filename = 'ModelDG1.h5'
-    # elif component == 2:
-    #     smb_model.filename = 'ModelDG2.h5'
-    # smb_model.save()
-
-    # #run model
-    # start = timeit.default_timer()
-    # data = smb_model.run()
-    # stop = timeit.default_timer()
     
-    # if data.returncode == 0:
-    #     print("Simulation completed successfully")
-    #     smb_model.load()   
-    #     df = pd.DataFrame({'Time': smb_model.root.output.solution.solution_times,
-    #                    'C0_E': smb_model.root.output.solution.unit_002.solution_outlet[:,0],
-    #                    'C0_R': smb_model.root.output.solution.unit_003.solution_outlet[:,0],})
-    #     return df, smb_model.root.meta.time_sim, stop - start
-    # else:
-    #     print(data)
-    #     return [], [], []
     
     return smb_model
 
+database_path = None
+small_test = True
+rdm_debug_mode = False
+rerun_sims = False
+output_path = "/"
+n_jobs = 1
+setting = []
 
 def smb1_systems_tests(n_jobs, database_path, output_path,
                                  cadet_path, small_test=False, **kwargs):
@@ -369,7 +348,7 @@ def smb1_systems_tests(n_jobs, database_path, output_path,
     
     benchmark_config = {
         'cadet_config_jsons': [
-            SMB_model1(2,4,1,1)
+            SMB_model1(nDisc,4,1)
         ],
         'include_sens': [
             False
@@ -378,7 +357,7 @@ def smb1_systems_tests(n_jobs, database_path, output_path,
             [None]
         ],
         'unit_IDs': [
-            '000'
+            '002'
         ],
         'which': [
             'outlet'
@@ -434,17 +413,17 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     
     config_names.extend([setting['smb1']])
     
-    addition = smb2_systems_tests(n_jobs=, database_path, output_path, # todo
-                                            cadet_path, small_test=small_test)
+    # addition = smb2_systems_tests(n_jobs, database_path, output_path, # todo
+    #                                         cadet_path, small_test=small_test)
     
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol,
-        ax_methods, ax_discs, rad_methods=rad_methods, rad_discs=rad_discs,
-        par_methods=par_methods, par_discs=par_discs,
-        addition=addition)
+    # bench_configs.add_benchmark(
+    #     cadet_configs, include_sens, ref_files, unit_IDs, which,
+    #     idas_abstol,
+    #     ax_methods, ax_discs, rad_methods=rad_methods, rad_discs=rad_discs,
+    #     par_methods=par_methods, par_discs=par_discs,
+    #     addition=addition)
     
-    config_names.extend([setting['smb2']])
+    # config_names.extend([setting['smb2']])
     
     # %% Run convergence analysis
     
