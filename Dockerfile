@@ -42,6 +42,7 @@ RUN /cadet/CADET/install/bin/cadet-cli --version
 RUN /cadet/CADET/install/bin/createLWE -o LWE.h5
 RUN /cadet/CADET/install/bin/cadet-cli LWE.h5
 
+# This is the default CADET-RDM Dockerfile content
 COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
 
 RUN micromamba install -y -n base -f /tmp/environment.yml && \
@@ -49,10 +50,11 @@ RUN micromamba install -y -n base -f /tmp/environment.yml && \
 
 RUN git config --global --add safe.directory /workingdir && \
     git config --global --add safe.directory /workingdir/output && \
-    git config --global user.name "IBG RDM DOCKER_USER" && \
+    git config --global user.name "IBG_RDM_DOCKER_USER" && \
     git config --global user.email "cadet@fz-juelich.de"
 
 RUN git clone https://github.com/cadet/CADET-Verification.git /tmp/CADET-Verification
 WORKDIR CADET-Verification
-RUN git clone https://github.com/cadet/CADET-Verification-Output.git /tmp/CADET-Verification/output
+# Use filtter=blob:none to reduce the amount of data transfered.
+RUN git clone --filter=blob:none https://github.com/cadet/CADET-Verification-Output.git /tmp/CADET-Verification/output
 
