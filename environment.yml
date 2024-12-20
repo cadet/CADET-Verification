@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.12
-  - cadet
+  - cadet==5.0.3
   - pip
   - pip:
       - scipy
@@ -13,5 +13,5 @@ dependencies:
       - pandas
       - h5py
       - joblib
-      - cadet-python
+      - cadet-python==1.0.4
       - cadet-rdm

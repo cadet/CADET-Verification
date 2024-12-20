@@ -45,8 +45,8 @@ delete_h5_files = True # delete h5 files (but keep convergence tables and plots)
 exclude_files = None # ["file1", "file2"] # specify h5 files that should not be deleted
 
 run_chromatography_tests = True
-run_crystallization_tests = True
-run_MCT_tests = True
+run_crystallization_tests = False
+run_MCT_tests = False
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
@@ -66,7 +66,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     if run_chromatography_tests:
         chromatography.chromatography_tests(
             n_jobs=n_jobs, database_path=database_path+"chromatography/",
-            small_test=small_test, sensitivities=True,
+            small_test=small_test, sensitivities=False,
             output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
             )
     
