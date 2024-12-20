@@ -57,4 +57,4 @@ RUN git clone https://github.com/cadet/CADET-Verification.git /tmp/CADET-Verific
 WORKDIR CADET-Verification
 # Use filtter=blob:none to reduce the amount of data transfered.
 RUN git clone --filter=blob:none https://github.com/cadet/CADET-Verification-Output.git /tmp/CADET-Verification/output
-
+RUN git checkout feature/add_docker_support
