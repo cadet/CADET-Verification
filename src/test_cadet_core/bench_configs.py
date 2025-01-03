@@ -16,7 +16,11 @@ import copy
 
 import bench_func
 
+import settings_2Dchromatography
+
 # %% benchmark templates
+
+# TODO add Langmuir setting used in Breuer et al
 
 _benchmark_settings_ = [
     'full_chromatography_benchmark',
@@ -698,6 +702,59 @@ def full_chromatography_benchmark(
     return benchmark_config
 
 
+def GRM2D_FV_benchmark(small_test=False, **kwargs):
+
+    nDisc = 4 if small_test else 6
+    nRadialZones=kwargs.get('nRadialZones', 3)
+    
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+                radNElem=nRadialZones,
+                rad_inlet_profile=None,
+                USE_MODIFIED_NEWTON=0, axMethod=0, **kwargs)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [kwargs.get('reference', None)]
+        ],
+        'refinement_ID': [
+            '000'
+        ],
+        'unit_IDs': [ # note that we consider radial zone 0
+            str(nRadialZones + 1 + 0).zfill(3) if kwargs.get('analytical_reference', 0) else '000'
+        ],
+        'which': [
+            'outlet' if kwargs.get('analytical_reference', 0) else 'radial_outlet' # outlet_port_000
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, nDisc)]
+        ],
+        'rad_methods': [
+            [0]
+        ],
+        'rad_discs': [
+            [bench_func.disc_list(nRadialZones, nDisc)]
+        ],
+        'par_methods': [
+            [0]
+        ],
+        'par_discs': [ # same number of particle cells as radial cells
+            [bench_func.disc_list(nRadialZones, nDisc)]
+        ]
+    }
+
+    return benchmark_config
+
+
 def merge_benchmark(benchmark_config1, benchmark_config2):
 
     for key in benchmark_config1.keys():
@@ -708,6 +765,7 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
                   idas_abstol, ax_methods, ax_discs,
                   par_methods=None, par_discs=None,
                   rad_methods=None, rad_discs=None,
+                  refinement_IDs=None,
                   addition=None):
 
     if addition is None:
@@ -727,3 +785,6 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
     if rad_methods is not None:
         rad_methods.extend(addition['rad_methods'])
         rad_discs.extend(addition['rad_discs'])
+    if refinement_IDs is not None:
+        if 'refinement_ID' in addition.keys():
+            refinement_IDs.extend(addition['refinement_ID'])

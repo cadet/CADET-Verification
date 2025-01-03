@@ -534,6 +534,7 @@ def get_commit_hash(simulation):
     
     return commit_info
 
+
 def get_compute_time(simulation):
     """Get compute time from simulation
 
@@ -553,6 +554,7 @@ def get_compute_time(simulation):
                                               'time_sim']
         )
     )
+
 
 def get_compute_times(simulations):
 
@@ -650,7 +652,7 @@ def get_radial_coordinates(simulation, unit='001'):
                                           'unit_' + unit,
                                           'unit_type']
     )
-    if not re.search("GENERAL_RATE_MODEL_2D", unit_type):
+    if not re.search("2D", str(unit_type)):
         raise ValueError(
             "Simulation does not have radial coordinates!"
         )
@@ -750,6 +752,58 @@ def calculate_all_L1_errors(simulations, reference,
     return errors
 
 
+def calculate_all_L2_errors(simulations, reference,
+                            unit='001', which='outlet',
+                            weights=None,
+                            comps=-1):
+    """Calculate L2 errors of multiple simulations.
+
+    Parameters
+    ----------
+    simulations : np.ndarray
+        Simulations either Cadet objects or specified by h5 names.
+    reference : Cadet object or string
+        (exact) reference solution specified by Cadet object or h5 name.
+    unit : string
+        Unit ID 000-999.
+    which : string
+        Specifies the solution array of interest, i.e. outlet, bulk, ...
+    weights : np.array
+        L2 error weights
+    comps : list
+        components that are to be considered. defaults to -1,
+        i.e. all components are considered
+
+    Returns
+    -------
+    np.array
+        L2 errors.
+    """
+
+    abs_errors = np.array(calculate_all_abs_errors(
+        simulations, reference, unit, which))
+
+    if comps == -1:
+        comps = range(0, abs_errors.shape[2])
+
+    if len(abs_errors.shape) == 3:  # shape: nMethods, error domain, nComponents
+        if weights is None:
+            weights = [1.0] * abs_errors.shape[1]
+
+        errors = np.zeros((abs_errors.shape[0]))
+
+        for method_idx in range(0, abs_errors.shape[0]):
+            for comp_idx in comps:
+                errors[method_idx] += np.multiply(np.sqrt(np.sum(
+                    np.square(abs_errors[method_idx, :, comp_idx]))), weights)
+    # @todo methods und components unterscheidung
+    else:
+        raise ValueError("not implemented yet for this nMethods, nComp")
+
+    # shape: nMethods, error domain
+    return errors
+
+
 def calculate_all_min_vals(simulations, unit='001', which='outlet'):
     """Calculate minimal values of multiple simulations.
 
@@ -771,7 +825,19 @@ def calculate_all_min_vals(simulations, unit='001', which='outlet'):
 
     for simulation in simulations:
 
-        errors.append(np.min(get_solution(simulation, 'unit_'+unit, which)))
+        if which == 'radial_outlet':
+            sim = []
+            coords = get_radial_coordinates(simulation, unit)
+            nRad = len(coords)
+            
+            for rad in range(nRad):
+            
+                sim.append(get_solution(
+                    simulation, 'unit_'+unit, 'outlet_port_{:03d}'.format(rad))
+                    )
+            errors.append(np.min(np.array(sim)))
+        else:
+            errors.append(np.min(get_solution(simulation, 'unit_'+unit, which)))
 
     return np.array(errors)
 
@@ -829,7 +895,7 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
                 errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp),
                                                   get_solution(reference, 'unit_'+unit, which, comp)))
             elif which == 'bulk':
-                if all(key in kwargs for key in ('orig_coords', 'column_length', 'output_coords', 'polyDeg', 'nCells')):
+                if all(key in kwargs for key in ('orig_coords', 'domain_end', 'output_coords', 'polyDeg', 'nCells')):
                     errors.append(
                         calculate_abs_error(
                             get_solution(simulation, 'unit_'+unit, which,
@@ -837,7 +903,7 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
                             get_interpolated_solution(
                                 get_solution(
                                     reference, 'unit_'+unit, which, comp)[kwargs.get('time_point', -1), :],
-                                kwargs['orig_coords'], kwargs['column_length'], kwargs['output_coords'][Idx], kwargs['polyDeg'], kwargs['nCells'])
+                                kwargs['orig_coords'], kwargs['domain_end'], kwargs['output_coords'][Idx], kwargs['polyDeg'], kwargs['nCells'])
                         )
                     )
                 else:  # it is assumed that solution is already given at the same discrete points
@@ -854,19 +920,48 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
 
     elif isinstance(reference, np.ndarray):
 
+        simIdx = 0
         for simulation in simulations:
 
-            if which == 'outlet':
-                errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp),
-                                                  reference))
+            if re.search('outlet', which):
+                
+                if which == 'radial_outlet':
+                    if all(key in kwargs for key in ('polyDeg', 'nCells', 'domain_end', 'ref_coords')):
+                        
+                        sim = []
+                        sim_interpolated = []
+                        coords = get_radial_coordinates(simulation, unit)
+                        nRad = len(coords)
+                        
+                        for rad in range(nRad):
+                        
+                            sim.append(get_solution(
+                                simulation, 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), comp)
+                                )
+                        sim = np.array(sim)
+                        for tIdx in range(sim.shape[1]):
+                        
+                            sim_interpolated.append(get_interpolated_solution(
+                                sim[:, tIdx],
+                                coords, kwargs['domain_end'], kwargs['ref_coords'], kwargs['polyDeg'], kwargs['nCells'][simIdx]
+                                ))
+                            
+                        sim_interpolated = np.array(sim_interpolated).T
+                        errors.append(calculate_abs_error(reference, sim_interpolated))
+                        
+                    else:  # it is assumed that solution is already given at the same discrete points
+                        errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
+                                                          reference))
+                else:
+                    errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp), reference))
             elif which == 'bulk':
-                if all(key in kwargs for key in ('orig_coords', 'column_length', 'output_coords', 'polyDeg', 'nCells')):
+                if all(key in kwargs for key in ('orig_coords', 'domain_end', 'output_coords', 'polyDeg', 'nCells')):
                     errors.append(
                         calculate_abs_error(
                             get_solution(simulation, 'unit_'+unit, which,
                                          comp)[kwargs.get('time_point', -1), :],
                             get_interpolated_solution(
-                                reference, kwargs['orig_coords'], kwargs['column_length'], kwargs['output_coords'], kwargs['polyDeg'], kwargs['nCells'])
+                                reference, kwargs['orig_coords'], kwargs['domain_end'], kwargs['output_coords'], kwargs['polyDeg'], kwargs['nCells'])
                         )
                     )
                 else:  # it is assumed that solution is already given at the same discrete points
@@ -879,6 +974,8 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
                 raise ValueError(
                     "Error for output " + which + "is not defined."
                 )
+                
+            simIdx += 1
     else:
         raise ValueError(
             "Reference is neither np.ndarray nor Cadet object nor string specifying h5 file name."
@@ -1209,7 +1306,7 @@ def get_interpolated_solution(simulation_name, output_coords, polyDeg, nCells, u
 
 
 # all arrays need to be sorted w.r.t spatial direction
-def get_interpolated_solution(orig_values, orig_coords, column_length, output_coords, polyDeg, nCells):
+def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coords, polyDeg, nCells):
     """Calculate weighted error of solution.
 
     Parameters
@@ -1218,7 +1315,7 @@ def get_interpolated_solution(orig_values, orig_coords, column_length, output_co
         Solution to be interpolated.
     orig_coords : np.array
         Coordinate vector of solution.
-    column_length : float
+    domain_end : float
         Length of spatial 1D interval
     output_coords : np.array
         Coordinates the solution is interpolated to
@@ -1232,7 +1329,7 @@ def get_interpolated_solution(orig_values, orig_coords, column_length, output_co
     np.array
         Solution at output_coords.
     """
-    if np.any(output_coords > column_length) or np.any(output_coords < 0.0):
+    if np.any(output_coords > domain_end) or np.any(output_coords < 0.0):
         raise ValueError(
             "get_interpolated_solution: Output coordinates not within [0, L]"
         )
@@ -1247,7 +1344,7 @@ def get_interpolated_solution(orig_values, orig_coords, column_length, output_co
         for timeIdx in range(orig_values.shape[0]):
             for compIdx in range(orig_values.shape[2]):
                 output_values[timeIdx, :, compIdx] = get_interpolated_solution(
-                    orig_values[timeIdx, :, compIdx], orig_coords, column_length, output_coords, polyDeg, nCells)
+                    orig_values[timeIdx, :, compIdx], orig_coords, domain_end, output_coords, polyDeg, nCells)
 
         return output_values
 
@@ -1255,13 +1352,13 @@ def get_interpolated_solution(orig_values, orig_coords, column_length, output_co
         output_values = np.zeros((orig_values.shape[0], len(output_coords)))
         for timeIdx in range(orig_values.shape[0]):
             output_values[timeIdx, :] = get_interpolated_solution(
-                orig_values[timeIdx, :], orig_coords, column_length, output_coords, polyDeg, nCells)
+                orig_values[timeIdx, :], orig_coords, domain_end, output_coords, polyDeg, nCells)
 
         return output_values
     else:
         output_values = np.zeros(len(output_coords))
 
-    deltaZ = column_length / nCells
+    deltaZ = domain_end / nCells
     nNodes = polyDeg + 1
 
     if polyDeg == 0:
@@ -1654,9 +1751,30 @@ def calculate_L1_error(solution, reference=-1, weights=1.0):
     Returns
     -------
     float
-        Max Error.
+        L1 Error.
     """
     return calculate_weighted_error(solution, reference, weights)
+
+
+def calculate_L2_error(solution, reference=-1, weights=1.0):
+    """Calculate L_w error of solution.
+
+    Parameters
+    ----------
+    solution : np.array
+        Solution or errors of simulation.
+    reference : np.array
+        (exact) reference solution.
+
+    Returns
+    -------
+    float
+        L2 Error.
+    """
+    if (reference == -1):
+        return np.sqrt(np.sum(np.square(solution))) * weights
+    else:
+        return np.sqrt(np.sum(np.square(solution - reference))) * weights
 
 
 def calculate_average_error(solution, reference):
@@ -1787,6 +1905,106 @@ def test_generate_simulation_names_1D():
     np.testing.assert_array_equal(names, expected_names)
 
 
+def generate_2D_name(prefix, axP, axCells, radP, radCells, suffix='.h5'):
+    """Generate simulation name for bulk discretized models (2DLRMP, 2DLRM).
+
+    Parameters
+    ----------
+    prefix : string
+        Name prefix.
+    axP : int
+        axial polynomial degree.
+    axCells : int
+        axial number of cells.
+    radP : int
+        radial polynomial degree.
+    radCells : int
+        radial number of cells.
+    suffix : string
+        Name suffix, including filetype .h5.
+
+    Returns
+    -------
+    string
+        File name.
+    """
+    if int(axCells) <= 0 or int(radCells) <= 0:
+        return None
+
+    if int(axP) == 0 and int(radP) == 0:
+        return prefix + "_FV_axZ" + str(int(axCells)) + "radZ" + str(int(radCells)) + suffix
+
+    elif int(axP) > 0 and int(radP) > 0:
+        return prefix + "_DG_axP" + str(int(abs(axP))) + "Z" + str(int(axCells)) + "_radP" + str(int(abs(radP))) + "Z" + str(int(radCells)) + suffix
+
+    else:
+        return None
+
+
+def generate_simulation_names_2D(prefix, ax_methods, ax_disc, rad_methods, rad_disc, suffix='.h5'):
+    """Generate simulation names for 2Dbulk discretized models (2DLRMP, 2DLRM).
+
+    Parameters
+    ----------
+    prefix : string
+        Name prefix.
+    ax_methods : np.array<int>
+        axial polynomial degrees
+    ax_disc : np.array<int>
+        axial number of cells.
+    rad_methods : np.array<int>
+        radial polynomial degrees
+    rad_disc : np.array<int>
+        radial number of cells.
+    suffix : string
+        Name suffix, including filetype .h5.
+
+    Returns
+    -------
+    string
+        File names.
+    """
+    ax_methods = np.array(ax_methods)
+    ax_disc = np.array(ax_disc)
+    _simulation_names = []
+    nMethods = len(ax_methods)
+    # Check input parameters and infer data
+    if nMethods > 1 and nMethods != ax_disc.shape[0]:
+        ax_disc = ax_disc.transpose()
+        if nMethods != ax_disc.shape[0]:
+            raise ValueError(
+                "Method and discretization must have feasible dimensionalities, look up description."
+            )
+    if nMethods > 1 and nMethods != rad_disc.shape[0]:
+        rad_disc = rad_disc.transpose()
+        if nMethods != rad_disc.shape[0]:
+            raise ValueError(
+                "Method and discretization must have feasible dimensionalities, look up description."
+            )
+
+    if nMethods > 1:
+        nDisc = ax_disc.shape[1]
+    else:
+        nDisc = ax_disc.size
+        _ax_disc = ax_disc
+        _rad_disc = rad_disc
+
+    # Main loop, create names
+    for m in range(0, nMethods):
+        if nMethods > 1:
+            _ax_disc = ax_disc[m]
+            _rad_disc = rad_disc[m]
+
+        for d in range(0, nDisc):
+
+            name = generate_2D_name(
+                prefix, ax_methods[m], _ax_disc[d], rad_methods[m], _rad_disc[d], suffix)
+            if name is not None:
+                _simulation_names.append(name)
+
+    return _simulation_names
+
+
 def generate_GRM_name(prefix, axP, axCells, parP, parCells, parGSM=True, suffix='.h5'):
     """Generate simulation name for bulk and particle discretized GRM.
 
@@ -1838,10 +2056,61 @@ def generate_GRM_name(prefix, axP, axCells, parP, parCells, parGSM=True, suffix=
         return prefix + "_DGexInt_P" + str(int(abs(axP))) + "Z" + str(int(axCells)) + "_cDG_parP" + str(int(abs(parP))) + "parZ" + str(int(parCells)) + suffix
 
     elif int(parP) == 0:
-        raise Exception("Particle polynomial degree must be >= 1 for DG models")
+        raise Exception(
+            "Particle polynomial degree must be >= 1 for DG models")
     else:
         return None
 
+
+def generate_2DGRM_name(prefix, axP, axCells, radP, radCells, parP, parCells, parGSM=True, suffix='.h5'):
+    """Generate simulation name 2DGRM.
+
+    Parameters
+    ----------
+    prefix : string
+        Name prefix.
+    axP : int
+        axial polynomial degree.
+    axCells : int
+        axial number of cells.
+    radP : int
+        radial polynomial degree.
+    radCells : int
+        radial number of cells.
+    parP : int
+        particle polynomial degree.
+    parCells : int
+        particle number of cells.
+    parDG : bool
+        specifies whether DG should be used in the case of a single particle
+        element, as opposed to GSM.
+    suffix : string
+        Name suffix, including filetype .h5.
+
+    Returns
+    -------
+    string
+        File name.
+    """
+
+    if int(axCells) <= 0 or int(parCells) <= 0 or int(radCells) <= 0:
+        return None
+
+    if int(axP) == 0 and int(parP) == 0 and int(radP) == 0:
+        return prefix + "_FV_axZ" + str(int(axCells)) + "radZ" + str(int(radCells)) + "parZ" + str(int(parCells)) + suffix
+
+    elif int(axP) > 0 and int(radP) > 0 and int(parP) > 0:
+
+        name = prefix + "_DG_axP" + str(int(abs(axP))) + "Z" + str(
+            int(axCells)) + "_radP" + str(int(abs(radP))) + "Z" + str(int(radCells))
+
+        if int(parCells) == 1 and parGSM:
+            return name + "_GSM_parP" + str(int(abs(parP))) + "Z" + str(int(parCells)) + suffix
+        else:
+            return name + "_parP" + str(int(abs(parP))) + "Z" + str(int(parCells)) + suffix
+
+    else:
+        return None
 # TODO generate_simulation_names: scalar values as methods input!
 
 
@@ -1957,8 +2226,86 @@ def test_generate_simulation_names_GRM():
     np.testing.assert_array_equal(names, expected_names)
 
 
+def generate_simulation_names_2DGRM(
+        prefix, ax_methods, ax_cells, rad_methods, rad_cells, par_methods, par_cells, suffix='.h5'
+):
+    """Generate simulation names for bulk and particle discretized GRM.
+
+    Parameters
+    ----------
+    prefix : string
+        Name prefix.
+    ax_methods : np.array<int>
+        axial polynomial degrees
+    ax_cells : int
+        axial number of cells.
+    rad_methods : np.array<int>
+        radial polynomial degrees
+    rad_cells : int
+        radial number of cells.
+    par_methods : np.array<int>
+        particle polynomial degrees
+    par_cells : int
+        particle number of cells.
+    suffix : string
+        Name suffix, including filetype .h5.
+
+    Returns
+    -------
+    string
+        File names.
+    """
+    ax_methods = np.array(ax_methods)
+    ax_cells = np.array(ax_cells)
+    rad_methods = np.array(rad_methods)
+    rad_cells = np.array(rad_cells)
+    par_methods = np.array(par_methods)
+    par_cells = np.array(par_cells)
+
+    _simulation_names = []
+    nMethods = len(ax_methods)
+    # Check input parameters and infer data
+    if nMethods > 1 and nMethods != ax_cells.shape[0]:
+        ax_cells = ax_cells.transpose()
+        rad_cells = rad_cells.transpose()
+        par_cells = par_cells.transpose()
+        if nMethods != ax_cells.shape[0] or ax_methods.shape != par_methods.shape:
+            raise ValueError(
+                "Methods and discretizations must have feasible dimensionalities, look up description."
+            )
+    if ax_cells.shape != par_cells.shape and ax_cells.shape != rad_cells.shape:
+        raise ValueError(
+            "Axial, radial, and particle discretizations must have same dimensionalities."
+        )
+
+    if (nMethods > 1):
+        nDisc = ax_cells.shape[1]
+    else:
+        nDisc = len(ax_cells)
+        _ax_cells = ax_cells
+        _rad_cells = rad_cells
+        _par_cells = par_cells
+
+    # Main loop, create names
+    for m in range(0, nMethods):
+        if (nMethods > 1):
+            _ax_cells = ax_cells[m]
+            _rad_cells = rad_cells[m]
+            _par_cells = par_cells[m]
+
+        for d in range(0, nDisc):
+
+            name = generate_2DGRM_name(
+                prefix, ax_methods[m], _ax_cells[d], rad_methods[m], _rad_cells[d], par_methods[m], _par_cells[d], suffix)
+            if name is not None:
+                _simulation_names.append(name)
+
+    return _simulation_names
+
+
 def generate_simulation_names(
-        prefix, ax_methods, ax_cells, par_methods=None, par_cells=None,
+        prefix, ax_methods, ax_cells, rad_methods=None, rad_cells=None,
+        par_methods=None, par_cells=None,
         suffix='.h5'):
     """Generates simulation names.
 
@@ -1974,23 +2321,48 @@ def generate_simulation_names(
         Specifies particle discretization method as DG -> polynomial degree; FV -> 0.
     par_cells : np.array
         Specifies particle number of cells.
+    rad_methods : np.array
+        Specifies radial discretization method
+    rad_cells : np.array
+        Specifies radial number of cells.
 
     Returns
     -------
     np.array
         Simulation names for all discretizations.
     """
-    if (par_methods is None or par_cells is None):
-        if (par_methods == par_cells):
-            return generate_simulation_names_1D(prefix, ax_methods, ax_cells, suffix)
+
+    if (rad_methods is None or rad_cells is None):
+        if (rad_methods == rad_cells):
+            if (par_methods is None or par_cells is None):
+                if (par_methods == par_cells):
+                    return generate_simulation_names_1D(prefix, ax_methods, ax_cells, suffix)
+                else:
+                    raise ValueError(
+                        "Particle discretization and methods must be either None or both specified."
+                    )
+
+            else:
+                return generate_simulation_names_GRM(
+                    prefix, ax_methods, ax_cells, par_methods, par_cells, suffix)
         else:
             raise ValueError(
-                "Particle discretization and methods must be either None or both specified."
+                "Radial discretization and methods must be either None or both specified."
             )
-
     else:
-        return generate_simulation_names_GRM(
-            prefix, ax_methods, ax_cells, par_methods, par_cells, suffix)
+        if (par_methods is None or par_cells is None):
+            if (par_methods == par_cells):
+                return generate_simulation_names_2D(
+                    prefix, ax_methods, ax_cells, rad_methods, rad_cells, suffix)
+            else:
+                raise ValueError(
+                    "Particle discretization and methods must be either None or both specified."
+                )
+
+        else:
+            return generate_simulation_names_2DGRM(
+                prefix, ax_methods, ax_cells, rad_methods, rad_cells,
+                par_methods, par_cells, suffix)
 
 
 def test_generate_simulation_names():
@@ -2185,7 +2557,7 @@ def oscillation_suppression_prefix(**oscillation_suppression):
 
 
 def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
-                   full_DOFs=False, model='LRMP', nBound=None):
+                   full_DOFs=False, model=None, nBound=None, singleDirection=False):
     """Calculate number of degrees of freedom.
 
     Parameters
@@ -2201,6 +2573,8 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
         Number of components
     nBound : int
         Number of bound states
+    singleDirection : Bool
+        Determines whether only a single (the first) direction should be considered, e.g. to determine the refinement rate
 
     Returns
     -------
@@ -2216,50 +2590,88 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
     """
     method = np.array(method)
     discretization = np.array(discretization)
+        
+    if singleDirection:
+        return discretization
 
     if np.any(discretization <= 0):
         raise ValueError(
             "Discretization must be larger than 0."
         )
-    if discretization.ndim not in [1, 2] or method.ndim not in [0, 1]:
-        if not (discretization.ndim == 0 and method.ndim == 0):
-            raise ValueError(
-                "Method and discretization must have feasible dimensionalities, look up description."
-            )
+    if model is None or not re.search("2D", model):
+        if discretization.ndim not in [1, 2] or method.ndim not in [0, 1]:
+            if not (discretization.ndim == 0 and method.ndim == 0):
+                raise ValueError(
+                    "Method and discretization must have feasible dimensionalities, look up description."
+                )
 
     if nBound == None:
         nBound = nComp
 
-    inlet_dof = nComp if full_DOFs else 0
     bulk_dof = 0
     par_dof = 0
     flux_dof = 0
 
-    if discretization.ndim == 2:  # GRM
-        bulk_dof = (abs(method[0]) + 1) * discretization[0, :] * nComp
-        if full_DOFs:
-            flux_dof = bulk_dof
-            par_dof = (
-                (abs(method[0]) + 1) * discretization[0, :]
-                * ((abs(method[1]) + 1) * discretization[1, :] * (nComp + nBound))
-            )
-
-    elif discretization.ndim in [0, 1]:  # LRM or LRMP
-        bulk_dof = (abs(method) + 1) * discretization * nComp
-        if full_DOFs:
-            if model == "LRMP":
-                par_dof = (nComp + nBound) * abs(method+1) * discretization
-                if method == 0:  # add flux states for FV discretization
+    if model is None or not re.search("2D", model):
+        
+        inlet_dof = nComp if full_DOFs else 0
+        
+        if discretization.ndim == 2:  # GRM
+            bulk_dof = (abs(method[0]) + 1) * discretization[0, :] * nComp
+            if full_DOFs:
+                if method[0] == 0:  # add flux states for FV discretization
                     flux_dof = bulk_dof
-            elif model == "LRM":
-                par_dof = nBound * abs(method+1) * discretization
-            else:
-                raise ValueError(
-                    "Unknown transport model \"" + model +
-                    "\" or wrong dimensionality of input."
+                par_dof = (
+                    (abs(method[0]) + 1) * discretization[0, :]
+                    * ((abs(method[1]) + 1) * discretization[1, :] * (nComp + nBound))
                 )
-
-    return inlet_dof + bulk_dof + flux_dof + par_dof
+    
+        elif discretization.ndim in [0, 1]:  # LRM or LRMP
+            bulk_dof = (abs(method) + 1) * discretization * nComp
+            if full_DOFs:
+                if model == "LRMP":
+                    par_dof = (nComp + nBound) * abs(method+1) * discretization
+                    if method == 0:  # add flux states for FV discretization
+                        flux_dof = bulk_dof
+                elif model == "LRM":
+                    par_dof = nBound * abs(method+1) * discretization
+                else:
+                    raise ValueError(
+                        "Unknown transport model \"" + model +
+                        "\" or wrong dimensionality of input."
+                    )
+    
+        return inlet_dof + bulk_dof + flux_dof + par_dof
+    
+    else:
+        
+        inlet_dof = nComp * (method[1] + 1) * discretization[1, :] if full_DOFs else 0
+        
+        if discretization.ndim not in [2, 3]:
+            raise ValueError(
+                "Dimensionality in determination of DOFs unclear"
+            )
+            
+        bulk_dof = (method[0] + 1) * discretization[0, :] * (method[1] + 1) * discretization[1, :] * nComp
+            
+        if full_DOFs and method[0] == 0: # add flux dofs for FV
+            flux_dof = bulk_dof
+    
+        if discretization.ndim == 3:  # 2D GRM
+            if full_DOFs:
+                if re.search(model, "LRMP"):
+                    par_dof = (nComp + nBound) * bulk_dof
+                elif re.search(model, "LRM"):
+                    par_dof = (nComp + nBound) * bulk_dof
+                elif re.search(model, "GRM"):
+                    par_dof = (nComp + nBound) * (method[2] + 1) * discretization[2, :] * bulk_dof
+                else:
+                    raise ValueError(
+                        "Unknown transport model \"" + model +
+                        "\" or wrong dimensionality of input."
+                    )
+            
+        return inlet_dof + bulk_dof + par_dof + flux_dof
 
 
 def test_calculate_DOFs():
@@ -2425,7 +2837,8 @@ def convergency_table(method,
                       error_types=np.array(["max"]),
                       delta=1.0,
                       normalization=1.0,
-                      full_DOFs=False):
+                      full_DOFs=False,
+                      transport_model=None):
     """Calculate convergency table for one spatial method for column outlet.
 
     Parameters
@@ -2434,7 +2847,7 @@ def convergency_table(method,
         Discretization method, i.e. polynomial degree(s) of method with FV -> 0.
         Multiple polynomial degrees must be specified for GRM, i.e. [bulk, particle].
     disc : np.array
-        Discretization steps (GRM stored as [[bulk], [particle]]).
+        Discretization steps (GRM stored as [[bulk], [radial] [particle]]).
     sim_names : np.array
         String with simulation names, if compute times should be included.
     abs_errors : np.array
@@ -2447,7 +2860,7 @@ def convergency_table(method,
     normalization : float
         normalization factor for errors.
     full_DOFs : boolean
-        Default recommended! Specifies whether or not particle DOFs are considered for convergency.
+        Default recommended for 1.5D models to neglect particle dimension
 
     Returns
     -------
@@ -2472,12 +2885,27 @@ def convergency_table(method,
     table = []
     # Infer dimensionality of table
     offRow = 1
-    if (disc.ndim == 2):    # GRM
-        nDisc = disc.shape[1]
-        offCol = 2
-        header.append("$N_e^p$")
-        table.append(disc[0])
-        table.append(disc[1])
+    if disc.ndim == 2:
+        if len(disc) == 3 and (transport_model is not None and re.search("2D", transport_model)): # 2DGRM
+            nDisc = disc.shape[1]
+            offCol = 3
+            header.append("$N_e^r$")
+            header.append("$N_e^p$")
+            table.append(disc[0])
+            table.append(disc[1])
+            table.append(disc[2])
+        elif len(disc) == 2 and (transport_model is not None and re.search("2D", transport_model)): # 2D LRM or LRMP
+            nDisc = disc.shape[1]
+            offCol = 2
+            header.append("$N_e^r$")
+            table.append(disc[0])
+            table.append(disc[1])
+        elif len(disc) == 2: # GRM
+            nDisc = disc.shape[1]
+            offCol = 2
+            header.append("$N_e^p$")
+            table.append(disc[0])
+            table.append(disc[1])
     elif (disc.ndim == 1):   # LRMP, LRM
         nDisc = len(disc)
         offCol = 1
@@ -2504,7 +2932,7 @@ def convergency_table(method,
                     "Not the same number of discretizations as errors."
                 )
 
-    DOFs = calculate_DOFs(disc, method, full_DOFs=full_DOFs)
+    DOFs = calculate_DOFs(disc, method, full_DOFs=full_DOFs, model=transport_model)
 
     # Main loop: calculate all errors and EOC's
     for error_type in range(0, len(error_types)):
@@ -2555,18 +2983,34 @@ def convergency_table(method,
                     current_errors[d] = calculate_L1_error(
                         abs_errors[d, :], weights=delta)
 
+        elif (re.match("L2", error_types[error_type], re.IGNORECASE)
+              or re.match("L^2", error_types[error_type], re.IGNORECASE)):
+
+            table_error_name = "$L^2$"
+            for d in range(0, nDisc):
+                if abs_errors.ndim == 1:
+                    current_errors[d] = calculate_L2_error(
+                        abs_errors[d], weights=delta)
+                else:
+                    current_errors[d] = calculate_L2_error(
+                        abs_errors[d, :], weights=delta)
+
         else:
             raise ValueError(
                 "Unknown error Type " + error_type + "."
             )
 
+        # we assume that all spatial directions are refined at the same rate and thus only consider one direction to compute the EOC
+        if transport_model is not None and re.search("2D", transport_model):
+            eocDOF = calculate_DOFs(disc[0], method[0], full_DOFs=False, model=transport_model, singleDirection=True)
+        else:
+            eocDOF = calculate_DOFs(disc, method, full_DOFs=False, model=transport_model)
+            
         table.append(current_errors)
         header.append(table_error_name + " error")
-        # calculate EOC's from errors
-        # TODO should be NAN or '-', not 0.0
         table.append(
             np.insert(
-                calculate_eoc(DOFs, current_errors), 0, 0.0
+                calculate_eoc(eocDOF, current_errors), 0, 0.0
             )
         )
         header.append(table_error_name + " EOC")
@@ -2802,6 +3246,7 @@ def std_plot(x_axis, y_axis, **kwargs):
             str(x_axis.ndim)
         )
 
+
 def std_plot_prep(benchmark_plot=True, **kwargs):
     """Create standard plot setting.
 
@@ -2852,7 +3297,7 @@ def std_plot_prep(benchmark_plot=True, **kwargs):
         x_scale = 'log'
     if 'y_scale' in kwargs:
         y_scale = kwargs.pop('y_scale')
-    elif benchmark_plot:
+    else:
         y_scale = 'log'
     if 'x_lim' in kwargs:
         x_lim = kwargs['x_lim']
@@ -2874,7 +3319,7 @@ def std_plot_prep(benchmark_plot=True, **kwargs):
 
     if 'linewidth' not in kwargs and benchmark_plot:
         kwargs['linewidth'] = 3
-    if 'marker' not in kwargs and benchmark_plot:
+    if 'marker' not in kwargs:
         kwargs['marker'] = 'o'
     if 'markersize' not in kwargs and benchmark_plot:
         kwargs['markersize'] = 12
@@ -2903,7 +3348,6 @@ def std_plot_prep(benchmark_plot=True, **kwargs):
         plt.yticks(fontsize=15*font_size_factor)
     if title is not None:
         plt.title(title, fontsize=15*font_size_factor)
-
 
 def std_latex_table(data_frame, latex_columns, math_mode=True, error_digits=3):
     """Create latex table from dataframe.
@@ -2969,6 +3413,7 @@ def recalculate_results(file_path, models,
                         exact_names,
                         unit='001', which='outlet',
                         par_methods=[None], par_cells=None,
+                        rad_methods=[None], rad_cells=None,
                         incl_min_val=True,
                         transport_model=None, ncomp=None, nbound=None,
                         save_path_=None,
@@ -2992,6 +3437,10 @@ def recalculate_results(file_path, models,
         Particle discretization methods, i.e. 0:FV;Z^+:cDG;Z^-:DG.
     par_cells : array
         Particle number of cells.
+    rad_methods : array
+        Radial discretization methods
+    rad_cells : array
+        Radial number of cells.
     exact_names : array
         Strings with reference solution names (full, without path)
             or np.arrays with reference solutions
@@ -3019,11 +3468,13 @@ def recalculate_results(file_path, models,
 
     for modelIdx in range(0, len(models)):
 
+        extra_keys = {}        
+
         # needed for DOF calculation
         if transport_model is None:
             try:
                 transport_model = re.search(
-                    'LRM(?!P)|LRMP|GRM',
+                    '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM',
                     models[modelIdx],
                     re.IGNORECASE).group(0)
             except:
@@ -3050,9 +3501,26 @@ def recalculate_results(file_path, models,
         if incl_min_val:
             min_val = []
 
-        if type(exact_names[modelIdx]) is np.ndarray:
+        if type(exact_names[modelIdx]) is not str and type(exact_names[modelIdx]) is not None:
+            
             reference = exact_names[modelIdx]
+            
+        elif which == 'radial_outlet':
+            
+            extra_keys['domain_end'] = sim_go_to(get_simulation(file_path+exact_names[modelIdx]).root,
+                      ['input', 'model', 'unit_'+unit, 'col_radius']
+                      )
+            extra_keys['ref_coords'] = get_radial_coordinates(file_path+exact_names[modelIdx], unit)
+            nRad = len(extra_keys['ref_coords'])
+            reference = []
+            kwargs.update(extra_keys)
+            
+            for rad in range(nRad):
+                reference.append(get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
+                    'comp', [-1])))
+            reference=np.array(reference)
         else:
+            
             reference = get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, which, kwargs.get(
                 'comp', [-1]), **{'sensIdx': kwargs.get('sensIdx', 0)})
 
@@ -3063,33 +3531,65 @@ def recalculate_results(file_path, models,
                 if len(ax_methods) > 1:
                     ax_cells_ = ax_cells[m]
                     par_cells_ = None if par_cells is None else par_cells[m]
+                    rad_cells_ = None if rad_cells is None else rad_cells[m]
                 else:
                     ax_cells_ = ax_cells
                     par_cells_ = par_cells
+                    rad_cells_ = rad_cells
 
-                if par_methods[0] is None:
-                    simulation_names.append(
-                        generate_simulation_names(
-                            prefix=file_path+models[modelIdx],
-                            ax_methods=[ax_methods[m]], ax_cells=ax_cells_
+                if rad_methods[0] is None:
+                    if par_methods[0] is None:
+                        simulation_names.append(
+                            generate_simulation_names(
+                                prefix=file_path+models[modelIdx],
+                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_
+                            )
                         )
-                    )
+                    else:
+                        simulation_names.append(
+                            generate_simulation_names(
+                                prefix=file_path+models[modelIdx],
+                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
+                                par_methods=[par_methods[m]
+                                             ], par_cells=par_cells_
+                            )
+                        )
                 else:
-                    simulation_names.append(
-                        generate_simulation_names(
-                            prefix=file_path+models[modelIdx],
-                            ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
-                            par_methods=[par_methods[m]], par_cells=par_cells_
+                    if par_methods[0] is None:
+                        simulation_names.append(
+                            generate_simulation_names(
+                                prefix=file_path+models[modelIdx],
+                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
+                                rad_methods=[rad_methods[m]
+                                             ], rad_cells=rad_cells_
+                            )
                         )
-                    )
+                    else:
+                        simulation_names.append(
+                            generate_simulation_names(
+                                prefix=file_path+models[modelIdx],
+                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
+                                par_methods=[par_methods[m]
+                                             ], par_cells=par_cells_,
+                                rad_methods=[rad_methods[m]
+                                             ], rad_cells=rad_cells_
+                            )
+                        )
+
+        nTimePoints = len(get_solution_times(simulation_names[0][0]))
+        
+        error_weight = 1.0/nTimePoints if kwargs.get('time_weighted_error', False) else 1.0
+        
         for m in range(0, len(ax_methods)):
 
             if len(ax_methods) > 1:
                 ax_cells_ = ax_cells[m]
                 par_cells_ = None if par_cells is None else par_cells[m]
+                rad_cells_ = None if rad_cells is None else rad_cells[m]
             else:
                 ax_cells_ = ax_cells
                 par_cells_ = par_cells
+                rad_cells_ = rad_cells
 
             abs_errors.append(
                 calculate_all_abs_errors(
@@ -3097,6 +3597,7 @@ def recalculate_results(file_path, models,
                     reference,
                     unit,
                     which=which,
+                    polyDeg=rad_methods[m], nCells=rad_cells_,
                     **kwargs
                 )
             )
@@ -3108,7 +3609,7 @@ def recalculate_results(file_path, models,
                         which=which
                     )
                 )
-            if par_methods[0] is None:
+            if par_methods[0] is None and rad_methods[0] is None:
                 DoFs.append(
                     calculate_DOFs(ax_cells_,
                                    ax_methods[m],
@@ -3117,41 +3618,53 @@ def recalculate_results(file_path, models,
                                    nComp=ncomp, nBound=nbound)
                 )
                 bulk_DoFs.append(
-                    calculate_DOFs(ax_cells_,
-                                   ax_methods[m],
-                                   full_DOFs=False,
-                                   model=transport_model,
-                                   nComp=ncomp, nBound=nbound)
+                    calculate_DOFs(DoFs[-1])
                 )
                 # Convergence Table
                 header, table = convergency_table(ax_methods[m],
                                                   ax_cells_,
                                                   abs_errors[m],
-                                                  error_types=['max', 'L1'],
+                                                  delta=error_weight,
+                                                  error_types=kwargs.get('error_types', ['max', 'L1', 'L2']),
                                                   sim_names=simulation_names[m])
 
             else:
+                
+                aux_methods = [ax_methods[m]]
+                aux_cells = [ax_cells_]
+                
+                if rad_methods[0] is not None:
+                    aux_methods.append(rad_methods[m])
+                    aux_cells.append(rad_cells_)
+                
+                if par_methods[0] is not None:
+                    aux_methods.append(par_methods[m])
+                    aux_cells.append(par_cells_)
+                
                 DoFs.append(
-                    calculate_DOFs([ax_cells_, par_cells_],
-                                   [ax_methods[m], par_methods[m]],
+                    calculate_DOFs(aux_cells,
+                                   aux_methods,
                                    full_DOFs=True,
                                    model=transport_model,
                                    nComp=ncomp, nBound=nbound)
                 )
                 bulk_DoFs.append(
-                    calculate_DOFs([ax_cells_, par_cells_],
-                                   [ax_methods[m], par_methods[m]],
+                    calculate_DOFs(aux_cells,
+                                   aux_methods,
                                    full_DOFs=False,
                                    model=transport_model,
                                    nComp=ncomp, nBound=nbound)
                 )
                 # Convergence Table
                 header, table = convergency_table(
-                    [ax_methods[m], par_methods[m]],
-                    [ax_cells_, par_cells_],
+                    aux_methods,
+                    aux_cells,
                     abs_errors[m],
-                    error_types=['max', 'L1'],
-                    sim_names=simulation_names[m]
+                    delta=error_weight,
+                    error_types=kwargs.get('error_types', ['max', 'L1', 'L2']),
+                    sim_names=simulation_names[m],
+                    full_DOFs=False,
+                    transport_model=transport_model
                 )
 
             if incl_min_val:
@@ -3182,7 +3695,7 @@ def recalculate_results(file_path, models,
             header = np.insert(header, len(header), 'DoF')
             result = np.hstack(
                 (convergence_tables[m], np.atleast_2d(DoFs[m]).T))
-            header = np.insert(header, len(header), 'Axial DoF')
+            header = np.insert(header, len(header), 'Bulk DoF')
             result = np.hstack(
                 (result, np.atleast_2d(bulk_DoFs[m]).T))
 
