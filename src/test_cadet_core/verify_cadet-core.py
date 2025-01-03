@@ -30,6 +30,7 @@ import bench_configs
 import chromatography
 import crystallization
 import MCT
+import twoDimChromatography
 
 #%% User Input
 
@@ -47,6 +48,7 @@ exclude_files = None # ["file1", "file2"] # specify h5 files that should not be 
 run_chromatography_tests = True
 run_crystallization_tests = True
 run_MCT_tests = True
+run_2Dmodels_tests = True
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
@@ -92,4 +94,14 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/mct", exclude_files=exclude_files)
+        
+    if run_2Dmodels_tests:
+        twoDimChromatography.GRM2D_linBnd_tests(
+                n_jobs=n_jobs, database_path=None, small_test=small_test,
+                output_path=str(output_path) + "/2Dchromatography", cadet_path=cadet_path,
+                reference_data_path=str(project_repo.output_path.parent / 'data'),
+                use_CASEMA_reference=True, rerun_sims=True)
+    
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/2Dchromatography", exclude_files=exclude_files)
         

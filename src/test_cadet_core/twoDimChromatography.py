@@ -12,11 +12,7 @@ the 2DGRM. The results of this convergence analysis are published in Rao et al.
 
 # %% import packages and files
 import utility.convergence as convergence
-import re
 import os
-import sys
-from pathlib import Path
-from joblib import Parallel, delayed
 import numpy as np
 import json
 import shutil
@@ -31,28 +27,6 @@ from utility import convergence
 import bench_func
 import bench_configs
 import settings_2Dchromatography
-
-
-# %% set variables for evaluation (can be modified)
-
-sys.path.append(str(Path(".")))
-project_repo = ProjectRepo()
-output_path = project_repo.output_path / "paper" / "2025_Rao_et_al_2DGRM"
-
-# The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
-# path to root folder of bin\cadet-cli
-cadet_path = convergence.get_cadet_path()
-commit_message = f"Convergence test for the FV-discretized linear 2DGRM with 3 zones to be used in Rao et al. (2025)"
-
-use_CASEMA_reference = True  # Use analytical reference provided in data folder
-n_jobs = -1
-
-# small_test is set to true to define a minimal benchmark, which can be used
-# to see if the simulations still run and see first results.
-# To run the full extensive benchmarks, this needs to be set to false.
-small_test = False
-rdm_debug_mode = False
-rerun_sims = True
 
 
 # %% We define multiple settings convering binding modes, surface diffusion and
@@ -424,89 +398,4 @@ def GRM2D_linBnd_tests(
             with open(target_name, "w") as file:
                 # Write with pretty formatting
                 json.dump(target_data, file, indent=4)
-
-
-# %% Execute convergence analysis with CADET-RDM
-
-
-with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
-
-    GRM2D_linBnd_tests(
-        n_jobs=n_jobs, database_path=None, small_test=small_test,
-        output_path=output_path, cadet_path=cadet_path,
-        reference_data_path=str(project_repo.output_path.parent / 'data'),
-        use_CASEMA_reference=use_CASEMA_reference, rerun_sims=rerun_sims)
-
-    def json_to_csv(json_file, csv_file, subgroup_path, ignore_data):
-        # Read the JSON file
-        with open(json_file, 'r') as file:
-            data = json.load(file)
-    
-        # Navigate to the specified subgroup path
-        subgroup = data
-        for key in subgroup_path:
-            if key not in subgroup:
-                raise KeyError(f"Key '{key}' not found in JSON data at path {' -> '.join(subgroup_path[:subgroup_path.index(key)+1])}.")
-            subgroup = subgroup[key]
-    
-        # Check if the subgroup is a dictionary with lists as values
-        if not isinstance(subgroup, dict) or not all(isinstance(value, list) for value in subgroup.values()):
-            raise ValueError(f"Subgroup at path '{' -> '.join(subgroup_path)}' must be a dictionary with lists as values.")
-    
-        # Extract keys and corresponding lists
-        all_keys = list(subgroup.keys())
-        all_keys = [item for item in all_keys if item not in ignore_data]
-    
-        # Prepare rows for the CSV
-        rows = []
-        max_length = max(len(values) for values in subgroup.values())
-        for i in range(max_length):
-            row = []
-            for key in all_keys:
-                row.append(subgroup[key][i] if i < len(subgroup[key]) else "")  # Fill missing values with an empty string
-            rows.append(row)
-    
-        # Write to the CSV file
-        with open(csv_file, 'w', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-    
-            # Write header
-            writer.writerow(all_keys)
-    
-            # Write data rows
-            writer.writerows(rows)
-    
-    # Example usage
-    json_file = str(output_path) + r"/convergence_2DGRM3Zone_noBnd_1Comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_2DGRM3Zone_noBnd_1Comp.csv"  # Output CSV file
-    subgroup_path = ['convergence', 'FV', 'outlet']  # Path to the subgroup in the JSON file
-    # ignore_data not required since desired columns can be picked in latex
-    ignore_data = []#['$N_d$', 'Min. value', 'DoF', 'Bulk DoF']
-    
-    json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
-    
-    json_file = str(output_path) + r"/convergence_2DGRM3Zone_dynLin_1Comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_2DGRM3Zone_dynLin_1Comp.csv"  # Output CSV file
-    json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
-    
-    json_file = str(output_path) + r"/convergence_2DGRMsd3Zone_dynLin_1Comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_2DGRMsd3Zone_dynLin_1Comp.csv"  # Output CSV file
-    json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
-    
-    json_file = str(output_path) + r"/convergence_2DGRM3Zone_reqLin_1Comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_2DGRM3Zone_reqLin_1Comp.csv"  # Output CSV file
-    json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
-    
-    json_file = str(output_path) + r"/convergence_2DGRMsd3Zone_reqLin_1Comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_2DGRMsd3Zone_reqLin_1Comp.csv"  # Output CSV file
-    json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
-    
-    if small_test:
-        json_file = str(output_path) + r"/convergence_2DGRM2parType3Zone_1Comp.json"  # Input JSON file
-        csv_file = str(output_path) + r"/convergence_2DGRM2parType3Zone_1Comp.csv"  # Output CSV file
-    else:
-        json_file = str(output_path) + r"/convergence_2DGRM4parType3Zone_1Comp.json"  # Input JSON file
-        csv_file = str(output_path) + r"/convergence_2DGRM4parType3Zone_1Comp.csv"  # Output CSV file
-    json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
-
 
