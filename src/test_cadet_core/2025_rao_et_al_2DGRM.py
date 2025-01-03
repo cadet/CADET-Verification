@@ -42,7 +42,7 @@ output_path = project_repo.output_path / "paper" / "2025_Rao_et_al_2DGRM"
 # The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
 # path to root folder of bin\cadet-cli
 cadet_path = convergence.get_cadet_path()
-commit_message = f"Benchmarks for 2DGRM 3-zone FV convergence to be used in Rao et al. (2025)"
+commit_message = f"Convergence test for the FV-discretized linear 2DGRM with 3 zones to be used in Rao et al. (2025)"
 
 use_CASEMA_reference = True  # Use analytical reference provided in data folder
 n_jobs = -1
@@ -50,9 +50,9 @@ n_jobs = -1
 # small_test is set to true to define a minimal benchmark, which can be used
 # to see if the simulations still run and see first results.
 # To run the full extensive benchmarks, this needs to be set to false.
-small_test = 1
-rdm_debug_mode = 1
-rerun_sims = 1
+small_test = False
+rdm_debug_mode = False
+rerun_sims = True
 
 
 # %% We define multiple settings convering binding modes, surface diffusion and
@@ -192,7 +192,7 @@ def GRM2D_linBnd_tests(
 
     def GRM2D_FV_Benchmark(small_test=False, **kwargs):
 
-        nDisc = 4 if small_test else 6
+        nDisc = 4 if small_test else 5
         nRadialZones = kwargs.get('nRadialZones', 3)
 
         benchmark_config = {
