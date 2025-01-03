@@ -16,6 +16,8 @@ import os
 from joblib import Parallel, delayed
 import copy
 
+import settings_2Dchromatography
+
 
 # %% Import packages and define helper functions
 
@@ -225,6 +227,55 @@ def create_object_from_config(
                                               unit_id]['discretization']['PAR_POLYDEG'] = par_method
                 config_data['input']['model']['unit_' +
                                               unit_id]['discretization']['PAR_NELEM'] = par_cells
+        if rad_method is not None:
+            
+            config_data['input']['model']['unit_'+unit_id].PORTS = (rad_method + 1 ) * rad_cells
+            
+            if rad_method == 0:
+                config_data['input']['model']['unit_' +
+                                              unit_id]['discretization']['NRAD'] = rad_cells
+            else:
+                config_data['input']['model']['unit_' +
+                                              unit_id]['discretization']['RAD_POLYDEG'] = rad_method
+                config_data['input']['model']['unit_' +
+                                              unit_id]['discretization']['RAD_NELEM'] = rad_cells
+
+            if kwargs.get('rad_inlet_profile', None) is None:
+                # if we have more than 1 inlet, there are radial zones defined
+                n_units = config_data['input']['model']['nunits']
+                nInlets = n_units - 2 if kwargs.get('analytical_reference', 0) else n_units - 1
+                add_inlet_per_port = nInlets if nInlets > 2 else False
+            else:
+                add_inlet_per_port = kwargs.get('rad_inlet_profile')
+                nOutlets = 1 if kwargs.get('analytical_reference', 0) else 0
+                n_units = (rad_method + 1 ) * rad_cells + 1 + nOutlets
+            config_data['input']['model'].nunits = n_units
+                
+            connections, rad_coords = settings_2Dchromatography.generate_connections_matrix(
+                rad_method=rad_method, rad_cells=rad_cells,
+                velocity=config_data['input']['model']['unit_' +
+                                                       unit_id].VELOCITY,
+                porosity=config_data['input']['model']['unit_' +
+                                                       unit_id].COL_POROSITY,
+                col_radius=config_data['input']['model']['unit_' +
+                                                         unit_id].COL_RADIUS,
+                add_inlet_per_port=add_inlet_per_port, add_outlet=int(kwargs.get('analytical_reference', 0))
+            )
+
+            if add_inlet_per_port is True:
+                for rad in range(rad_cells * (rad_method + 1)):
+                
+                    config_data['input']['model']['unit_' +
+                                                  str(rad + 1).zfill(3)] = copy.deepcopy(config_data['input']['model']['unit_001'])
+    
+                    if kwargs.get('rad_inlet_profile', None) is not None:
+                        config_data['input']['model']['unit_001'].sec_000.CONST_COEFF = kwargs['rad_inlet_profile'](
+                            rad_coords[rad], config_data['input']['model']['unit_000'].COL_RADIUS)
+
+            config_data['input'].model.connections.switch_000.connections = connections
+            
+            if 'radial_init_conc' in kwargs:
+                config_data['input']['model']['unit_'+unit_id].init_c = kwargs['radial_init_conc'](np.array(rad_coords))
 
         if 'LINEAR_SOLVER' in kwargs:
             config_data['input']['model']['unit_' +
@@ -376,8 +427,6 @@ def generate_convergence_data(
     )
 
     table = table.to_dict(orient='list')
-    if commit_hash is not None:
-        table['cadet_commit'] = commit_hash
     print("Outlet convergence")
     print(table)
 
@@ -398,6 +447,8 @@ def generate_convergence_data(
             method_name = 'FV'
         else:
             method_name = 'DG_P' + str(ax_method)
+            if rad_method is not None:
+                method_name += 'radP' + str(rad_method)
             if par_method is not None:
                 method_name += 'parP' + str(par_method)
 
@@ -565,6 +616,13 @@ def run_convergence_analysis_from_configs(
 
     commit_hash = None
 
+    if 'refinement_IDs' not in kwargs.keys():
+        refinement_IDs = unit_IDs
+    elif kwargs['refinement_IDs'] == []:
+        refinement_IDs = unit_IDs
+    else:
+        refinement_IDs = kwargs['refinement_IDs']
+
     if rerun_sims:
         # Create simulation objects
         sims = []  # To be filled with all Cadet objects
@@ -590,7 +648,7 @@ def run_convergence_analysis_from_configs(
                         create_object_from_config(
                             config_data=cadet_configs[modelIdx],
                             setting_name=cadet_config_names[modelIdx],
-                            unit_id=unit_IDs[modelIdx],
+                            unit_id=refinement_IDs[modelIdx],
                             ax_method=ax_methods[modelIdx][methodIdx],
                             ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
                             par_method=par_method, par_cells=par_cells,
