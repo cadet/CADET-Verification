@@ -17,6 +17,7 @@ import copy
 import bench_func
 
 import settings_2Dchromatography
+import settings_columnSystems
 
 # %% benchmark templates
 
@@ -749,6 +750,132 @@ def GRM2D_FV_benchmark(small_test=False, **kwargs):
         ],
         'par_discs': [ # same number of particle cells as radial cells
             [bench_func.disc_list(nRadialZones, nDisc)]
+        ]
+    }
+
+    return benchmark_config
+
+
+def smb1_systems_tests(n_jobs, database_path, output_path,
+                       cadet_path, small_test=False, **kwargs):
+
+    nDisc = 4 if small_test else 5
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_columnSystems.SMB_model1(
+                nDisc, 4, 1)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '003'
+        ],
+        'which': [
+            'outlet'
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, nDisc)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
+        ]
+    }
+
+    return benchmark_config
+
+
+def cyclic_systems_tests(n_jobs, database_path, output_path,
+                         cadet_path, small_test=False, **kwargs):
+
+    nDisc = 4 if small_test else 4
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_columnSystems.Cyclic_model1(
+                nDisc, 4, 1, analytical_reference=kwargs.get('analytical_reference', False))
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '002' if kwargs.get('analytical_reference', False) else '003'
+        ],
+        'which': [
+            'outlet'
+        ],
+        'idas_abstol': [
+            [1e-12]
+        ],
+        'ax_methods': [
+            [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, nDisc)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
+        ]
+    }
+
+    return benchmark_config
+
+
+def acyclic_systems_tests(n_jobs, database_path, output_path,
+                          cadet_path, small_test=False, **kwargs):
+
+    nDisc = 5 if small_test else 5
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_columnSystems.Acyclic_model1(
+                nDisc, 4, 1, analytical_reference=kwargs.get('analytical_reference', False))
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '006'
+        ],
+        'which': [
+            'outlet'
+        ],
+        'idas_abstol': [
+            [1e-12]
+        ],
+        'ax_methods': [
+            [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, nDisc)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
         ]
     }
 
