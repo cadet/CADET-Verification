@@ -195,91 +195,97 @@ def create_object_from_config(
     if 'USE_MODIFIED_NEWTON' in kwargs:
         config_data['input']['solver']['time_integrator']['USE_MODIFIED_NEWTON'] = kwargs['USE_MODIFIED_NEWTON']
 
-    if unit_id is not None:
-        if ax_method == 0:
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['SPATIAL_METHOD'] = "FV"
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['NCOL'] = ax_cells
-            if 'WENO_ORDER' in kwargs.keys():
+    if kwargs.get('system_refinement_IDs', None) is not None:
+        refinement_IDs = kwargs['system_refinement_IDs']
+    else:
+        refinement_IDs = [unit_id]
+        
+    for tmpID in refinement_IDs:
+        if tmpID is not None:
+            if ax_method == 0:
                 config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['weno']['WENO_ORDER'] = kwargs['WENO_ORDER']
-        else:
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['SPATIAL_METHOD'] = "DG"
-            if rad_method is None:
+                                              tmpID]['discretization']['SPATIAL_METHOD'] = "FV"
                 config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['POLYDEG'] = ax_method
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['NELEM'] = ax_cells
-            else:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['AX_POLYDEG'] = ax_method
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['AX_NELEM'] = ax_cells
-
-        if par_method is not None:
-            if par_method == 0:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['NPAR'] = par_cells
-            else:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['PAR_POLYDEG'] = par_method
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['PAR_NELEM'] = par_cells
-        if rad_method is not None:
-            
-            config_data['input']['model']['unit_'+unit_id].PORTS = (rad_method + 1 ) * rad_cells
-            
-            if rad_method == 0:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['NRAD'] = rad_cells
-            else:
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['RAD_POLYDEG'] = rad_method
-                config_data['input']['model']['unit_' +
-                                              unit_id]['discretization']['RAD_NELEM'] = rad_cells
-
-            if kwargs.get('rad_inlet_profile', None) is None:
-                # if we have more than 1 inlet, there are radial zones defined
-                n_units = config_data['input']['model']['nunits']
-                nInlets = n_units - 2 if kwargs.get('analytical_reference', 0) else n_units - 1
-                add_inlet_per_port = nInlets if nInlets > 2 else False
-            else:
-                add_inlet_per_port = kwargs.get('rad_inlet_profile')
-                nOutlets = 1 if kwargs.get('analytical_reference', 0) else 0
-                n_units = (rad_method + 1 ) * rad_cells + 1 + nOutlets
-            config_data['input']['model'].nunits = n_units
-                
-            connections, rad_coords = settings_2Dchromatography.generate_connections_matrix(
-                rad_method=rad_method, rad_cells=rad_cells,
-                velocity=config_data['input']['model']['unit_' +
-                                                       unit_id].VELOCITY,
-                porosity=config_data['input']['model']['unit_' +
-                                                       unit_id].COL_POROSITY,
-                col_radius=config_data['input']['model']['unit_' +
-                                                         unit_id].COL_RADIUS,
-                add_inlet_per_port=add_inlet_per_port, add_outlet=int(kwargs.get('analytical_reference', 0))
-            )
-
-            if add_inlet_per_port is True:
-                for rad in range(rad_cells * (rad_method + 1)):
-                
+                                              tmpID]['discretization']['NCOL'] = ax_cells
+                if 'WENO_ORDER' in kwargs.keys():
                     config_data['input']['model']['unit_' +
-                                                  str(rad + 1).zfill(3)] = copy.deepcopy(config_data['input']['model']['unit_001'])
-    
-                    if kwargs.get('rad_inlet_profile', None) is not None:
-                        config_data['input']['model']['unit_001'].sec_000.CONST_COEFF = kwargs['rad_inlet_profile'](
-                            rad_coords[rad], config_data['input']['model']['unit_000'].COL_RADIUS)
+                                                  tmpID]['discretization']['weno']['WENO_ORDER'] = kwargs['WENO_ORDER']
+            else:
+                config_data['input']['model']['unit_' +
+                                              tmpID]['discretization']['SPATIAL_METHOD'] = "DG"
+                if rad_method is None:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['POLYDEG'] = ax_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['NELEM'] = ax_cells
+                else:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['AX_POLYDEG'] = ax_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['AX_NELEM'] = ax_cells
 
-            config_data['input'].model.connections.switch_000.connections = connections
+            if par_method is not None:
+                if par_method == 0:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['NPAR'] = par_cells
+                else:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['PAR_POLYDEG'] = par_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['PAR_NELEM'] = par_cells
+            if rad_method is not None:
             
-            if 'radial_init_conc' in kwargs:
-                config_data['input']['model']['unit_'+unit_id].init_c = kwargs['radial_init_conc'](np.array(rad_coords))
+                config_data['input']['model']['unit_'+tmpID].PORTS = (rad_method + 1 ) * rad_cells
+            
+                if rad_method == 0:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['NRAD'] = rad_cells
+                else:
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['RAD_POLYDEG'] = rad_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['discretization']['RAD_NELEM'] = rad_cells
 
-        if 'LINEAR_SOLVER' in kwargs:
-            config_data['input']['model']['unit_' +
-                                          unit_id]['discretization']['LINEAR_SOLVER'] = kwargs['LINEAR_SOLVER']
+                if kwargs.get('rad_inlet_profile', None) is None:
+                    # if we have more than 1 inlet, there are radial zones defined
+                    n_units = config_data['input']['model']['nunits']
+                    nInlets = n_units - 2 if kwargs.get('analytical_reference', 0) else n_units - 1
+                    add_inlet_per_port = nInlets if nInlets > 2 else False
+                else:
+                    add_inlet_per_port = kwargs.get('rad_inlet_profile')
+                    nOutlets = 1 if kwargs.get('analytical_reference', 0) else 0
+                    n_units = (rad_method + 1 ) * rad_cells + 1 + nOutlets
+                config_data['input']['model'].nunits = n_units
+                
+                connections, rad_coords = settings_2Dchromatography.generate_connections_matrix(
+                    rad_method=rad_method, rad_cells=rad_cells,
+                    velocity=config_data['input']['model']['unit_' +
+                                                           tmpID].VELOCITY,
+                    porosity=config_data['input']['model']['unit_' +
+                                                           tmpID].COL_POROSITY,
+                    col_radius=config_data['input']['model']['unit_' +
+                                                             tmpID].COL_RADIUS,
+                    add_inlet_per_port=add_inlet_per_port, add_outlet=int(kwargs.get('analytical_reference', 0))
+                )
+
+                if add_inlet_per_port is True:
+                    for rad in range(rad_cells * (rad_method + 1)):
+                
+                        config_data['input']['model']['unit_' +
+                                                      str(rad + 1).zfill(3)] = copy.deepcopy(config_data['input']['model']['unit_001'])
+    
+                        if kwargs.get('rad_inlet_profile', None) is not None:
+                            config_data['input']['model']['unit_001'].sec_000.CONST_COEFF = kwargs['rad_inlet_profile'](
+                                rad_coords[rad], config_data['input']['model']['unit_000'].COL_RADIUS)
+
+                config_data['input'].model.connections.switch_000.connections = connections
+            
+                if 'radial_init_conc' in kwargs:
+                    config_data['input']['model']['unit_'+tmpID].init_c = kwargs['radial_init_conc'](np.array(rad_coords))
+
+            if 'LINEAR_SOLVER' in kwargs:
+                config_data['input']['model']['unit_' +
+                                          tmpID]['discretization']['LINEAR_SOLVER'] = kwargs['LINEAR_SOLVER']
 
     # Create configuration name
     if rad_method is not None:
@@ -418,7 +424,8 @@ def generate_convergence_data(
         unit=unitID, which=which,
         par_methods=[par_method], par_cells=par_disc,
         incl_min_val=True,
-        transport_model=None, ncomp=None, nbound=None,
+        transport_model=kwargs.pop('transport_model', None),
+        ncomp=kwargs.pop('ncomp', None), nbound=kwargs.pop('nbound', None),
         save_path_=None,
         simulation_names=None,
         save_names=None,
