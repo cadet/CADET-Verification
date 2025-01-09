@@ -801,7 +801,9 @@ def smb1_systems_tests(n_jobs, database_path, output_path,
 def cyclic_systems_tests(n_jobs, database_path, output_path,
                          cadet_path, small_test=False, **kwargs):
 
-    nDisc = 4 if small_test else 4
+    # The analytical reference for the cyclic case has only ~1e-8 accuracy
+    # Note that there is no proven error bound for the cyclic case, only estimations
+    nDisc = 5 if kwargs.get('analytical_reference', False) else 7
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -824,10 +826,10 @@ def cyclic_systems_tests(n_jobs, database_path, output_path,
             [1e-12]
         ],
         'ax_methods': [
-            [3]
+            [2]
         ],
         'ax_discs': [
-            [bench_func.disc_list(4, nDisc)]
+            [bench_func.disc_list(1, nDisc)]
         ],
         'par_methods': [
             [None]
