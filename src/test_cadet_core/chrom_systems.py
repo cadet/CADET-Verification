@@ -47,7 +47,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     
     addition = bench_configs.cyclic_systems_tests(
         n_jobs, database_path, output_path, cadet_path, small_test=small_test,
-        analytical_reference=False)
+        analytical_reference=analytical_reference)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -56,10 +56,10 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
         par_methods=par_methods, par_discs=par_discs,
         addition=addition)
     
-    # if analytical_reference:
-    #     ref = convergence.get_solution(
-    #         reference_data_path+'/ref_cyclicSystem1_LRM_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
-    #     ref_files = [[ref]]
+    if analytical_reference:
+        ref = convergence.get_solution(
+            reference_data_path+'/ref_cyclicSystem1_LRM_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
+        ref_files = [[ref]]
 
     config_names = ['cyclicSystem1_LRM_linBnd_1comp']
 
