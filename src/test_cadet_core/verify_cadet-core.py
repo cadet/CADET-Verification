@@ -30,6 +30,7 @@ import bench_configs
 import chromatography
 import crystallization
 import MCT
+import chrom_systems
 import twoDimChromatography
 
 #%% User Input
@@ -46,6 +47,7 @@ delete_h5_files = True # delete h5 files (but keep convergence tables and plots)
 exclude_files = None # ["file1", "file2"] # specify h5 files that should not be deleted
 
 run_chromatography_tests = True
+run_chromatography_system_tests = True
 run_crystallization_tests = True
 run_MCT_tests = True
 run_2Dmodels_tests = True
@@ -58,7 +60,7 @@ project_repo = ProjectRepo()
 output_path = project_repo.output_path / "test_cadet-core"
 
 # The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
-cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET_master\out\install\aRELEASE" # convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
+cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
  
 
 # %% Run with CADET-RDM
@@ -74,6 +76,17 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/chromatography", exclude_files=exclude_files)
+    
+    if run_chromatography_system_tests:
+        chrom_systems.chromatography_systems_tests(
+            n_jobs=n_jobs, database_path=None,
+            small_test=small_test,
+            output_path=str(output_path) + "/chromatography/systems", cadet_path=cadet_path,
+            analytical_reference=True, reference_data_path=str(project_repo.output_path.parent) + '/data/CASEMA_reference'
+            )
+    
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/chromatography/systems", exclude_files=exclude_files)
         
     if run_crystallization_tests:
         crystallization.crystallization_tests(
