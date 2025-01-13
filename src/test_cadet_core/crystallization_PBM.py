@@ -2,8 +2,10 @@
 """
 Created Juli 2024
 
-This script executes the crystallization CADET-Verification tests for CADET-Core.
-Modify the input in the 'user definitions' section if needed.
+This script implements the EOC tests to verify the population balance model (PBM),
+which is implemented in CADET-Core. The tests encompass all combinations of the
+PBM terms such as nucleation, growth and growth rate dispersion. Further, the
+incorporation of the PBM into a DPFR transport model is tested.
 
 @author: wendi zhang (original draft) and jmbr (incorporation to CADET-Verification)
 """
