@@ -106,13 +106,13 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     # ignore_data not required since desired columns can be picked in latex
     ignore_data = []#['$N_d$', 'Min. value', 'DoF', 'Bulk DoF']
     
-    json_file = str(output_path) + r"/convergence_acyclicSystem1_LRM_linBnd_1comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_acyclicSystem1_LRM_linBnd_1comp.csv"  # Output CSV file
+    json_file = str(output_path) + r"/convergence_acyclicSystem1_LRMP_linBnd_1comp.json"  # Input JSON file
+    csv_file = str(output_path) + r"/convergence_acyclicSystem1_LRMP_linBnd_1comp.csv"  # Output CSV file
     json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
     
     subgroup_path = ['convergence', 'DG_P2', 'outlet']  # Path to the subgroup in the JSON file
-    json_file = str(output_path) + r"/convergence_cyclicSystem1_LRM_linBnd_1comp.json"  # Input JSON file
-    csv_file = str(output_path) + r"/convergence_cyclicSystem1_LRM_linBnd_1comp.csv"  # Output CSV file
+    json_file = str(output_path) + r"/convergence_cyclicSystem1_LRMP_linBnd_1comp.json"  # Input JSON file
+    csv_file = str(output_path) + r"/convergence_cyclicSystem1_LRMP_linBnd_1comp.csv"  # Output CSV file
     json_to_csv(json_file, csv_file, subgroup_path, ignore_data)
     
 

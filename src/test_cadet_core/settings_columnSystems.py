@@ -50,7 +50,6 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     Cyclic_model.root.input.model.unit_001.par_porosity = 0.75
     Cyclic_model.root.input.model.unit_001.col_dispersion = 2e-7
     Cyclic_model.root.input.model.unit_001.col_length = 1.4e-2
-    # From Lubke2007, is not important
     Cyclic_model.root.input.model.unit_001.cross_section_area = 1
     Cyclic_model.root.input.model.unit_001.film_diffusion = 6.9e-6
     Cyclic_model.root.input.model.unit_001.par_radius = 45e-6
@@ -97,10 +96,10 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
         Cyclic_model.root.input.model.unit_001)
 
     # Unit LRMP2
-    Cyclic_model.root.input.model.unit_003.adsorption.is_kinetic = False    # Kinetic binding
-    Cyclic_model.root.input.model.unit_003.adsorption.LIN_KA = [
+    Cyclic_model.root.input.model.unit_002.adsorption.is_kinetic = False    # Kinetic binding
+    Cyclic_model.root.input.model.unit_002.adsorption.LIN_KA = [
         35.5]  # m^3 / (mol * s)   (mobile phase)
-    Cyclic_model.root.input.model.unit_003.adsorption.LIN_KD = [
+    Cyclic_model.root.input.model.unit_002.adsorption.LIN_KD = [
         1]      # 1 / s (desorption)
 
     # To write out last output to check for steady state
@@ -206,7 +205,6 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     Acyclic_model.root.input.model.unit_002.par_porosity = 0.75
     Acyclic_model.root.input.model.unit_002.col_dispersion = 2e-7
     Acyclic_model.root.input.model.unit_002.col_length = 1.4e-2
-    # From Lubke2007, is not important
     Acyclic_model.root.input.model.unit_002.cross_section_area = 1
     Acyclic_model.root.input.model.unit_002.film_diffusion = 6.9e-6
     Acyclic_model.root.input.model.unit_002.par_radius = 45e-6
@@ -272,9 +270,9 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
         1]      # 1 / s (desorption)
 
     # Unit LRMP6
-    Acyclic_model.root.input.model.unit_004.adsorption.LIN_KA = [
+    Acyclic_model.root.input.model.unit_005.adsorption.LIN_KA = [
         4.55]  # m^3 / (mol * s)   (mobile phase)
-    Acyclic_model.root.input.model.unit_004.adsorption.LIN_KD = [
+    Acyclic_model.root.input.model.unit_005.adsorption.LIN_KD = [
         0.12]      # 1 / s (desorption)
 
     # To write out last output to check for steady state
@@ -290,7 +288,7 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     Acyclic_model.root.input.model.unit_000.sec_000.const_coeff = [
         1]  # Inlet flowrate concentration
     Acyclic_model.root.input.model.unit_001.sec_000.const_coeff = [
-        0]  # Desorbent stream
+        1]  # Desorbent stream
 
     Acyclic_model.root.input.model.unit_000.sec_001.const_coeff = [
         0]  # Inlet flowrate concentration
