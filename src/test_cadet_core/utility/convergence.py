@@ -3618,7 +3618,11 @@ def recalculate_results(file_path, models,
                                    nComp=ncomp, nBound=nbound)
                 )
                 bulk_DoFs.append(
-                    calculate_DOFs(DoFs[-1])
+                    calculate_DOFs(ax_cells_,
+                                   ax_methods[m],
+                                   full_DOFs=False,
+                                   model=transport_model,
+                                   nComp=ncomp, nBound=nbound)
                 )
                 # Convergence Table
                 header, table = convergency_table(ax_methods[m],
