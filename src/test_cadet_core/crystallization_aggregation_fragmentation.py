@@ -347,6 +347,7 @@ def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max):
 # update params
 # crystal phase discretization
 x_c, x_max = 1e-2, 1e2  # m
+n_x = 100
 x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
 # time
@@ -357,7 +358,6 @@ t = np.linspace(0, cycle_time, time_res)
 # fragmentation rate
 S_0 = 1.0
 
-n_x = 100
 model = PureFrag_LinBi(n_x, x_c, x_max)
 model.save()
 data = model.run()
@@ -544,6 +544,7 @@ def Agg_frag(n_x: 'int, number of bins', x_c, x_max):
 # update params
 # crystal phase discretization
 x_c, x_max = 1e-2, 1e2  # m
+n_x = 100
 x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
 # time
@@ -555,7 +556,6 @@ t = np.linspace(0, cycle_time, time_res)
 S_0 = 0.1
 beta_0 = 0.2
 
-n_x = 100
 model = Agg_frag(n_x, x_c, x_max)
 model.save()
 data = model.run()
@@ -730,14 +730,14 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
 
 
 # system setup
+n_x = 100
+n_col = 100
+
 x_c, x_max = 1e-6, 1000e-6            # m
 x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
 cycle_time = 300                      # s
 t = np.linspace(0, cycle_time, 200)
-
-n_x = 100
-n_col = 100
 
 '''
 @note: There is no analytical solution in this case. We are using this result as the reference solution?
@@ -958,14 +958,14 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
 
 
 # system setup
+n_x = 100
+n_col = 100
+
 x_c, x_max = 1e-6, 1000e-6            # m
 x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
 cycle_time = 300                      # s
 t = np.linspace(0, cycle_time, 200)
-
-n_x = 100
-n_col = 100
 
 '''
 @note: There is no analytical solution in this case. We are using this result as the reference solution?
@@ -1302,6 +1302,228 @@ for Ncol in N_col_test:
     model.load()
 
     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
+
+relative_L1_norms = []  # store the relative L1 norms here
+for nx in n_xs:
+    # interpolate the ref solution on the test case grid
+
+    x_grid, x_ct = get_log_space(len(nx), x_c, x_max)
+
+    relative_L1_norms.append(
+        calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
+
+slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
+print(slopes_Ncol)
+
+# %% Simultaneous aggregation and fragmentation in a DPFR
+'''
+@detail: Simultaneous aggregation and fragmentation in a DPFR tests and EOC tests using a reference solution. 
+There are no solute (c) and solubility components (cs).
+'''
+
+Cadet.cadet_path = Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet62\bin\cadet-cli.exe'
+
+def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order):
+    model = Cadet()
+
+    # Spacing
+    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
+
+    # Boundary conditions
+    boundary_c = log_normal(x_ct*1e6,0,1e16,0.4,80)
+
+    # Initial conditions
+    initial_c = n_x*[0.0, ]
+
+    # number of unit operations
+    model.root.input.model.nunits = 3
+
+    #inlet model
+    model.root.input.model.unit_000.unit_type = 'INLET'
+    model.root.input.model.unit_000.ncomp = n_x
+    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
+
+    #time sections
+    model.root.input.solver.sections.nsec = 1
+    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
+    model.root.input.solver.sections.section_continuity = []
+
+    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c 
+    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
+    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
+    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
+
+    # Tubular reactor
+    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    model.root.input.model.unit_001.ncomp = n_x
+    model.root.input.model.unit_001.adsorption_model = 'NONE'
+    model.root.input.model.unit_001.col_length = 0.47
+    model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
+    model.root.input.model.unit_001.total_porosity = 1.0
+    model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
+    model.root.input.model.unit_001.init_c = initial_c
+    model.root.input.model.unit_001.init_q = n_x*[0.0]
+
+    # column discretization
+    model.root.input.model.unit_001.discretization.ncol = n_col
+    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
+    model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
+    model.root.input.model.unit_001.discretization.gs_type = 1
+    model.root.input.model.unit_001.discretization.max_krylov = 0
+    model.root.input.model.unit_001.discretization.max_restarts = 10
+    model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
+    
+    model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
+    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
+    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
+    model.root.input.model.unit_001.discretization.weno.weno_order = axial_order
+
+    # crystallization reaction
+    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
+    
+    model.root.input.model.unit_001.reaction.cry_bins = x_grid
+    
+    model.root.input.model.unit_001.reaction.cry_aggregation_index = 0 # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
+    model.root.input.model.unit_001.reaction.cry_aggregation_rate_constant = 2.4e-12
+    
+    model.root.input.model.unit_001.reaction.cry_breakage_rate_constant = 6.0e10
+    model.root.input.model.unit_001.reaction.cry_breakage_kernel_gamma = 2 
+    model.root.input.model.unit_001.reaction.cry_breakage_selection_function_alpha = 1
+
+    ## Outlet
+    model.root.input.model.unit_002.unit_type = 'OUTLET'
+    model.root.input.model.unit_002.ncomp = n_x
+
+    # Connections
+    Q = 10.0*1e-6/60          ## m^3/s
+
+    model.root.input.model.connections.nswitches = 1
+    model.root.input.model.connections.switch_000.section = 0
+    model.root.input.model.connections.switch_000.connections = [
+        0, 1, -1, -1, Q,
+        1, 2, -1, -1, Q,
+    ]
+
+    # numerical solver configuration
+    model.root.input.model.solver.gs_type = 1
+    model.root.input.model.solver.max_krylov = 0
+    model.root.input.model.solver.max_restarts = 10
+    model.root.input.model.solver.schur_safety = 1e-8
+
+    # Number of cores for parallel simulation
+    model.root.input.solver.nthreads = 1
+
+    # Tolerances for the time integrator
+    model.root.input.solver.time_integrator.abstol = 1e-6
+    model.root.input.solver.time_integrator.algtol = 1e-10
+    model.root.input.solver.time_integrator.reltol = 1e-6
+    model.root.input.solver.time_integrator.init_step_size = 1e-10
+    model.root.input.solver.time_integrator.max_steps = 1000000
+
+    # Return data
+    model.root.input['return'].split_components_data = 0
+    model.root.input['return'].split_ports_data = 0
+    model.root.input['return'].unit_000.write_solution_bulk = 0
+    model.root.input['return'].unit_000.write_solution_outlet = 1
+    model.root.input['return'].unit_000.write_coordinates = 0
+
+    # Copy settings to the other unit operations
+    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
+    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
+
+    # Solution times
+    model.root.input.solver.user_solution_times = t
+
+    model.filename = 'practice1.h5'                    ## change as needed
+    
+    return model
+
+# system setup
+n_x = 100
+n_col = 100
+
+x_c, x_max = 1e-6, 1000e-6            # m
+x_grid, x_ct = get_log_space(n_x, x_c, x_max)
+
+cycle_time = 300                      # s
+t = np.linspace(0, cycle_time, 200)
+
+'''
+@note: There is no analytical solution in this case. We are using a result as the reference solution.
+'''
+
+model = Agg_Frag_DPFR(n_x, n_col, x_c, x_max, 1)
+model.save()
+data = model.run()
+model.load() 
+c_x = model.root.output.solution.unit_002.solution_outlet[-1,:]
+
+plt.xscale("log")
+plt.plot(x_ct, c_x)
+plt.xlabel(r'$Size/\mu m$')
+plt.ylabel('Particle count/1')
+plt.show()
+
+'''
+EOC tests in a DPFR, Aggregation and Fragmentation
+@note: the EOC is obtained along the Nx and Ncol coordinate, separately
+'''
+
+# get ref solution
+N_x_ref = 450
+N_col_ref = 250
+
+model = Agg_Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
+model.save()
+data = model.run()
+model.load()
+
+c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
+
+# interpolate the reference solution at the reactor outlet
+
+x_grid, x_ct = get_log_space(N_x_ref, x_c, x_max)
+
+spl = UnivariateSpline(x_ct, c_x_reference)
+
+# EOC, Nx
+
+N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
+
+n_xs = []
+for Nx in N_x_test:
+    model = Agg_Frag_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
+    model.save()
+    data = model.run()
+    model.load()
+
+    n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+
+relative_L1_norms = []  # store the relative L1 norms here
+for nx in n_xs:
+    # interpolate the ref solution on the test case grid
+
+    x_grid, x_ct = get_log_space(len(nx), x_c, x_max)
+
+    relative_L1_norms.append(
+        calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
+
+
+slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
+print(slopes_Nx)
+
+# EOC, Ncol
+
+N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
+
+n_xs = []  # store the result nx here
+for Ncol in N_col_test:
+    model = Agg_Frag_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
+    model.save()
+    data = model.run()
+    model.load()
+
+    n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
 relative_L1_norms = []  # store the relative L1 norms here
 for nx in n_xs:
