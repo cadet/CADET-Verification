@@ -9,12 +9,13 @@ Further, the incorporation into a DPFR transport model is tested.
 @author: Wendi Zhang (original draft) and jmbr (incorporation to CADET-Verification)
 '''
 
-from mpmath import *
+from mpmath import * # used to compute a high precision reference solution
 from scipy.interpolate import UnivariateSpline
 import numpy as np
 import matplotlib.pyplot as plt
 from cadet import Cadet
 
+import utility.convergence as convergence
 
 #%% Pure aggregation
 '''
@@ -24,7 +25,7 @@ The Golovin kernel should cover all functions implemented in the core simulator.
 '''
 
 
-Cadet.cadet_path = r"C:\Users\zwend\CADET\cadet79\bin\cadet-cli.exe"  # for aggregation
+Cadet.cadet_path = 'C:/Users/jmbr/OneDrive/Desktop/CADET_compiled/Crys_pureAgg/aRELEASE/bin/cadet-cli.exe' # convergence.get_cadet_path()
 
 
 def get_log_space(n_x, x_c, x_max):
@@ -152,6 +153,8 @@ x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 model = PureAgg_Golovin(n_x, x_c, x_max)
 model.save()
 data = model.run()
+if not data.return_code==0:
+    print(data.error_message)
 model.load()
 c_x = model.root.output.solution.unit_001.solution_outlet[-1, :]
 # c_x[-1] = 0.0
