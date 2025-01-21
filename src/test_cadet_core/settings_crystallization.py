@@ -32,7 +32,7 @@ def log_normal(x, y0, A, w, xc):
 # %% Crystallization settings
 
 
-def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t):
+def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t, output_path):
 
     model = Cadet()
 
@@ -124,12 +124,12 @@ def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t)
 
     # Solution times
     model.root.input.solver.user_solution_times = t
-    model.filename = 'practice1.h5'  # change as needed
+    model.filename = output_path + '/crystallization_aggregation_Z' + str(x_grid.size) +'.h5'
 
-    return model
+    return model, x_grid, x_ct
 
 
-def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t):
+def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, output_path):
     model = Cadet()
 
     # crystal space
@@ -221,12 +221,12 @@ def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t):
 
     # Solution times
     model.root.input.solver.user_solution_times = t
-    model.filename = 'practice1.h5'  # change as needed
+    model.filename = output_path + '/crystallization_fragmentation_Z' + str(x_grid.size) +'.h5'
 
-    return model
+    return model, x_grid, x_ct
 
 
-def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t):
+def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, output_path):
     model = Cadet()
 
     # crystal space
@@ -322,12 +322,12 @@ def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t):
 
     # Solution times
     model.root.input.solver.user_solution_times = t
-    model.filename = 'practice1.h5'  # change as needed
+    model.filename = output_path +  '/crystallization_aggFrag_Z' + str(x_grid.size) +'.h5'
 
-    return model
+    return model, x_grid, x_ct
 
 
-def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t):
+def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
     model = Cadet()
 
     # Spacing
@@ -433,12 +433,12 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = 'practice1.h5'  # change as needed
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + 'aggregation_Z' + str(x_grid.size) +'.h5'
 
-    return model
+    return model, x_grid, x_ct
 
 
-def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t):
+def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
     model = Cadet()
 
     # Spacing
@@ -546,12 +546,12 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = 'practice1.h5'  # change as needed
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + 'fragmentation_Z' + str(x_grid.size) +'.h5'
 
-    return model
+    return model, x_grid, x_ct
 
 
-def NGRA(n_x: 'int, number of x bins + 2', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order, t):
+def NGRA(n_x: 'int, number of x bins + 2', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order, t, output_path):
     model = Cadet()
 
     # Spacing
@@ -695,12 +695,12 @@ def NGRA(n_x: 'int, number of x bins + 2', n_col: 'int, number of z bins', x_c, 
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = 'practice1.h5'  # change as needed
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + 'NGGR_Z' + str(x_grid.size) +'.h5'
 
-    return model
+    return model, x_grid, x_ct
 
 
-def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order, t):
+def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
     model = Cadet()
 
     # Spacing
@@ -811,6 +811,6 @@ def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins'
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = 'practice1.h5'                    ## change as needed
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + 'aggFrag_Z' + str(x_grid.size) +'.h5'
     
-    return model
+    return model, x_grid, x_ct
