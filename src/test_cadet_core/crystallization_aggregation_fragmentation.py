@@ -17,6 +17,8 @@ from cadet import Cadet
 
 import utility.convergence as convergence
 
+import settings_crystallization
+
 #%% Pure aggregation
 '''
 @detail: Pure aggregation tests against analytical solutions for the Golovin (sum)
@@ -26,109 +28,6 @@ The Golovin kernel should cover all functions implemented in the core simulator.
 
 
 Cadet.cadet_path = 'C:/Users/jmbr/OneDrive/Desktop/CADET_compiled/Crys_pureAgg/aRELEASE/bin/cadet-cli.exe' # convergence.get_cadet_path()
-
-
-def get_log_space(n_x, x_c, x_max):
-    x_grid = np.logspace(np.log10(x_c), np.log10(x_max), n_x+1)  # log space
-    x_ct = np.asarray([0.5 * x_grid[p+1] + 0.5 * x_grid[p]
-                      for p in range(0, n_x)])
-    return x_grid, x_ct
-
-
-def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max):
-    model = Cadet()
-
-    # crystal space
-    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
-
-    # Boundary conditions
-    boundary_c = n_x*[0.0, ]
-
-    # Initial conditions
-    initial_c = np.asarray([3.0*x_ct[k]**2 * np.exp(-x_ct[k]**3/v_0) *
-                           # see our paper for the equation
-                            N_0/v_0 for k in range(0, n_x)])
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    # inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    # time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # CSTR/MSMPR
-    model.root.input.model.unit_001.unit_type = 'CSTR'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_volume = 500e-6
-    model.root.input.model.unit_001.porosity = 1
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-
-    # crystallization reactions
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-    model.root.input.model.unit_001.reaction_bulk.cry_bins = x_grid
-    # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
-    model.root.input.model.unit_001.reaction_bulk.cry_aggregation_index = 3
-    model.root.input.model.unit_001.reaction_bulk.cry_aggregation_rate_constant = beta_0
-
-    # Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 0                   # volumetric flow rate
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-6
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_solution_inlet = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-    model.filename = 'practice1.h5'  # change as needed
-
-    return model
 
 
 # number of bins
@@ -147,10 +46,10 @@ v_0 = 1  # initial volume of particles
 N_0 = 1  # initial number of particles
 beta_0 = 1.0  # aggregation rate
 
-x_grid, x_ct = get_log_space(n_x, x_c, x_max)
+x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
 
 # run the model and get results
-model = PureAgg_Golovin(n_x, x_c, x_max)
+model = settings_crystallization.PureAgg_Golovin(n_x, x_c, x_max, v_0, N_0, beta_0, t)
 model.save()
 data = model.run()
 if not data.return_code==0:
@@ -217,7 +116,7 @@ normalized_l1 = []
 Nx_grid = np.asarray([50, 100, 200, 400, 800, 1600])
 
 for n_x in Nx_grid:
-    model = PureAgg_Golovin(n_x, x_c, x_max)
+    model = settings_crystallization.PureAgg_Golovin(n_x, x_c, x_max, v_0, N_0, beta_0, t)
     model.save()
     data = model.run()
     model.load()
@@ -247,103 +146,6 @@ def get_analytical_frag(n_x, x_ct, cycle_time):
     return np.asarray([3.0 * x_ct[j]**2 * (1.0+cycle_time)**2 * np.exp(-x_ct[j]**3 * (1.0+cycle_time)) for j in range(n_x)])
 
 
-def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max):
-    model = Cadet()
-
-    # crystal space
-    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
-
-    # Boundary conditions
-    boundary_c = n_x*[0.0, ]
-
-    # Initial conditions
-    initial_c = np.asarray([3.0*x_ct[k]**2 * np.exp(-x_ct[k]**3)
-                           # see our paper for the equation
-                            for k in range(0, n_x)])
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    # inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    # time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # CSTR/MSMPR
-    model.root.input.model.unit_001.unit_type = 'CSTR'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_volume = 500e-6
-    model.root.input.model.unit_001.porosity = 1
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-
-    # crystallization reactions
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-
-    model.root.input.model.unit_001.reaction_bulk.cry_bins = x_grid
-    model.root.input.model.unit_001.reaction_bulk.cry_breakage_kernel_gamma = 2.0
-    model.root.input.model.unit_001.reaction_bulk.cry_breakage_rate_constant = S_0
-    model.root.input.model.unit_001.reaction_bulk.cry_breakage_selection_function_alpha = 1.0
-
-    # Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 0                   # volumetric flow rate
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-6
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_solution_inlet = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-    model.filename = 'practice1.h5'  # change as needed
-
-    return model
-
-
 # update params
 # crystal phase discretization
 x_c, x_max = 1e-2, 1e2  # m
@@ -358,7 +160,7 @@ t = np.linspace(0, cycle_time, time_res)
 # fragmentation rate
 S_0 = 1.0
 
-model = PureFrag_LinBi(n_x, x_c, x_max)
+model = settings_crystallization.PureFrag_LinBi(n_x, x_c, x_max, S_0, t)
 model.save()
 data = model.run()
 model.load()
@@ -387,7 +189,7 @@ normalized_l1 = []
 Nx_grid = np.asarray([25, 50, 100, 200])
 
 for n_x in Nx_grid:
-    model = PureFrag_LinBi(n_x, x_c, x_max)
+    model = settings_crystallization.PureFrag_LinBi(n_x, x_c, x_max, S_0, t)
     model.save()
     data = model.run()
     model.load()
@@ -416,7 +218,7 @@ Assumes no solute (c) and solubility component (cs).
 Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet73\bin\cadet-cli.exe'
 
 
-def get_analytical_agg_frag(n_x, x_ct, t):
+def get_analytical_agg_frag(n_x, x_ct):
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
     # dimensionless time
@@ -440,107 +242,6 @@ def get_analytical_agg_frag(n_x, x_ct, t):
     return analytical
 
 
-def Agg_frag(n_x: 'int, number of bins', x_c, x_max):
-    model = Cadet()
-
-    # crystal space
-    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
-
-    # Boundary conditions
-    boundary_c = n_x*[0.0, ]
-
-    # Initial conditions
-    initial_c = np.asarray([3.0*x_ct[k]**2 * 4.0*x_ct[k]**3 * np.exp(-2.0*x_ct[k]**3)
-                           # see our paper for the equation
-                            for k in range(0, n_x)])
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    # inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    # time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # CSTR/MSMPR
-    model.root.input.model.unit_001.unit_type = 'CSTR'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_volume = 500e-6
-    model.root.input.model.unit_001.porosity = 1
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-
-    # crystallization reactions
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-
-    model.root.input.model.unit_001.reaction_bulk.cry_bins = x_grid
-    # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
-    model.root.input.model.unit_001.reaction_bulk.cry_aggregation_index = 0
-    model.root.input.model.unit_001.reaction_bulk.cry_aggregation_rate_constant = beta_0
-
-    model.root.input.model.unit_001.reaction_bulk.cry_breakage_rate_constant = S_0
-    model.root.input.model.unit_001.reaction_bulk.cry_breakage_kernel_gamma = 2
-    model.root.input.model.unit_001.reaction_bulk.cry_breakage_selection_function_alpha = 1
-
-    # Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 0                   # volumetric flow rate
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-6
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_solution_inlet = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-    model.filename = 'practice1.h5'  # change as needed
-
-    return model
-
-
 # update params
 # crystal phase discretization
 x_c, x_max = 1e-2, 1e2  # m
@@ -556,7 +257,7 @@ t = np.linspace(0, cycle_time, time_res)
 S_0 = 0.1
 beta_0 = 0.2
 
-model = Agg_frag(n_x, x_c, x_max)
+model = settings_crystallization.Agg_frag(n_x, x_c, x_max, beta_0, S_0, t)
 model.save()
 data = model.run()
 model.load()
@@ -585,7 +286,7 @@ normalized_l1 = []
 Nx_grid = np.asarray([25, 50, 100, 200, 400, 800, ])
 
 for n_x in Nx_grid:
-    model = Agg_frag(n_x, x_c, x_max)
+    model = settings_crystallization.Agg_frag(n_x, x_c, x_max, beta_0, S_0, t)
     model.save()
     data = model.run()
     model.load()
@@ -614,121 +315,6 @@ Cadet.cadet_path = r"C:\Users\zwend\CADET\cadet71\bin\cadet-cli.exe"
 # A: area, y0: offset, w:std, xc: center (A,w >0)
 
 
-def log_normal(x, y0, A, w, xc):
-    return y0 + A/(np.sqrt(2.0*np.pi) * w*x) * np.exp(-np.log(x/xc)**2 / 2.0/w**2)
-
-
-def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order):
-    model = Cadet()
-
-    # Spacing
-    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
-
-    # Boundary conditions
-    boundary_c = log_normal(x_ct*1e6, 0, 1e16, 0.4, 20)
-
-    # Initial conditions
-    initial_c = n_x*[0.0, ]
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    # inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    # time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.col_length = 0.47
-    model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
-    model.root.input.model.unit_001.total_porosity = 1.0
-    model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
-
-    # column discretization
-    model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
-    model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.discretization.gs_type = 1
-    model.root.input.model.unit_001.discretization.max_krylov = 0
-    model.root.input.model.unit_001.discretization.max_restarts = 10
-    model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
-
-    model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
-    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
-    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-    model.root.input.model.unit_001.discretization.weno.weno_order = axial_order
-
-    # crystallization reaction
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-    model.root.input.model.unit_001.reaction.cry_bins = x_grid
-    # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
-    model.root.input.model.unit_001.reaction.cry_aggregation_index = 0
-    model.root.input.model.unit_001.reaction.cry_aggregation_rate_constant = 3e-11
-
-    # Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 10.0*1e-6 / 60         # volumetric flow rate, m^3/s
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-10
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-    model.root.input['return'].unit_000.write_coordinates = 0
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-
-    model.filename = 'practice1.h5'  # change as needed
-
-    return model
-
-
 # system setup
 n_x = 100
 n_col = 100
@@ -743,7 +329,7 @@ t = np.linspace(0, cycle_time, 200)
 @note: There is no analytical solution in this case. We are using this result as the reference solution?
 '''
 
-model = Agg_DPFR(n_x, n_col, x_c, x_max, 1)
+model = settings_crystallization.Agg_DPFR(n_x, n_col, x_c, x_max, 1, t)
 model.save()
 data = model.run()
 model.load()
@@ -769,7 +355,7 @@ def get_slope(error):
 N_x_ref = 450
 N_col_ref = 250
 
-model = Agg_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
+model = settings_crystallization.Agg_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3, t)
 model.save()
 data = model.run()
 model.load()
@@ -788,7 +374,7 @@ N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
 
 n_xs = []
 for Nx in N_x_test:
-    model = Agg_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
+    model = settings_crystallization.Agg_DPFR(Nx, 250, x_c, x_max, 2, t)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -814,7 +400,7 @@ N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
 
 n_xs = []  # store the result nx here
 for Ncol in N_col_test:
-    model = Agg_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
+    model = settings_crystallization.Agg_DPFR(450, Ncol, x_c, x_max, 2, t)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -844,119 +430,6 @@ Assumes no solute (c) and solubility component (cs).
 Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet72\bin\cadet-cli.exe'
 
 
-def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order):
-    model = Cadet()
-
-    # Spacing
-    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
-
-    # Boundary conditions
-    boundary_c = log_normal(x_ct*1e6, 0, 1e16, 0.4,
-                            150)  # moved to larger sizes
-
-    # Initial conditions
-    initial_c = n_x*[0.0, ]
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    # inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    # time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.col_length = 0.47
-    model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
-    model.root.input.model.unit_001.total_porosity = 1.0
-    model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
-
-    # column discretization
-    model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
-    model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.discretization.gs_type = 1
-    model.root.input.model.unit_001.discretization.max_krylov = 0
-    model.root.input.model.unit_001.discretization.max_restarts = 10
-    model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
-
-    model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
-    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
-    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-    model.root.input.model.unit_001.discretization.weno.weno_order = axial_order
-
-    # crystallization reaction
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-
-    model.root.input.model.unit_001.reaction.cry_bins = x_grid
-    model.root.input.model.unit_001.reaction.cry_breakage_rate_constant = 0.5e12
-    model.root.input.model.unit_001.reaction.cry_breakage_kernel_gamma = 2
-    model.root.input.model.unit_001.reaction.cry_breakage_selection_function_alpha = 1
-
-    # Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 10.0*1e-6/60  # m^3/s
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-10
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-    model.root.input['return'].unit_000.write_coordinates = 0
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-
-    model.filename = 'practice1.h5'  # change as needed
-
-    return model
-
-
 # system setup
 n_x = 100
 n_col = 100
@@ -971,7 +444,7 @@ t = np.linspace(0, cycle_time, 200)
 @note: There is no analytical solution in this case. We are using this result as the reference solution?
 '''
 
-model = Frag_DPFR(n_x, n_col, x_c, x_max, 1)
+model = settings_crystallization.Frag_DPFR(n_x, n_col, x_c, x_max, 1, t)
 model.save()
 data = model.run()
 model.load()
@@ -992,7 +465,7 @@ EOC tests in a DPFR, Fragmentation
 N_x_ref = 450
 N_col_ref = 250
 
-model = Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
+model = settings_crystallization.Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3, t)
 model.save()
 data = model.run()
 model.load()
@@ -1011,7 +484,7 @@ N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
 
 n_xs = []
 for Nx in N_x_test:
-    model = Frag_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
+    model = settings_crystallization.Frag_DPFR(Nx, 250, x_c, x_max, 2, t)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -1037,7 +510,7 @@ N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
 
 n_xs = []  # store the result nx here
 for Ncol in N_col_test:
-    model = Frag_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
+    model = settings_crystallization.Frag_DPFR(450, Ncol, x_c, x_max, 2, t)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -1067,155 +540,6 @@ There are solute (c) and solubility components (cs).
 Cadet.cadet_path = r"C:\Users\zwend\CADET\cadet77\bin\cadet-cli.exe"
 
 
-def NGRA(n_x: 'int, number of x bins + 2', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order):
-    model = Cadet()
-
-    # Spacing
-    x_grid, x_ct = get_log_space(n_x - 2, x_c, x_max)
-
-    # c_feed
-    c_feed = 9.0
-    c_eq = 0.4
-
-    # Boundary conditions
-    boundary_c = []
-    for i in range(0, n_x):
-        if i == 0:
-            boundary_c.append(c_feed)
-        elif i == n_x - 1:
-            boundary_c.append(c_eq)
-        else:
-            boundary_c.append(0.0)
-
-    # Initial conditions
-    initial_c = []
-    for k in range(n_x):
-        if k == 0:
-            initial_c.append(0)
-        elif k == n_x-1:
-            initial_c.append(c_eq)
-        else:
-            initial_c.append(0)
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    # inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    # time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.col_length = 0.47
-    model.root.input.model.unit_001.cross_section_area = 3.066e-05
-    model.root.input.model.unit_001.total_porosity = 1.0
-    model.root.input.model.unit_001.col_dispersion = 4.2e-05
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
-
-    # column discretization
-    model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
-    model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.discretization.gs_type = 1
-    model.root.input.model.unit_001.discretization.max_krylov = 0
-    model.root.input.model.unit_001.discretization.max_restarts = 10
-    model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
-
-    model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
-    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
-    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-    model.root.input.model.unit_001.discretization.weno.weno_order = axial_order
-
-    # crystallization reaction
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-    model.root.input.model.unit_001.reaction.cry_bins = x_grid
-
-    # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
-    model.root.input.model.unit_001.reaction.cry_aggregation_index = 0
-    model.root.input.model.unit_001.reaction.cry_aggregation_rate_constant = 5e-13
-
-    model.root.input.model.unit_001.reaction.cry_nuclei_mass_density = 1.2e3
-    model.root.input.model.unit_001.reaction.cry_vol_shape_factor = 0.524
-    model.root.input.model.unit_001.reaction.cry_primary_nucleation_rate = 5.0
-    model.root.input.model.unit_001.reaction.cry_secondary_nucleation_rate = 4e8
-
-    model.root.input.model.unit_001.reaction.cry_growth_rate_constant = 5e-6
-    model.root.input.model.unit_001.reaction.cry_g = 1.0
-
-    model.root.input.model.unit_001.reaction.cry_a = 1.0
-    model.root.input.model.unit_001.reaction.cry_growth_constant = 0.0
-    model.root.input.model.unit_001.reaction.cry_p = 0.0
-
-    model.root.input.model.unit_001.reaction.cry_k = 1.0
-    model.root.input.model.unit_001.reaction.cry_u = 10.0
-    model.root.input.model.unit_001.reaction.cry_b = 2.0
-
-    model.root.input.model.unit_001.reaction.cry_growth_dispersion_rate = 2.5e-15
-    model.root.input.model.unit_001.reaction.cry_growth_scheme_order = growth_order
-
-    # Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 10.0*1e-6/60     # Q, volumetric flow rate
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-8
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_coordinates = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-
-    model.filename = 'practice1.h5'  # change as needed
-
-    return model
-
-
 # set up
 n_x = 100 + 2
 n_col = 100
@@ -1226,7 +550,7 @@ x_grid, x_ct = get_log_space(n_x - 2, x_c, x_max)
 cycle_time = 200                 # s
 t = np.linspace(0, cycle_time, 200+1)
 
-model = NGRA(n_x, n_col, x_c, x_max, 1, 1)
+model = settings_crystallization.NGRA(n_x, n_col, x_c, x_max, 1, 1, t)
 model.save()
 data = model.run()
 model.load()
@@ -1251,7 +575,7 @@ EOC tests in a DPFR, Nucleation, growth, growth rate dispersion and aggregation
 N_x_ref = 500
 N_col_ref = 500
 
-model = NGRA(N_x_ref, N_col_ref, x_c, x_max, 3, 3)
+model = settings_crystallization.NGRA(N_x_ref, N_col_ref, x_c, x_max, 3, 3, t)
 model.save()
 data = model.run()
 model.load()
@@ -1270,7 +594,7 @@ N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
 
 n_xs = []
 for Nx in N_x_test:
-    model = NGRA(Nx, 400, x_c, x_max, 3, 2)  # test on WENO23
+    model = settings_crystallization.NGRA(Nx, 400, x_c, x_max, 3, 2, t)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -1296,7 +620,7 @@ N_col_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
 
 n_xs = []  # store the result nx here
 for Ncol in N_col_test:
-    model = NGRA(400, Ncol, x_c, x_max, 2, 3)  # test on WENO23
+    model = settings_crystallization.NGRA(400, Ncol, x_c, x_max, 2, 3, t)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -1323,120 +647,6 @@ There are no solute (c) and solubility components (cs).
 
 Cadet.cadet_path = Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet62\bin\cadet-cli.exe'
 
-def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order):
-    model = Cadet()
-
-    # Spacing
-    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
-
-    # Boundary conditions
-    boundary_c = log_normal(x_ct*1e6,0,1e16,0.4,80)
-
-    # Initial conditions
-    initial_c = n_x*[0.0, ]
-
-    # number of unit operations
-    model.root.input.model.nunits = 3
-
-    #inlet model
-    model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
-    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
-
-    #time sections
-    model.root.input.solver.sections.nsec = 1
-    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
-    model.root.input.solver.sections.section_continuity = []
-
-    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c 
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
-
-    # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
-    model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.col_length = 0.47
-    model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
-    model.root.input.model.unit_001.total_porosity = 1.0
-    model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
-    model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
-
-    # column discretization
-    model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
-    model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
-    model.root.input.model.unit_001.discretization.gs_type = 1
-    model.root.input.model.unit_001.discretization.max_krylov = 0
-    model.root.input.model.unit_001.discretization.max_restarts = 10
-    model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
-    
-    model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
-    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
-    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-    model.root.input.model.unit_001.discretization.weno.weno_order = axial_order
-
-    # crystallization reaction
-    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-    
-    model.root.input.model.unit_001.reaction.cry_bins = x_grid
-    
-    model.root.input.model.unit_001.reaction.cry_aggregation_index = 0 # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
-    model.root.input.model.unit_001.reaction.cry_aggregation_rate_constant = 2.4e-12
-    
-    model.root.input.model.unit_001.reaction.cry_breakage_rate_constant = 6.0e10
-    model.root.input.model.unit_001.reaction.cry_breakage_kernel_gamma = 2 
-    model.root.input.model.unit_001.reaction.cry_breakage_selection_function_alpha = 1
-
-    ## Outlet
-    model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
-
-    # Connections
-    Q = 10.0*1e-6/60          ## m^3/s
-
-    model.root.input.model.connections.nswitches = 1
-    model.root.input.model.connections.switch_000.section = 0
-    model.root.input.model.connections.switch_000.connections = [
-        0, 1, -1, -1, Q,
-        1, 2, -1, -1, Q,
-    ]
-
-    # numerical solver configuration
-    model.root.input.model.solver.gs_type = 1
-    model.root.input.model.solver.max_krylov = 0
-    model.root.input.model.solver.max_restarts = 10
-    model.root.input.model.solver.schur_safety = 1e-8
-
-    # Number of cores for parallel simulation
-    model.root.input.solver.nthreads = 1
-
-    # Tolerances for the time integrator
-    model.root.input.solver.time_integrator.abstol = 1e-6
-    model.root.input.solver.time_integrator.algtol = 1e-10
-    model.root.input.solver.time_integrator.reltol = 1e-6
-    model.root.input.solver.time_integrator.init_step_size = 1e-10
-    model.root.input.solver.time_integrator.max_steps = 1000000
-
-    # Return data
-    model.root.input['return'].split_components_data = 0
-    model.root.input['return'].split_ports_data = 0
-    model.root.input['return'].unit_000.write_solution_bulk = 0
-    model.root.input['return'].unit_000.write_solution_outlet = 1
-    model.root.input['return'].unit_000.write_coordinates = 0
-
-    # Copy settings to the other unit operations
-    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
-    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
-
-    # Solution times
-    model.root.input.solver.user_solution_times = t
-
-    model.filename = 'practice1.h5'                    ## change as needed
-    
-    return model
 
 # system setup
 n_x = 100
@@ -1452,7 +662,7 @@ t = np.linspace(0, cycle_time, 200)
 @note: There is no analytical solution in this case. We are using a result as the reference solution.
 '''
 
-model = Agg_Frag_DPFR(n_x, n_col, x_c, x_max, 1)
+model = settings_crystallization.Agg_Frag_DPFR(n_x, n_col, x_c, x_max, 1)
 model.save()
 data = model.run()
 model.load() 
@@ -1473,7 +683,7 @@ EOC tests in a DPFR, Aggregation and Fragmentation
 N_x_ref = 450
 N_col_ref = 250
 
-model = Agg_Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
+model = settings_crystallization.Agg_Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
 model.save()
 data = model.run()
 model.load()
@@ -1492,7 +702,7 @@ N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
 
 n_xs = []
 for Nx in N_x_test:
-    model = Agg_Frag_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
+    model = settings_crystallization.Agg_Frag_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
@@ -1518,7 +728,7 @@ N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
 
 n_xs = []  # store the result nx here
 for Ncol in N_col_test:
-    model = Agg_Frag_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
+    model = settings_crystallization.Agg_Frag_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
     model.save()
     data = model.run()
     model.load()
