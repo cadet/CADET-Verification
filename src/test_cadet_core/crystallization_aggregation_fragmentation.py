@@ -29,14 +29,19 @@ import utility.convergence as convergence
 import settings_crystallization
 
 
-cadet_path_agg = 'C:/Users/jmbr/OneDrive/Desktop/CADET_compiled/Crys_pureAgg/aRELEASE/bin/cadet-cli.exe' # convergence.get_cadet_path()
-cadet_path_frag = 'C:/Users/jmbr/OneDrive/Desktop/CADET_compiled/Crys_pureFrag/aRELEASE/bin/cadet-cli.exe' # convergence.get_cadet_path()
-cadet_path_aggFrag = cadet_path_agg
+cadet_path = 'C:/Users/jmbr/Cadet_testBuild/CADET_crystallization/out/install/aRELEASE/bin/cadet-cli.exe'
 
 
-run_aggregation_test = 1
-run_fragmentation_test = 1
+run_aggregation_test = 0
+run_fragmentation_test = 0
 run_aggregation_fragmentation_test = 0
+run_DPFR_constAgg_test = 1
+run_DPFR_constFrag_test = 0
+run_DPFR_NGGR_aggregation_test = 0
+run_DPFR_NGGR_fragmentation_test = 0
+run_DPFR_aggregation_fragmentation_test = 0
+
+small_test = 1
 
 sys.path.append(str(Path(".")))
 project_repo = ProjectRepo()
@@ -136,7 +141,7 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
     # run sims
     normalized_l1 = []
     
-    Nx_grid = np.asarray([50, 100, 200, 400]) if small_test else np.asarray([50, 100, 200, 400, 800, 1600])
+    Nx_grid = np.asarray([24, 48, 96, 192, 384]) if small_test else np.asarray([12, 24, 48, 96, 192, 384, 768])
     
     for n_x in Nx_grid:
         model, x_grid, x_ct = settings_crystallization.PureAgg_Golovin(
@@ -159,8 +164,8 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
         EOC.append(log(normalized_l1[i] / normalized_l1[i+1], mp.e) / log(2.0))
     print(EOC)
 
-if run_fragmentation_test:
-    crystallization_aggregation_EOC_test(cadet_path_agg, small_test=True, output_path=output_path)
+if run_aggregation_test:
+    crystallization_aggregation_EOC_test(cadet_path, small_test=small_test, output_path=output_path)
 
 #%% Pure fragmentation
 def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
@@ -218,7 +223,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
     # run sims
     normalized_l1 = []
     
-    Nx_grid = np.asarray([25, 50, 100, 200])
+    Nx_grid = np.asarray([12, 24, 48, 96, 192, 384])
     
     for n_x in Nx_grid:
         model, x_grid, x_ct = settings_crystallization.PureFrag_LinBi(n_x, x_c, x_max, S_0, t, output_path)
@@ -241,7 +246,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
     
 
 if run_fragmentation_test:
-    crystallization_fragmentation_EOC_test(cadet_path_frag, small_test=True, output_path=output_path)
+    crystallization_fragmentation_EOC_test(cadet_path, small_test=small_test, output_path=output_path)
 
 
 # %% Simultaneous aggregation and fragmentation
@@ -254,10 +259,10 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
     '''
     
     # combined aggregation and fragmentation
-    Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet73\bin\cadet-cli.exe'
+    Cadet.cadet_path = cadet_path
     
     
-    def get_analytical_agg_frag(n_x, x_ct):
+    def get_analytical_agg_frag(n_x, x_ct, t):
         x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
     
         # dimensionless time
@@ -323,7 +328,7 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
     # run sims
     normalized_l1 = []
     
-    Nx_grid = np.asarray([25, 50, 100, 200, 400, ]) if small_test else np.asarray([25, 50, 100, 200, 400, 800, ])
+    Nx_grid = np.asarray([12, 24, 48, 96, 192, 384, ]) if small_test else np.asarray([25, 50, 100, 200, 400, 768, ])
     
     for n_x in Nx_grid:
         model, x_grid, x_ct = settings_crystallization.Agg_frag(n_x, x_c, x_max, beta_0, S_0, t, output_path)
@@ -346,481 +351,499 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
     
 
 if run_aggregation_fragmentation_test:
-    crystallization_aggregation_fragmentation_EOC_test(cadet_path_aggfrag, small_test=True, output_path=output_path)
+    crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test=small_test, output_path=output_path)
 
 # %% Constant aggregation in a DPFR
-# '''
-# @detail: Constant aggregation kernel in a DPFR tests and EOC tests using a
-# reference solution. 
-# Assumes no solute (c) and solubility component (cs).
-# '''
-
-# Cadet.cadet_path = r"C:\Users\zwend\CADET\cadet71\bin\cadet-cli.exe"
-
-# # boundary condition
-# # A: area, y0: offset, w:std, xc: center (A,w >0)
-
-
-# # system setup
-# n_x = 100
-# n_col = 100
-
-# x_c, x_max = 1e-6, 1000e-6            # m
-# x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
-
-# cycle_time = 300                      # s
-# t = np.linspace(0, cycle_time, 200)
-
-# '''
-# @note: There is no analytical solution in this case. We are using this result as the reference solution?
-# '''
-
-# model, x_grid, x_ct = settings_crystallization.Agg_DPFR(n_x, n_col, x_c, x_max, 1, t, output_path)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-# c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
-
-# plt.xscale("log")
-# plt.plot(x_ct, c_x)
-# plt.xlabel(r'$Size/\mu m$')
-# plt.ylabel('Particle count/1')
-# plt.show()
-
-# '''
-# EOC tests in a DPFR, Constant aggregation kernel
-# @note: the EOC is obtained along the Nx and Ncol coordinate, separately
-# '''
-
-
-# def get_slope(error):
-#     return [np.log2(error[i] / error[i-1]) for i in range(1, len(error))]
-
-
-# # get ref solution
-# N_x_ref = 450
-# N_col_ref = 250
-
-# model, x_grid, x_ct = settings_crystallization.Agg_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-
-# c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
-
-# # interpolate the reference solution at the reactor outlet
-
-# x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
-
-# spl = UnivariateSpline(x_ct, c_x_reference)
-
-# # EOC, Nx
-
-# N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
-
-# n_xs = []
-# for Nx in N_x_test:
-#     model, x_grid, x_ct = settings_crystallization.Agg_DPFR(Nx, 250, x_c, x_max, 2, t, output_path)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-
-# slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Nx)
-
-# # EOC, Ncol
-
-# N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
-
-# n_xs = []  # store the result nx here
-# for Ncol in N_col_test:
-#     model, x_grid, x_ct = settings_crystallization.Agg_DPFR(450, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-# slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Ncol)
-
-
-# # %% Constant fragmentation in a DPFR
-# '''
-# @detail: Constant fragmentation kernel in a DPFR tests and EOC tests using a
-# reference solution. 
-# Assumes no solute (c) and solubility component (cs).
-# '''
-
-# Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet72\bin\cadet-cli.exe'
-
-
-# # system setup
-# n_x = 100
-# n_col = 100
-
-# x_c, x_max = 1e-6, 1000e-6            # m
-# x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
-
-# cycle_time = 300                      # s
-# t = np.linspace(0, cycle_time, 200)
-
-# '''
-# @note: There is no analytical solution in this case. We are using this result as the reference solution?
-# '''
-
-# model, x_grid, x_ct = settings_crystallization.Frag_DPFR(n_x, n_col, x_c, x_max, 1, t, output_path)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-# c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
-
-# plt.xscale("log")
-# plt.plot(x_ct, c_x)
-# plt.xlabel(r'$Size/\mu m$')
-# plt.ylabel('Particle count/1')
-# plt.show()
-
-# '''
-# EOC tests in a DPFR, Fragmentation
-# @note: the EOC is obtained along the Nx and Ncol coordinate, separately
-# '''
-
-# # get ref solution
-# N_x_ref = 450
-# N_col_ref = 250
-
-# model, x_grid, x_ct = settings_crystallization.Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-
-# c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
-
-# # interpolate the reference solution at the reactor outlet
-
-# x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
-
-# spl = UnivariateSpline(x_ct, c_x_reference)
-
-# # EOC, Nx
-
-# N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
-
-# n_xs = []
-# for Nx in N_x_test:
-#     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(Nx, 250, x_c, x_max, 2, t, output_path)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-
-# slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Nx)
-
-# # EOC, Ncol
-
-# N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
-
-# n_xs = []  # store the result nx here
-# for Ncol in N_col_test:
-#     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(450, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-# slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Ncol)
-
-
-# # %% Nucleation, growth, growth rate dispersion and aggregation in a DPFR
-# '''
-# @detail: Nucleation, growth, growth rate dispersion and aggregation in a DPFR
-# tests and EOC tests using a reference solution. 
-# There are solute (c) and solubility components (cs).
-# '''
-
-# Cadet.cadet_path = r"C:\Users\zwend\CADET\cadet77\bin\cadet-cli.exe"
-
-
-# # set up
-# n_x = 100 + 2
-# n_col = 100
-# x_c, x_max = 1e-6, 1000e-6       # m
-# x_grid, x_ct = settings_crystallization.get_log_space(n_x - 2, x_c, x_max)
-
-# # simulation time
-# cycle_time = 200                 # s
-# t = np.linspace(0, cycle_time, 200+1)
-
-# model, x_grid, x_ct = settings_crystallization.NGRA(n_x, n_col, x_c, x_max, 1, 1, t, output_path)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-
-# t = model.root.input.solver.user_solution_times
-# c_x = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
-
-
-# plt.xscale("log")
-# plt.plot(x_ct, c_x)
-# plt.xlabel(r'$Size/\mu m$')
-# plt.ylabel(r'$n/(1/m / m)$')
-# plt.show()
-
-
-# '''
-# EOC tests in a DPFR, Nucleation, growth, growth rate dispersion and aggregation
-# @note: the EOC is obtained along the Nx and Ncol coordinate, separately
-# '''
-
-# # get ref solution
-# N_x_ref = 500
-# N_col_ref = 500
-
-# model, x_grid, x_ct = settings_crystallization.NGRA(N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, output_path)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-
-# c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
-
-# # interpolate the reference solution at the reactor outlet
-
-# x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
-
-# spl = UnivariateSpline(x_ct, c_x_reference)
-
-# # EOC, Nx
-
-# N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
-
-# n_xs = []
-# for Nx in N_x_test:
-#     model, x_grid, x_ct = settings_crystallization.NGRA(Nx, 400, x_c, x_max, 3, 2, t, output_path)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-
-# slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Nx)
-
-# # EOC, Ncol
-
-# N_col_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
-
-# n_xs = []  # store the result nx here
-# for Ncol in N_col_test:
-#     model, x_grid, x_ct = settings_crystallization.NGRA(400, Ncol, x_c, x_max, 2, 3, t, output_path)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-# slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Ncol)
-
-# # %% Simultaneous aggregation and fragmentation in a DPFR
-# '''
-# @detail: Simultaneous aggregation and fragmentation in a DPFR tests and EOC tests using a reference solution. 
-# There are no solute (c) and solubility components (cs).
-# '''
-
-# Cadet.cadet_path = Cadet.cadet_path = r'C:\Users\zwend\CADET\cadet62\bin\cadet-cli.exe'
-
-
-# # system setup
-# n_x = 100
-# n_col = 100
-
-# x_c, x_max = 1e-6, 1000e-6            # m
-# x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
-
-# cycle_time = 300                      # s
-# t = np.linspace(0, cycle_time, 200)
-
-# '''
-# @note: There is no analytical solution in this case. We are using a result as the reference solution.
-# '''
-
-# model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(n_x, n_col, x_c, x_max, 1)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load() 
-# c_x = model.root.output.solution.unit_002.solution_outlet[-1,:]
-
-# plt.xscale("log")
-# plt.plot(x_ct, c_x)
-# plt.xlabel(r'$Size/\mu m$')
-# plt.ylabel('Particle count/1')
-# plt.show()
-
-# '''
-# EOC tests in a DPFR, Aggregation and Fragmentation
-# @note: the EOC is obtained along the Nx and Ncol coordinate, separately
-# '''
-
-# # get ref solution
-# N_x_ref = 450
-# N_col_ref = 250
-
-# model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
-# model.save()
-# data = model.run()
-# if not data.return_code==0:
-#     print(data.error_message)
-# model.load()
-
-# c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
-
-# # interpolate the reference solution at the reactor outlet
-
-# x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
-
-# spl = UnivariateSpline(x_ct, c_x_reference)
-
-# # EOC, Nx
-
-# N_x_test = np.asarray([25, 50, 100, 200, 400, ])  # grid for EOC
-
-# n_xs = []
-# for Nx in N_x_test:
-#     model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-
-# slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Nx)
-
-# # EOC, Ncol
-
-# N_col_test = np.asarray([13, 25, 50, 100, 200, ])  # grid for EOC
-
-# n_xs = []  # store the result nx here
-# for Ncol in N_col_test:
-#     model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
-#     model.save()
-#     data = model.run()
-    # if not data.return_code==0:
-    #     print(data.error_message)
-#     model.load()
-
-#     n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
-
-# relative_L1_norms = []  # store the relative L1 norms here
-# for nx in n_xs:
-#     # interpolate the ref solution on the test case grid
-
-#     x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
-
-#     relative_L1_norms.append(
-#         calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
-
-# slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-# print(slopes_Ncol)
+def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
+    '''
+    @detail: Constant aggregation kernel in a DPFR tests and EOC tests using a
+    reference solution. 
+    Assumes no solute (c) and solubility component (cs).
+    '''
+    
+    Cadet.cadet_path = cadet_path
+    
+    # boundary condition
+    # A: area, y0: offset, w:std, xc: center (A,w >0)
+    
+    
+    # system setup
+    n_x = 100
+    n_col = 100
+    
+    x_c, x_max = 1e-6, 1000e-6            # m
+    x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
+    
+    cycle_time = 300                      # s
+    t = np.linspace(0, cycle_time, 200)
+    
+    '''
+    @note: There is no analytical solution in this case. We are using this result as the reference solution?
+    '''
+    
+    model, x_grid, x_ct = settings_crystallization.Agg_DPFR(n_x, n_col, x_c, x_max, 1, t, output_path)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
+    
+    plt.xscale("log")
+    plt.plot(x_ct, c_x)
+    plt.xlabel(r'$Size/\mu m$')
+    plt.ylabel('Particle count/1')
+    plt.show()
+    
+    '''
+    EOC tests in a DPFR, Constant aggregation kernel
+    @note: the EOC is obtained along the Nx and Ncol coordinate, separately
+    '''
+    
+    
+    def get_slope(error):
+        return [np.log2(error[i] / error[i-1]) for i in range(1, len(error))]
+    
+    
+    # get ref solution
+    N_x_ref = 192 if small_test else 384 * 2
+    N_col_ref = 96 if small_test else 192 * 2
+    
+    model, x_grid, x_ct = settings_crystallization.Agg_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    
+    c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
+    
+    # interpolate the reference solution at the reactor outlet
+    
+    x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
+    
+    spl = UnivariateSpline(x_ct, c_x_reference)
+    
+    # EOC for refinement in internal coordinate
+    N_x_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, 384, ])
+    
+    n_xs = []
+    for Nx in N_x_test:
+        model, x_grid, x_ct = settings_crystallization.Agg_DPFR(Nx, 250, x_c, x_max, 2, t, output_path)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    
+    slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Nx)
+    
+    # EOC for refinement in the axial coordinate
+    N_col_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray([12, 24, 48, 96, 192, ])
+    
+    n_xs = []  # store the result nx here
+    for Ncol in N_col_test:
+        model, x_grid, x_ct = settings_crystallization.Agg_DPFR(450, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Ncol)
+
+if run_DPFR_constAgg_test:
+    crystallization_DPFR_constAggregation_EOC_test(
+        cadet_path=cadet_path, small_test=small_test, output_path=output_path
+        )
+
+# %% Constant fragmentation in a DPFR
+def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
+    '''
+    @detail: Constant fragmentation kernel in a DPFR tests and EOC tests using a
+    reference solution. 
+    Assumes no solute (c) and solubility component (cs).
+    '''
+    
+    Cadet.cadet_path = cadet_path
+    
+    
+    # system setup
+    n_x = 100
+    n_col = 100
+    
+    x_c, x_max = 1e-6, 1000e-6            # m
+    x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
+    
+    cycle_time = 300                      # s
+    t = np.linspace(0, cycle_time, 200)
+    
+    '''
+    @note: There is no analytical solution in this case. We are using this result as the reference solution?
+    '''
+    
+    model, x_grid, x_ct = settings_crystallization.Frag_DPFR(n_x, n_col, x_c, x_max, 1, t, output_path)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
+    
+    plt.xscale("log")
+    plt.plot(x_ct, c_x)
+    plt.xlabel(r'$Size/\mu m$')
+    plt.ylabel('Particle count/1')
+    plt.show()
+    
+    '''
+    EOC tests in a DPFR, Fragmentation
+    @note: the EOC is obtained along the Nx and Ncol coordinate, separately
+    '''
+    
+    # get ref solution
+    N_x_ref = 192 if small_test else 384 * 2
+    N_col_ref = 192 if small_test else 192 * 2
+    
+    model, x_grid, x_ct = settings_crystallization.Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    
+    c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
+    
+    # interpolate the reference solution at the reactor outlet
+    
+    x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
+    
+    spl = UnivariateSpline(x_ct, c_x_reference)
+    
+    # EOC for refinement in internal coordinate
+    N_x_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, 384, ])
+    
+    n_xs = []
+    for Nx in N_x_test:
+        model, x_grid, x_ct = settings_crystallization.Frag_DPFR(Nx, 250, x_c, x_max, 2, t, output_path)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    
+    slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Nx)
+    
+    # EOC for refinement in axial coordinate
+    N_col_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, ])
+    
+    n_xs = []  # store the result nx here
+    for Ncol in N_col_test:
+        model, x_grid, x_ct = settings_crystallization.Frag_DPFR(450, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Ncol)
+
+if run_DPFR_constFrag_test:
+    crystallization_DPFR_constAggregation_EOC_test(
+        cadet_path=cadet_path, small_test=small_test, output_path=output_path
+        )
+
+
+# %% Nucleation, growth, growth rate dispersion and aggregation in a DPFR
+def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
+    '''
+    @detail: Nucleation, growth, growth rate dispersion and aggregation in a DPFR
+    tests and EOC tests using a reference solution. 
+    There are solute (c) and solubility components (cs).
+    '''
+    
+    Cadet.cadet_path = cadet_path
+    
+    
+    # set up
+    n_x = 100 + 2
+    n_col = 100
+    x_c, x_max = 1e-6, 1000e-6       # m
+    x_grid, x_ct = settings_crystallization.get_log_space(n_x - 2, x_c, x_max)
+    
+    # simulation time
+    cycle_time = 200                 # s
+    t = np.linspace(0, cycle_time, 200+1)
+    
+    model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(n_x, n_col, x_c, x_max, 1, 1, t, output_path)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    
+    t = model.root.input.solver.user_solution_times
+    c_x = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
+    
+    
+    plt.xscale("log")
+    plt.plot(x_ct, c_x)
+    plt.xlabel(r'$Size/\mu m$')
+    plt.ylabel(r'$n/(1/m / m)$')
+    plt.show()
+    
+    
+    '''
+    EOC tests in a DPFR, Nucleation, growth, growth rate dispersion and aggregation
+    @note: the EOC is obtained along the Nx and Ncol coordinate, separately
+    '''
+    
+    # get ref solution
+    N_x_ref = 96 * 2 if small_test else 384 * 2
+    N_col_ref = 96 * 2 if small_test else 384 * 2
+    
+    model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, output_path)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    
+    c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
+    
+    # interpolate the reference solution at the reactor outlet
+    
+    x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
+    
+    spl = UnivariateSpline(x_ct, c_x_reference)
+    
+    # EOC for refinement in internal coordinate
+    N_x_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, 384, ])
+    
+    n_xs = []
+    for Nx in N_x_test:
+        model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(Nx, 400, x_c, x_max, 3, 2, t, output_path)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    
+    slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Nx)
+    
+    # EOC for refinement in axial coordinate
+    N_col_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, 384, ])
+    
+    n_xs = []  # store the result nx here
+    for Ncol in N_col_test:
+        model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(400, Ncol, x_c, x_max, 2, 3, t, output_path)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Ncol)
+
+if run_DPFR_NGGR_aggregation_test:
+    crystallization_DPFR_NGGR_aggregation_EOC_test(
+        cadet_path=cadet_path, small_test=small_test, output_path=output_path
+        )
+
+
+# %% Simultaneous aggregation and fragmentation in a DPFR
+def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+    '''
+    @detail: Simultaneous aggregation and fragmentation in a DPFR tests and EOC tests using a reference solution. 
+    There are no solute (c) and solubility components (cs).
+    '''
+    
+    Cadet.cadet_path = cadet_path
+    
+    
+    # system setup
+    n_x = 100
+    n_col = 100
+    
+    x_c, x_max = 1e-6, 1000e-6            # m
+    x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
+    
+    cycle_time = 300                      # s
+    t = np.linspace(0, cycle_time, 200)
+    
+    '''
+    @note: There is no analytical solution in this case. We are using a result as the reference solution.
+    '''
+    
+    model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(n_x, n_col, x_c, x_max, 1)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load() 
+    c_x = model.root.output.solution.unit_002.solution_outlet[-1,:]
+    
+    plt.xscale("log")
+    plt.plot(x_ct, c_x)
+    plt.xlabel(r'$Size/\mu m$')
+    plt.ylabel('Particle count/1')
+    plt.show()
+    
+    '''
+    EOC tests in a DPFR, Aggregation and Fragmentation
+    @note: the EOC is obtained along the Nx and Ncol coordinate, separately
+    '''
+    
+    # get ref solution
+    N_x_ref = 96 * 2 if small_test else 384 * 2
+    N_col_ref = 96 * 2 if small_test else 192 * 2
+    
+    model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(N_x_ref, N_col_ref, x_c, x_max, 3)
+    model.save()
+    data = model.run()
+    if not data.return_code==0:
+        print(data.error_message)
+    model.load()
+    
+    c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
+    
+    # interpolate the reference solution at the reactor outlet
+    
+    x_grid, x_ct = settings_crystallization.get_log_space(N_x_ref, x_c, x_max)
+    
+    spl = UnivariateSpline(x_ct, c_x_reference)
+    
+    # EOC for refinement in internal coordinate
+    N_x_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, 384, ])
+    
+    n_xs = []
+    for Nx in N_x_test:
+        model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(Nx, 250, x_c, x_max, 2)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    
+    slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Nx)
+    
+    # EOC for refinement in axial coordinate
+    N_col_test = np.asarray([12, 24, 48, 96, ]) if small_test else np.asarray([12, 24, 48, 96, 192, ])
+    
+    n_xs = []  # store the result nx here
+    for Ncol in N_col_test:
+        model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(450, Ncol, x_c, x_max, 2)  # test on WENO23
+        model.save()
+        data = model.run()
+        if not data.return_code==0:
+            print(data.error_message)
+        model.load()
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
+    
+    relative_L1_norms = []  # store the relative L1 norms here
+    for nx in n_xs:
+        # interpolate the ref solution on the test case grid
+    
+        x_grid, x_ct = settings_crystallization.get_log_space(len(nx), x_c, x_max)
+    
+        relative_L1_norms.append(
+            calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid, n_x))
+    
+    slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
+    print(slopes_Ncol)
+
+if run_DPFR_aggregation_fragmentation_test:
+    crystallization_DPFR_aggregation_fragmentation_EOC_test(
+        cadet_path=cadet_path, small_test=small_test, output_path=output_path
+        )
+    
+    
