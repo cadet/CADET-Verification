@@ -938,11 +938,13 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
     return model, x_grid, x_ct
 
 
-def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins + 2', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order, t, output_path):
+def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order, t, output_path):
     model = Cadet()
 
+    nComp = n_x + 2
+
     # Spacing
-    x_grid, x_ct = get_log_space(n_x - 2, x_c, x_max)
+    x_grid, x_ct = get_log_space(nComp, x_c, x_max)
 
     # c_feed
     c_feed = 9.0
@@ -950,20 +952,20 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins + 2', n_col: 'int, num
 
     # Boundary conditions
     boundary_c = []
-    for i in range(0, n_x):
+    for i in range(0, nComp):
         if i == 0:
             boundary_c.append(c_feed)
-        elif i == n_x - 1:
+        elif i == nComp - 1:
             boundary_c.append(c_eq)
         else:
             boundary_c.append(0.0)
 
     # Initial conditions
     initial_c = []
-    for k in range(n_x):
+    for k in range(nComp):
         if k == 0:
             initial_c.append(0)
-        elif k == n_x-1:
+        elif k == nComp-1:
             initial_c.append(c_eq)
         else:
             initial_c.append(0)
@@ -973,7 +975,7 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins + 2', n_col: 'int, num
 
     # inlet model
     model.root.input.model.unit_000.unit_type = 'INLET'
-    model.root.input.model.unit_000.ncomp = n_x
+    model.root.input.model.unit_000.ncomp = nComp
     model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
 
     # time sections
@@ -982,24 +984,24 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins + 2', n_col: 'int, num
     model.root.input.solver.sections.section_continuity = []
 
     model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
-    model.root.input.model.unit_000.sec_000.lin_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.quad_coeff = n_x*[0.0,]
-    model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
+    model.root.input.model.unit_000.sec_000.lin_coeff = nComp*[0.0,]
+    model.root.input.model.unit_000.sec_000.quad_coeff = nComp*[0.0,]
+    model.root.input.model.unit_000.sec_000.cube_coeff = nComp*[0.0,]
 
     # Tubular reactor
     model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
-    model.root.input.model.unit_001.ncomp = n_x
+    model.root.input.model.unit_001.ncomp = nComp
     model.root.input.model.unit_001.adsorption_model = 'NONE'
     model.root.input.model.unit_001.col_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 3.066e-05
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
+    model.root.input.model.unit_001.init_q = nComp*[0.0]
 
     # column discretization
     model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
+    model.root.input.model.unit_001.discretization.nbound = nComp*[0]
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
@@ -1041,7 +1043,7 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins + 2', n_col: 'int, num
 
     # Outlet
     model.root.input.model.unit_002.unit_type = 'OUTLET'
-    model.root.input.model.unit_002.ncomp = n_x
+    model.root.input.model.unit_002.ncomp = nComp
 
     # Connections
     Q = 10.0*1e-6/60     # Q, volumetric flow rate
