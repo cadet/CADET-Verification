@@ -6,6 +6,7 @@ dependencies:
   - cadet
   - pip
   - pip:
+      - mpmath
       - scipy
       - numpy
       - matplotlib
