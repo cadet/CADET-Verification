@@ -433,7 +433,7 @@ def GRM2D_linBnd_benchmark1(
         cadet_model.save()
 
         data = cadet_model.run()
-        if data.returncode == 0:
+        if data.return_code == 0:
             print(cadet_model.filename + " simulation completed successfully")
             cadet_model.load()
         else:
