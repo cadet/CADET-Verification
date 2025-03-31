@@ -884,6 +884,47 @@ def acyclic_systems_tests(n_jobs, database_path, output_path,
     return benchmark_config
 
 
+def smb_systems_tests(n_jobs, database_path, output_path,
+                       cadet_path, small_test=False, **kwargs):
+
+    nDisc = 4 if small_test else 6
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            settings_columnSystems.SMB_model1(nDisc, 4, 1)
+        ],
+        'include_sens': [
+            False
+        ],
+        'ref_files': [
+            [None]
+        ],
+        'unit_IDs': [
+            '003'
+        ],
+        'which': [
+            'outlet'
+        ],
+        'idas_abstol': [
+            [1e-10]
+        ],
+        'ax_methods': [
+            [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(4, nDisc)]
+        ],
+        'par_methods': [
+            [None]
+        ],
+        'par_discs': [
+            [None]
+        ]
+    }
+
+    return benchmark_config
+
+
 def merge_benchmark(benchmark_config1, benchmark_config2):
 
     for key in benchmark_config1.keys():
