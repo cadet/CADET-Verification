@@ -14,9 +14,11 @@ from CADETProcess.simulator import Cadet
 # %% Global variables
 
 USE_DLL = True
+# Number of cycles for the simulation to run to get a better average of runtime:
 N_CYCLES = 100
 # pre-lim testing on the IBT073 server showed very high variance in runtimes if > 50% of cores were used, so set to ~30%
 N_CORES = int(multiprocessing.cpu_count() / 3)
+# Optimizer U_NSGA3 population size
 POP_SIZE = 240
 
 CACHE_DIRECTORY: Path | None = None  # e.g.: Path('/dev/shm/jaepel/CADET-Process/cache/')
