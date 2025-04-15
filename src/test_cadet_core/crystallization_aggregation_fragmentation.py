@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 import os
 import sys
 from pathlib import Path
+import re
+import json
 
 from cadet import Cadet
 from cadetrdm import ProjectRepo
@@ -29,14 +31,14 @@ import utility.convergence as convergence
 import settings_crystallization
 
 
-cadet_path = 'C:/Users/jmbr/Cadet_testBuild/CADET_crystallization/out/install/aRELEASE/bin/cadet-cli.exe'
+cadet_path = 'C:/Users/jmbr/software/CADET-Core/out/install/aRELEASE/bin/cadet-cli.exe'
 
 
-run_aggregation_test = 0
-run_fragmentation_test = 0
+run_aggregation_test = 1
+run_fragmentation_test = 1
 run_aggregation_fragmentation_test = 0
 run_DPFR_constAgg_test = 0
-run_DPFR_constFrag_test = 1
+run_DPFR_constFrag_test = 0
 run_DPFR_NGGR_aggregation_test = 0
 run_DPFR_NGGR_fragmentation_test = 0
 run_DPFR_aggregation_fragmentation_test = 0
@@ -171,7 +173,7 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
     data = {
         'convergence': {
             "Nx": Nx_grid.tolist(),
-            "L^1 EOC": EOC
+            "L^1 EOC": [float(x) for x in EOC]
         }
     }
 
@@ -265,7 +267,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
     data = {
         'convergence': {
             "Nx": Nx_grid.tolist(),
-            "L^1 EOC": EOC
+            "L^1 EOC": [float(x) for x in EOC]
         }
     }
 
@@ -382,7 +384,7 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
     data = {
         'convergence': {
             "Nx": Nx_grid.tolist(),
-            "L^1 EOC": EOC
+            "L^1 EOC": [float(x) for x in EOC]
         }
     }
 
@@ -498,7 +500,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
-            "L^1 EOC": slopes_Nx
+            "L^1 EOC": [float(x) for x in slopes_Nx]
         }
     }
 
@@ -533,7 +535,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
-        "L^1 EOC": slopes_Ncol
+        "L^1 EOC": [float(x) for x in slopes_Ncol]
     }
 
     # Write the dictionary to a JSON file
@@ -646,7 +648,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
-            "L^1 EOC": slopes_Nx
+            "L^1 EOC": [float(x) for x in slopes_Nx]
         }
     }
 
@@ -681,7 +683,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
-        "L^1 EOC": slopes_Ncol
+        "L^1 EOC": [float(x) for x in slopes_Ncol]
     }
 
     # Write the dictionary to a JSON file
@@ -792,7 +794,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
-            "L^1 EOC": slopes_Nx
+            "L^1 EOC": [float(x) for x in slopes_Nx]
         }
     }
 
@@ -828,7 +830,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
-        "L^1 EOC": slopes_Ncol
+        "L^1 EOC": [float(x) for x in slopes_Ncol]
     }
 
     # Write the dictionary to a JSON file
@@ -939,7 +941,7 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
-            "L^1 EOC": slopes_Nx
+            "L^1 EOC": [float(x) for x in slopes_Nx]
         }
     }
 
@@ -974,7 +976,7 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
-        "L^1 EOC": slopes_Ncol
+        "L^1 EOC": [float(x) for x in slopes_Ncol]
     }
 
     # Write the dictionary to a JSON file
