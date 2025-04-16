@@ -345,6 +345,18 @@ def sim_go_to(dictionary, keys):
 
 # TODO? currently only allows split_components_data = false
 
+def get_cry_bins(simulation, unit='unit_001'):
+    sol = np.squeeze(
+        sim_go_to(get_simulation(simulation).root,
+            ['input',
+            'model',
+            unit,
+                       'reaction_bulk',
+		       'CRY_BINS'	
+			]
+                      )
+        )
+    return sol
 
 def get_solution(simulation, unit='unit_001', which='outlet', comp=[-1], **kwargs):
     """Get solution from simulation.
