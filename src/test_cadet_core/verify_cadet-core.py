@@ -41,7 +41,7 @@ rdm_debug_mode = False # Run CADET-RDM in debug mode to test if the script works
 
 small_test = True # Defines a smaller test set (less numerical refinement steps)
 
-n_jobs = -1 # For parallelization on the number of simulations
+n_jobs = 1 # For parallelization on the number of simulations
 
 delete_h5_files = True # delete h5 files (but keep convergence tables and plots)
 exclude_files = None # ["file1", "file2"] # specify h5 files that should not be deleted
@@ -60,8 +60,8 @@ project_repo = ProjectRepo()
 output_path = project_repo.output_path / "test_cadet-core"
 
 # The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
-cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
- 
+cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli
+
 
 # %% Run with CADET-RDM
 
