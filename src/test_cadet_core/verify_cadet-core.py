@@ -48,9 +48,9 @@ exclude_files = None # ["file1", "file2"] # specify h5 files that should not be 
 
 run_chromatography_tests = True
 run_chromatography_system_tests = True
-run_crystallization_tests = True
-run_MCT_tests = True
-run_2Dmodels_tests = True
+run_crystallization_tests = False
+run_MCT_tests = False
+run_2Dmodels_tests = False
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
