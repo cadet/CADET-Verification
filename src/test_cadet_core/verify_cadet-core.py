@@ -47,7 +47,7 @@ delete_h5_files = True # delete h5 files (but keep convergence tables and plots)
 exclude_files = None # ["file1", "file2"] # specify h5 files that should not be deleted
 
 run_chromatography_tests = True
-run_chromatography_system_tests = True
+run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_MCT_tests = False
 run_2Dmodels_tests = False
