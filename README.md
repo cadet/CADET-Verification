@@ -15,10 +15,22 @@ The results of the verification studies can be accessed in the [CADET-Verificati
 
 CADET-Verification must be run for deployment and on demand, specifically when critical changes are made to the simulator.
 
+To track results: 
+
+Start by cloning with `rdm clone` instead of `git clone`
+
 The tests are located in the `src` folder.
 The main script is called `verify_cadet-core`, please refer to the documentation therein for further instruction.
 
 The reference data used in some of the tests implemented in CADET-Core can be generated using the corresponding tests defined in CADET-Verification.
+
+To run in a Docker container:
+```bash
+# 1. if necessary make changes in the Dockerfile
+docker build -t cadet-verification . # build Docker container
+docker run -v $(pwd):/workingdir -w /workingdir cadet-verification python src/test_cadet_core/verify_cadet-core.py
+```
+
 
 ## Contributing
 
