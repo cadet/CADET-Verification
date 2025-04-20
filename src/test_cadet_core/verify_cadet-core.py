@@ -28,7 +28,7 @@ import bench_func
 import bench_configs
 
 import chromatography
-import crystallization
+import crystallization_PBM
 import MCT
 import chrom_systems
 import twoDimChromatography
@@ -89,7 +89,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             convergence.delete_h5_files(str(output_path) + "/chromatography/systems", exclude_files=exclude_files)
         
     if run_crystallization_tests:
-        crystallization.crystallization_tests(
+        crystallization_PBM.crystallization_tests(
             n_jobs=n_jobs, database_path=database_path+"crystallization/",
             small_test=small_test,
             output_path=str(output_path) + "/crystallization", cadet_path=cadet_path
