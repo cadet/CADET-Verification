@@ -28,7 +28,7 @@ import bench_func
 import bench_configs
 
 import chromatography
-import crystallization_PBM
+import crystallization_partI
 import MCT
 import chrom_systems
 import twoDimChromatography
@@ -68,6 +68,7 @@ cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli
 with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
     
     if run_chromatography_tests:
+        
         chromatography.chromatography_tests(
             n_jobs=n_jobs, database_path=database_path+"chromatography/",
             small_test=small_test, sensitivities=True,
@@ -78,6 +79,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             convergence.delete_h5_files(str(output_path) + "/chromatography", exclude_files=exclude_files)
     
     if run_chromatography_system_tests:
+        
         chrom_systems.chromatography_systems_tests(
             n_jobs=n_jobs, database_path=None,
             small_test=small_test,
@@ -89,7 +91,8 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             convergence.delete_h5_files(str(output_path) + "/chromatography/systems", exclude_files=exclude_files)
         
     if run_crystallization_tests:
-        crystallization_PBM.crystallization_tests(
+        
+        crystallization_partI.crystallization_tests(
             n_jobs=n_jobs, database_path=database_path+"crystallization/",
             small_test=small_test,
             output_path=str(output_path) + "/crystallization", cadet_path=cadet_path
@@ -99,6 +102,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             convergence.delete_h5_files(str(output_path) + "/crystallization", exclude_files=exclude_files)
         
     if run_MCT_tests:
+        
         MCT.MCT_tests(
             n_jobs=n_jobs, database_path=database_path+"mct/",
             small_test=small_test,
@@ -109,6 +113,7 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             convergence.delete_h5_files(str(output_path) + "/mct", exclude_files=exclude_files)
         
     if run_2Dmodels_tests:
+        
         twoDimChromatography.GRM2D_linBnd_tests(
                 n_jobs=n_jobs, database_path=None, small_test=small_test,
                 output_path=str(output_path) + "/2Dchromatography", cadet_path=cadet_path,
