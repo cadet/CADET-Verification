@@ -944,7 +944,7 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
     nComp = n_x + 2
 
     # Spacing
-    x_grid, x_ct = get_log_space(nComp, x_c, x_max)
+    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
     # c_feed
     c_feed = 9.0
@@ -1091,6 +1091,7 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
 
 
 def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
+    
     model = Cadet()
 
     # Spacing
