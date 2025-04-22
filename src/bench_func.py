@@ -459,16 +459,13 @@ def generate_convergence_data(
 
     if write_result:
         # Adjust meta data
-        if config_data is not None:
-            config_data['input']['meta'] = config_data.pop('meta')
-            config_data['input']['meta']['source'] = 'CADET-Reference convergence data https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference_data'
-            config_data['input']['meta']['info'] = 'CADET-Reference convergence data for the CADET-Database model configuration: ' + \
-                setting_name + ' whose source is ' + \
-                config_data['input']['meta']['source']
-            config_data['input']['meta']['name'] = 'convergence_' + \
-                setting_name
-            if commit_hash is not None:
-                config_data['input']['meta']['cadet_commit_last_run'] = commit_hash
+        if config_data is None:
+            config_data = {'input' : {'meta' : {}}}
+
+        config_data['input']['meta']['name'] = 'convergence_' + \
+            setting_name
+        if commit_hash is not None:
+            config_data['input']['meta']['cadet_commit_last_run'] = commit_hash
         # get method name
         if ax_method == 0:
             method_name = 'FV'
