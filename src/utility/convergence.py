@@ -955,8 +955,15 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
                         errors.append(calculate_abs_error(reference, sim_interpolated))
                         
                     else:  # it is assumed that solution is already given at the same discrete points
-                        errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
-                                                          reference))
+                        try:
+                            errors.append(
+                                calculate_abs_error(
+                                    get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
+                                    reference)
+                                )
+                        except ValueError as e:
+                            raise ValueError(f"Caught a ValueError: {e}\n You probably need to provide reference data info such as polyDeg, nCells, ref_coords!")
+
                 else:
                     errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp), reference))
             elif which == 'bulk':
