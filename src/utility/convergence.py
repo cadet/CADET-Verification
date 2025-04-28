@@ -1376,10 +1376,23 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
     if polyDeg == 0:
 
         cellIdx = 0
+        coordHit = False
+        
         for outputIdx in range(len(output_coords)):
+            
             while orig_coords[cellIdx] + 0.5 * deltaZ < output_coords[outputIdx]:
-                cellIdx += 1
-            output_values[outputIdx] = orig_values[cellIdx]
+                
+                if abs(orig_coords[cellIdx] + 0.5 * deltaZ - output_coords[outputIdx]) < 1E-15:
+                    coordHit = True # if the coordinate is hit exactly, we take the average value, except for the right boundary
+                    break
+                else:
+                    cellIdx += 1 # increase the index until the output coord is within the current FV cell
+
+            if coordHit and not cellIdx == len(orig_coords) - 1: # if the coordinate is hit exactly, we take the average value, except for the right boundary
+                output_values[outputIdx] = 0.5 * (orig_values[cellIdx] + orig_values[cellIdx + 1])
+                
+            else:
+                output_values[outputIdx] = orig_values[cellIdx]
 
         return output_values
 
