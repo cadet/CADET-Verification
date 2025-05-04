@@ -247,7 +247,7 @@ def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion(n_x, output_path):
 
     return model
 
-# DPFR case
+# DPFR case, part I
 # n_x is the total number of component = FVM cells - 2, n_col is the total number of FVM cells in the axial coordinate z, 52x50 would be a good place to start
 
 def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, output_path):
@@ -413,6 +413,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, output_path):
 
     return model
 
+# STR case, part II
 
 def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t, output_path):
 
@@ -507,7 +508,7 @@ def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t,
 
     # Solution times
     model.root.input.solver.user_solution_times = t
-    model.filename = output_path + '/crystallization_aggregation_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path + '/crystallization_aggregation_Z' + str(x_grid.size - 1) +'.h5'
 
     return model, x_grid, x_ct
 
@@ -527,7 +528,7 @@ def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, output_path):
                             for k in range(0, n_x)])
 
     # number of unit operations
-    model.root.input.model.nunits = 4
+    model.root.input.model.nunits = 3
 
     # inlet model
     model.root.input.model.unit_000.unit_type = 'INLET'
@@ -605,7 +606,7 @@ def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, output_path):
 
     # Solution times
     model.root.input.solver.user_solution_times = t
-    model.filename = output_path + '/crystallization_fragmentation_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path + '/crystallization_fragmentation_Z' + str(x_grid.size - 1) +'.h5'
 
     return model, x_grid, x_ct
 
@@ -625,7 +626,7 @@ def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, output_path
                             for k in range(0, n_x)])
 
     # number of unit operations
-    model.root.input.model.nunits = 6
+    model.root.input.model.nunits = 3
 
     # inlet model
     model.root.input.model.unit_000.unit_type = 'INLET'
@@ -707,10 +708,157 @@ def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, output_path
 
     # Solution times
     model.root.input.solver.user_solution_times = t
-    model.filename = output_path +  '/crystallization_aggFrag_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path +  '/crystallization_aggFrag_Z' + str(x_grid.size - 1) +'.h5'
 
     return model, x_grid, x_ct
 
+
+def CSTR_PBM_aggregation_fragmentation(n_x: 'int, number of bins', x_c, x_max, growth_order, t, output_path):
+    
+    model = Cadet()
+
+    nComp = n_x + 2
+
+    # crystal space
+    x_grid, x_ct = get_log_space(n_x, x_c, x_max)
+
+    c_feed = 2.0
+    c_eq = 0.8
+
+    # Boundary conditions
+    boundary_c = []
+    for p in range(nComp):
+        if p == 0:
+            boundary_c.append(c_feed)
+        elif p == nComp-1:
+            boundary_c.append(c_eq)
+        else:
+            boundary_c.append(0.0)
+    boundary_c = np.asarray(boundary_c)
+    
+    # Initial conditions
+    initial_c = []
+    for k in range(nComp):
+        if k == nComp-1:
+            initial_c.append(c_eq)
+        elif k==0:
+            initial_c.append(c_feed)
+        else:
+            initial_c.append(0.0)  ## seed dist. 
+    initial_c = np.asarray(initial_c)
+
+    # number of unit operations
+    model.root.input.model.nunits = 3
+
+    # inlet model
+    model.root.input.model.unit_000.unit_type = 'INLET'
+    model.root.input.model.unit_000.ncomp = nComp
+    model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
+
+    # time sections
+    model.root.input.solver.sections.nsec = 1
+    model.root.input.solver.sections.section_times = [0.0, 1500,]   # s
+    model.root.input.solver.sections.section_continuity = []
+
+    model.root.input.model.unit_000.sec_000.const_coeff = boundary_c
+    model.root.input.model.unit_000.sec_000.lin_coeff = nComp*[0.0,]
+    model.root.input.model.unit_000.sec_000.quad_coeff = nComp*[0.0,]
+    model.root.input.model.unit_000.sec_000.cube_coeff = nComp*[0.0,]
+
+    # CSTR/MSMPR
+    model.root.input.model.unit_001.unit_type = 'CSTR'
+    model.root.input.model.unit_001.ncomp = nComp
+    model.root.input.model.unit_001.use_analytic_jacobian = 1
+    model.root.input.model.unit_001.init_c = initial_c
+    model.root.input.model.unit_001.init_volume = 500e-6
+    model.root.input.model.unit_001.const_solid_volume = 0.0
+    model.root.input.model.unit_001.adsorption_model = 'NONE'
+
+    # crystallization reaction
+    model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
+    model.root.input.model.unit_001.reaction_bulk.cry_mode = 7
+    model.root.input.model.unit_001.reaction_bulk.cry_bins = x_grid
+
+    # Aggregation
+    # constant kernel 0, brownian kernel 1, smoluchowski kernel 2, golovin kernel 3, differential force kernel 4
+    model.root.input.model.unit_001.reaction_bulk.cry_aggregation_index = 0
+    model.root.input.model.unit_001.reaction_bulk.cry_aggregation_rate_constant = 5e-13
+
+    # Fragmentation
+    model.root.input.model.unit_001.reaction_bulk.cry_fragmentation_rate_constant = 6.0e10
+    model.root.input.model.unit_001.reaction_bulk.cry_fragmentation_kernel_gamma = 2 
+    model.root.input.model.unit_001.reaction_bulk.cry_fragmentation_selection_function_alpha = 1
+
+    # PBM
+    model.root.input.model.unit_001.reaction_bulk.cry_nuclei_mass_density = 1.2e3
+    model.root.input.model.unit_001.reaction_bulk.cry_vol_shape_factor = 0.524
+    model.root.input.model.unit_001.reaction_bulk.cry_primary_nucleation_rate = 5.0
+    model.root.input.model.unit_001.reaction_bulk.cry_secondary_nucleation_rate = 4e8
+
+    model.root.input.model.unit_001.reaction_bulk.cry_growth_rate_constant = 5e-6
+    model.root.input.model.unit_001.reaction_bulk.cry_g = 1.0
+
+    model.root.input.model.unit_001.reaction_bulk.cry_a = 1.0
+    model.root.input.model.unit_001.reaction_bulk.cry_growth_constant = 0.0
+    model.root.input.model.unit_001.reaction_bulk.cry_p = 0.0
+
+    model.root.input.model.unit_001.reaction_bulk.cry_k = 1.0
+    model.root.input.model.unit_001.reaction_bulk.cry_u = 10.0
+    model.root.input.model.unit_001.reaction_bulk.cry_b = 2.0
+
+    model.root.input.model.unit_001.reaction_bulk.cry_growth_dispersion_rate = 2.5e-15
+    model.root.input.model.unit_001.reaction_bulk.cry_growth_scheme_order = growth_order
+
+    # Outlet
+    model.root.input.model.unit_002.unit_type = 'OUTLET'
+    model.root.input.model.unit_002.ncomp = nComp
+
+    # Connections
+    Q = 0.0     # Q, volumetric flow rate
+
+    model.root.input.model.connections.nswitches = 1
+    model.root.input.model.connections.switch_000.section = 0
+    model.root.input.model.connections.switch_000.connections = [
+        0, 1, -1, -1, Q,
+        1, 2, -1, -1, Q,
+    ]
+
+    # numerical solver configuration
+    model.root.input.model.solver.gs_type = 1
+    model.root.input.model.solver.max_krylov = 0
+    model.root.input.model.solver.max_restarts = 10
+    model.root.input.model.solver.schur_safety = 1e-8
+
+    # Number of cores for parallel simulation
+    model.root.input.solver.nthreads = 1
+
+    # Tolerances for the time integrator
+    model.root.input.solver.time_integrator.abstol = 1e-6
+    model.root.input.solver.time_integrator.algtol = 1e-10
+    model.root.input.solver.time_integrator.reltol = 1e-6
+    model.root.input.solver.time_integrator.init_step_size = 1e-8
+    model.root.input.solver.time_integrator.max_steps = 1000000
+
+    # Return data
+    model.root.input['return'].split_components_data = 0
+    model.root.input['return'].split_ports_data = 0
+    model.root.input['return'].unit_000.write_solution_bulk = 0
+    model.root.input['return'].unit_000.write_coordinates = 0
+    model.root.input['return'].unit_000.write_solution_outlet = 1
+
+    # Copy settings to the other unit operations
+    model.root.input['return'].unit_001 = model.root.input['return'].unit_000
+    model.root.input['return'].unit_002 = model.root.input['return'].unit_000
+
+    # Solution times
+    model.root.input.solver.user_solution_times = t
+
+    model.filename = output_path +  '/crystallization_PBM_Agg_Frag_Z' + str(x_grid.size - 1) +'.h5'
+
+    return model, x_grid, x_ct
+
+
+# DPFR case, part II
 
 def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
     model = Cadet()
@@ -819,7 +967,7 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_aggregation_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_aggregation_Z' + str(x_grid.size - 1) +'.h5'
 
     return model, x_grid, x_ct
 
@@ -933,7 +1081,7 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_fragmentation_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_fragmentation_Z' + str(x_grid.size - 1) +'.h5'
 
     return model, x_grid, x_ct
 
@@ -1085,7 +1233,7 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_NGGR_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_NGGR_Z' + str(x_grid.size - 1) +'.h5'
 
     return model, x_grid, x_ct
 
@@ -1203,6 +1351,6 @@ def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins'
     # Solution times
     model.root.input.solver.user_solution_times = t
 
-    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_aggFrag_Z' + str(x_grid.size) +'.h5'
+    model.filename = output_path + '/crystallization_DPFR_Z' + str(n_col) + '_aggFrag_Z' + str(x_grid.size - 1) +'.h5'
     
     return model, x_grid, x_ct

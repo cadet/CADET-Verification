@@ -330,6 +330,69 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
         json.dump(data, json_file, indent=4)
 
 
+# %% PBM, aggregation and fragmentation in CSTR
+def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+    '''
+    @detail: Combined test with PBM: nucleation, growth, growth rate dispersion, aggregation and fragmentation in CSTR. 
+    '''
+
+    # define params
+    x_c, x_max = 1e-6, 1000e-6  # m
+    n_x = 100
+    cycle_time = 300            # s
+    time_res = 100
+    t = np.linspace(0, cycle_time, time_res)
+
+    # numerical ref solution
+    model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
+        800, x_c, x_max, 1, t, output_path)
+    model.save()
+    return_data = model.run()
+    if not return_data.return_code == 0:
+        print(return_data.error_message)
+        raise Exception(f"simulation failed")
+    model.load()
+    c_x_ref = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
+    spl = UnivariateSpline(x_ct, c_x_ref)
+
+    ## run sims
+    normalized_l1 = []
+    sim_times = []
+
+    Nx_grid = np.asarray([12, 25, 50, 100, 200, 400])
+
+    for n_x in Nx_grid:
+        model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
+        n_x, x_c, x_max, 1, t, output_path)
+        model.save()
+        return_data = model.run()
+        model.load()
+        sim = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
+        normalized_l1.append(calculate_normalized_error(spl(x_ct), sim, x_ct, x_grid))
+
+        sim_times.append(model.root.meta.time_sim)
+
+        
+    # print the slopes
+    EOC = []
+    for i in range(0, len(normalized_l1)-1):
+        EOC.append(np.log(normalized_l1[i] / normalized_l1[i+1]) / np.log(2.0))
+    print(EOC)
+
+    data = {
+        'convergence': {
+            "Nx": Nx_grid.tolist(),
+            "L^1 error": [float(x) for x in normalized_l1],
+            "L^1 EOC": [float(x) for x in EOC],
+            "time_sim": sim_times
+        }
+    }
+
+    # Write the dictionary to a JSON file
+    with open(str(output_path) + '/CSTR_PBM_aggregation_fragmentation.json', 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
+
 # %% Constant aggregation in a DPFR
 
 
@@ -944,11 +1007,13 @@ def crystallization_tests(n_jobs, database_path, small_test,
                           output_path, cadet_path,
                           run_CSTR_aggregation_test = 1,
                           run_CSTR_fragmentation_test = 1,
-                          run_CSTR_aggregation_fragmentation_test = 1,
-                          run_DPFR_constAgg_test = 1,
+                          run_CSTR_aggregation_fragmentation_test = 0, # not included in test pipeline per default, due to redundancy
+                          run_CSTR_PBM_aggregation_fragmentation_test = 1,
+                          run_DPFR_constAgg_test = 0, # not included in test pipeline per default, due to redundancy
                           run_DPFR_constFrag_test = 1,
                           run_DPFR_NGGR_aggregation_test = 1,
-                          run_DPFR_aggregation_fragmentation_test = 1):
+                          run_DPFR_aggregation_fragmentation_test = 0 # not included in test pipeline per default, due to redundancy
+                          ):
     
     os.makedirs(output_path, exist_ok=True)
     
@@ -961,6 +1026,9 @@ def crystallization_tests(n_jobs, database_path, small_test,
     if run_CSTR_aggregation_fragmentation_test:
         crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     
+    if run_CSTR_PBM_aggregation_fragmentation_test:
+        crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
+        
     if run_DPFR_constAgg_test:
         crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path)
     
@@ -972,35 +1040,34 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     if run_DPFR_aggregation_fragmentation_test:
         crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
-        
-        
-        
-        
-# %% run in file
 
-cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master4_crysPartII_d0888cb\aRELEASE\bin\cadet-cli.exe"
-
-small_test = 1
-n_jobs = -1 # todo
-database_path = None
-
-sys.path.append(str(Path(".")))
-project_repo = ProjectRepo()
-output_path = str(project_repo.output_path /
-                  "test_cadet-core") + "/crystallization"
-
-os.makedirs(output_path, exist_ok=True)
         
-crystallization_tests(n_jobs, database_path, small_test,
-                      output_path, cadet_path,
-                      run_CSTR_aggregation_test = 0,
-                      run_CSTR_fragmentation_test = 0,
-                      run_CSTR_aggregation_fragmentation_test = 0,
-                      run_DPFR_constAgg_test = 0,
-                      run_DPFR_constFrag_test = 0,
-                      run_DPFR_NGGR_aggregation_test = 1,
-                      run_DPFR_aggregation_fragmentation_test = 1
-                      )
+# # %% run in file
+
+# cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master4_crysPartII_d0888cb\aRELEASE\bin\cadet-cli.exe"
+
+# small_test = 1
+# n_jobs = -1 # todo
+# database_path = None
+
+# sys.path.append(str(Path(".")))
+# project_repo = ProjectRepo()
+# output_path = str(project_repo.output_path /
+#                   "test_cadet-core") + "/crystallization"
+
+# os.makedirs(output_path, exist_ok=True)
+        
+# crystallization_tests(n_jobs, database_path, small_test,
+#                       output_path, cadet_path,
+#                       run_CSTR_aggregation_test = 1,
+#                       run_CSTR_fragmentation_test = 0,
+#                       run_CSTR_aggregation_fragmentation_test = 0,
+#                       run_CSTR_PBM_aggregation_fragmentation_test = 0,
+#                       run_DPFR_constAgg_test = 0,
+#                       run_DPFR_constFrag_test = 0,
+#                       run_DPFR_NGGR_aggregation_test = 0,
+#                       run_DPFR_aggregation_fragmentation_test = 0
+#                       )
         
         
         
