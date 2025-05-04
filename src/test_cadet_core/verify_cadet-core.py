@@ -29,6 +29,7 @@ import bench_configs
 
 import chromatography
 import crystallization_partI
+import crystallization_partII
 import MCT
 import chrom_systems
 import twoDimChromatography
@@ -93,6 +94,12 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     if run_crystallization_tests:
         
         crystallization_partI.crystallization_tests(
+            n_jobs=n_jobs, database_path=database_path+"crystallization/",
+            small_test=small_test,
+            output_path=str(output_path) + "/crystallization", cadet_path=cadet_path
+            )
+                
+        crystallization_partII.crystallization_tests(
             n_jobs=n_jobs, database_path=database_path+"crystallization/",
             small_test=small_test,
             output_path=str(output_path) + "/crystallization", cadet_path=cadet_path
