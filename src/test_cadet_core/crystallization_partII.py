@@ -138,6 +138,7 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
     data = {
         'convergence': {
             "Nx": Nx_grid.tolist(),
+            "L^1 error": [float(x) for x in normalized_l1],
             "L^1 EOC": [float(x) for x in EOC],
             "time_sim": sim_times
         }
@@ -216,6 +217,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
     data = {
         'convergence': {
             "Nx": Nx_grid.tolist(),
+            "L^1 error": [float(x) for x in normalized_l1],
             "L^1 EOC": [float(x) for x in EOC],
             "time_sim": sim_times
         }
@@ -320,6 +322,7 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
     data = {
         'convergence': {
             "Nx": Nx_grid.tolist(),
+            "L^1 error": [float(x) for x in normalized_l1],
             "L^1 EOC": [float(x) for x in EOC],
             "time_sim": sim_times
         }
@@ -499,6 +502,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
+            "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
             "time_sim": sim_times_int
         }
@@ -539,6 +543,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
+        "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
         "time_sim": sim_times_ax
     }
@@ -652,6 +657,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
+            "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
             "time_sim": sim_times_int
         }
@@ -692,6 +698,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
+        "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
         "time_sim": sim_times_ax
     }
@@ -802,6 +809,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
+            "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
             "time_sim": sim_times_int
         }
@@ -843,6 +851,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
+        "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
         "time_sim": sim_times_ax
     }
@@ -953,6 +962,7 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
         'convergence': {
             'internal_coordinate'
             "Nx": N_x_test.tolist(),
+            "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
             "time_sim": sim_times_int
         }
@@ -993,6 +1003,7 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
+        "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
         "time_sim": sim_times_ax
     }
