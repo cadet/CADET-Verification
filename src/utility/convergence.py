@@ -3532,21 +3532,21 @@ def recalculate_results(file_path, models,
             
         elif which == 'radial_outlet':
             
-            extra_keys['domain_end'] = sim_go_to(get_simulation(file_path+exact_names[modelIdx]).root,
+            extra_keys['domain_end'] = sim_go_to(get_simulation(exact_names[modelIdx]).root,
                       ['input', 'model', 'unit_'+unit, 'col_radius']
                       )
-            extra_keys['ref_coords'] = get_radial_coordinates(file_path+exact_names[modelIdx], unit)
+            extra_keys['ref_coords'] = get_radial_coordinates(exact_names[modelIdx], unit)
             nRad = len(extra_keys['ref_coords'])
             reference = []
             kwargs.update(extra_keys)
             
             for rad in range(nRad):
-                reference.append(get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
+                reference.append(get_solution(exact_names[modelIdx], 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
                     'comp', [-1])))
             reference=np.array(reference)
         else:
             
-            reference = get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, which, kwargs.get(
+            reference = get_solution(exact_names[modelIdx], 'unit_'+unit, which, kwargs.get(
                 'comp', [-1]), **{'sensIdx': kwargs.get('sensIdx', 0)})
 
         if simulation_names is None:

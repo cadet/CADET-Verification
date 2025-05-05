@@ -1018,7 +1018,7 @@ def run_convergence_analysis_core(
 
                 ax_discs[modelIdx][methodIdx] = ax_discs[modelIdx][methodIdx][:-1]
 
-                ref_files[modelIdx][methodIdx] = ref_file
+                ref_files[modelIdx][methodIdx] = output_path + '/' + ref_file if output_path is not None else ref_file
 
     result_names = []
 
