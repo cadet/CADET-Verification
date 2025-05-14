@@ -25,7 +25,7 @@ from cadet import Cadet
 from cadetrdm import ProjectRepo
 
 import bench_func
-import settings_crystallization
+from benchmark_models import settings_crystallization
 
 
 #%% Helper functions
