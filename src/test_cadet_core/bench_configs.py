@@ -18,6 +18,15 @@ import bench_func
 
 from benchmark_models import settings_2Dchromatography
 from benchmark_models import settings_columnSystems
+from benchmark_models import setting_LRM_dynLin_1comp_benchmark1
+from benchmark_models import setting_LRMP_dynLin_1comp_benchmark1
+from benchmark_models import setting_GRM_dynLin_1comp_benchmark1
+from benchmark_models import setting_LRM_SMA_4comp_benchmark1
+from benchmark_models import setting_LRMP_SMA_4comp_benchmark1
+from benchmark_models import setting_GRM_SMA_4comp_benchmark1
+from benchmark_models import setting_radLRM_dynLin_1comp_benchmark1
+from benchmark_models import setting_radLRMP_dynLin_1comp_benchmark1
+from benchmark_models import setting_radGRM_dynLin_1comp_benchmark1
 
 # %% benchmark templates
 
@@ -190,16 +199,24 @@ def run_benchmark(
 # %% FV benchmark configuration used in CADET-Core tests
 
 
-def fv_benchmark(small_test=False, sensitivities=False):
+def fv_benchmark(database_path, small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_LRM_dynLin_1comp_sensbenchmark1_FV_Z256.json',
-            'configuration_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32.json',
-            'configuration_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json',
-            'configuration_LRM_reqSMA_4comp_sensbenchmark1_FV_Z64.json',
-            'configuration_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.json',
-            'configuration_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.json'
+            setting_LRM_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_LRMP_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_GRM_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_LRM_SMA_4comp_benchmark1.get_model(database_path),
+            setting_LRMP_SMA_4comp_benchmark1.get_model(database_path),
+            setting_GRM_SMA_4comp_benchmark1.get_model(database_path)
+        ],
+        'cadet_config_names': [
+            'configuration_LRM_dynLin_1comp_benchmark1_FV_Z256.json',
+            'configuration_LRMP_dynLin_1comp_benchmark1_FV_Z32.json',
+            'configuration_GRM_dynLin_1comp_benchmark1_FV_Z32parZ4.json',
+            'configuration_LRM_reqSMA_4comp_benchmark1_FV_Z64.json',
+            'configuration_LRMP_reqSMA_4comp_benchmark1_FV_Z32.json',
+            'configuration_GRM_reqSMA_4comp_benchmark1_FV_Z16parZ2.json'
         ],
         'include_sens': [True] * 6 if sensitivities else [False] * 6,
         'ref_files': [
@@ -243,16 +260,24 @@ def fv_benchmark(small_test=False, sensitivities=False):
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(small_test=False, sensitivities=False):
+def dg_benchmark(database_path, small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_LRM_dynLin_1comp_sensbenchmark1_FV_Z256.json',
-            'configuration_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32.json',
-            'configuration_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json',
-            'configuration_LRM_reqSMA_4comp_sensbenchmark1_FV_Z64.json',
-            'configuration_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.json',
-            'configuration_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.json'
+            setting_LRM_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_LRMP_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_GRM_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_LRM_SMA_4comp_benchmark1.get_model(database_path),
+            setting_LRMP_SMA_4comp_benchmark1.get_model(database_path),
+            setting_GRM_SMA_4comp_benchmark1.get_model(database_path)
+        ],
+        'cadet_config_names': [
+            'configuration_LRM_dynLin_1comp_benchmark1_FV_Z256.json',
+            'configuration_LRMP_dynLin_1comp_benchmark1_FV_Z32.json',
+            'configuration_GRM_dynLin_1comp_benchmark1_FV_Z32parZ4.json',
+            'configuration_LRM_reqSMA_4comp_benchmark1_FV_Z64.json',
+            'configuration_LRMP_reqSMA_4comp_benchmark1_FV_Z32.json',
+            'configuration_GRM_reqSMA_4comp_benchmark1_FV_Z16parZ2.json'
         ],
         'include_sens': [True] * 6 if sensitivities else [False] * 6,
         'ref_files': [
@@ -294,16 +319,96 @@ def dg_benchmark(small_test=False, sensitivities=False):
     return benchmark_config
 
 
-# %% Radial flow (FV) benchmark configuration used in CADET-Core tests
+# %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 
-def radial_flow_benchmark(small_test=False, sensitivities=False):
+def sensitivity_benchmark(database_path, spatial_method, small_test):
+    
+    if spatial_method not in ["DG", "FV"]:
+        raise ValueError(
+            f"spatial method must be FV or DG.")
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'radial/configuration_radLRM_dynLin_1comp_sensbenchmark1_FV_Z256.json',
-            'radial/configuration_radLRMP_dynLin_1comp_sensbenchmark1_FV_Z32.json',
-            'radial/configuration_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json'
+            setting_LRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_LRMP_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_GRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_GRM_dynLin_1comp_benchmark1.get_sensbenchmark2(database_path),
+            setting_LRM_SMA_4comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_LRMP_SMA_4comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_GRM_SMA_4comp_benchmark1.get_sensbenchmark1(database_path)
+        ],
+        'cadet_config_names': [
+            'LRM_dynLin_1comp_sensbenchmark1',
+            'LRMP_dynLin_1comp_sensbenchmark1',
+            'GRM_dynLin_1comp_sensbenchmark1',
+            'GRM_dynLin_1comp_sensbenchmark2',
+            'LRM_reqSMA_4comp_sensbenchmark1',
+            'LRMP_reqSMA_4comp_sensbenchmark1',
+            'GRM_reqSMA_4comp_sensbenchmark1'
+        ],
+        'include_sens': [True] * 7,
+        'ref_files': [
+            [None], [None], [None], [None], [None], [None], [None]
+        ],
+        'unit_IDs': [
+            '001', '001', '001', '001', '000', '000', '000'
+        ],
+        'which': [
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+        ],
+        'idas_abstol': [
+            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
+        ],
+        'ax_methods': [[3]] * 7 if spatial_method == "DG" else [[0]] * 7,
+        'ax_discs': [
+            [bench_func.disc_list(1 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(1 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)]
+        ],
+        'par_methods':
+            [[None], [None], [3], [3], [None], [None], [3]] if spatial_method == "DG" else [[None], [None], [0], [0], [None], [None], [0]],
+        'par_discs': [
+            [None],
+            [None],
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)],
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)],
+            [None],
+            [None],
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)]
+        ]
+    }
+
+    return benchmark_config
+
+
+# %% Radial flow (FV) benchmark configuration used in CADET-Core tests
+
+
+def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_radLRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_radLRMP_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
+            setting_radGRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path)
+        ] if sensitivities else [
+            setting_radLRM_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_radLRMP_dynLin_1comp_benchmark1.get_model(database_path),
+            setting_radGRM_dynLin_1comp_benchmark1.get_model(database_path)
+        ],
+        'cadet_config_names': [
+            'configuration_radLRM_dynLin_1comp_benchmark1_FV_Z256.json',
+            'configuration_radLRMP_dynLin_1comp_benchmark1_FV_Z32.json',
+            'configuration_radGRM_dynLin_1comp_benchmark1_FV_Z32parZ4.json'
+        ] if not sensitivities else [
+            'radLRM_dynLin_1comp_sensbenchmark1',
+            'radLRMP_dynLin_1comp_sensbenchmark1',
+            'radGRM_dynLin_1comp_sensbenchmark1'
         ],
         'include_sens': [True] * 3 if sensitivities else [False] * 3,
         'ref_files': [
@@ -936,6 +1041,7 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
                   par_methods=None, par_discs=None,
                   rad_methods=None, rad_discs=None,
                   refinement_IDs=None,
+                  cadet_config_names=None,
                   addition=None):
 
     if addition is None:
@@ -958,3 +1064,6 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
     if refinement_IDs is not None:
         if 'refinement_ID' in addition.keys():
             refinement_IDs.extend(addition['refinement_ID'])
+    if cadet_config_names is not None:
+        cadet_config_names.extend(addition['cadet_config_names'])
+        
