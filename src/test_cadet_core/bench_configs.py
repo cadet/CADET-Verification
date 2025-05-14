@@ -16,8 +16,8 @@ import copy
 
 import bench_func
 
-import settings_2Dchromatography
-import settings_columnSystems
+from benchmark_models import settings_2Dchromatography
+from benchmark_models import settings_columnSystems
 
 # %% benchmark templates
 

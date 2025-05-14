@@ -16,7 +16,7 @@ import os
 from joblib import Parallel, delayed
 import copy
 
-import settings_2Dchromatography
+from benchmark_models import settings_2Dchromatography
 
 
 # %% Import packages and define helper functions

@@ -26,7 +26,7 @@ from cadetrdm import ProjectRepo
 from utility import convergence
 import bench_func
 import bench_configs
-import settings_2Dchromatography
+from benchmark_models import settings_2Dchromatography
 
 
 # %% We define multiple settings convering binding modes, surface diffusion and
