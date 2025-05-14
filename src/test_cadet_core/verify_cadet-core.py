@@ -33,6 +33,7 @@ import crystallization_partII
 import MCT
 import chrom_systems
 import twoDimChromatography
+import michaelis_menten
 
 #%% User Input
 
@@ -52,6 +53,7 @@ run_chromatography_system_tests = True
 run_crystallization_tests = True
 run_MCT_tests = True
 run_2Dmodels_tests = True
+run_michaelis_menten_tests = True
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
@@ -129,4 +131,14 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/2Dchromatography", exclude_files=exclude_files)
+
+    if run_michaelis_menten_tests:
+
+        # Run the Michaelis-Menten tests
+        michaelis_menten.michaelis_menten_complex_inhibition_test(
+            output_path=str(output_path)+"/MichealisMenten", cadet_path=cadet_path
+            )
+
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path), exclude_files=exclude_files)
         
