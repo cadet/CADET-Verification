@@ -413,16 +413,33 @@ def generate_convergence_data(
         else:
             sensitivity = {'NSENS': 0}
     else:
-        sensitivity = {'NSENS': 0}
-        config_data = None
+        if sens_included:
+            
+            file_name = convergence.generate_simulation_names(
+                prefix=setting_name,
+                ax_methods=[ax_method], ax_cells=[ax_disc[0]],
+                par_methods=None if par_method is None else [par_method],
+                par_cells=None if par_method is None else [par_disc[0]],
+                rad_methods=None if rad_method is None else [rad_method],
+                rad_cells=None if rad_method is None else [rad_disc[0]]
+                )[0]
+            
+            sensitivity = convergence.sim_go_to(
+                convergence.get_simulation(output_path + '/' + file_name).root,
+                ['input', 'sensitivity']
+                )
+            config_data = None
+        else:
+            sensitivity = {'NSENS': 0}
+            config_data = None
 
     table = convergence.recalculate_results(
         file_path=str(output_path) + '/', models=[setting_name],
         ax_methods=[ax_method], ax_cells=ax_disc,
+        par_methods=[par_method], par_cells=par_disc,
         rad_methods=[rad_method], rad_cells=rad_disc,
         exact_names=[ref_file],
         unit=unitID, which=which,
-        par_methods=[par_method], par_cells=par_disc,
         incl_min_val=True,
         transport_model=kwargs.pop('transport_model', None),
         ncomp=kwargs.pop('ncomp', None), nbound=kwargs.pop('nbound', None),
@@ -473,11 +490,10 @@ def generate_convergence_data(
 
     if not write_sens:
         return True
+    
+    for sensIdx in range(sensitivity.get('nsens') or sensitivity.get('NSENS')):
 
-    for sensIdx in range(sensitivity['NSENS']):
-
-        sens_name = sensitivity['param_' +
-                                '{:03d}'.format(sensIdx)]['SENS_NAME']
+        sens_name = str(sensitivity['param_' + '{:03d}'.format(sensIdx)].get('sens_name') or sensitivity['param_' + '{:03d}'.format(sensIdx)].get('SENS_NAME'))
 
         table = convergence.recalculate_results(
             file_path=str(output_path) + '/', models=[setting_name],

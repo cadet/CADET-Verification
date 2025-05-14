@@ -33,10 +33,11 @@ import crystallization_partII
 import MCT
 import chrom_systems
 import twoDimChromatography
+import chromatography_sensitivities
 
 #%% User Input
 
-commit_message = f"Reduced run to verify CADET-Core v5.0.3 release"
+commit_message = f"Reduced run to verify CADET-Core master (pre-release)"
 
 rdm_debug_mode = False # Run CADET-RDM in debug mode to test if the script works
 
@@ -48,6 +49,7 @@ delete_h5_files = True # delete h5 files (but keep convergence tables and plots)
 exclude_files = None # ["file1", "file2"] # specify h5 files that should not be deleted
 
 run_chromatography_tests = True
+run_chromatography_sensitivity_tests = True
 run_chromatography_system_tests = True
 run_crystallization_tests = True
 run_MCT_tests = True
@@ -75,9 +77,19 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
             small_test=small_test, sensitivities=True,
             output_path=str(output_path) + "/chromatography", cadet_path=cadet_path
             )
-    
+
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/chromatography", exclude_files=exclude_files)
+            
+    if run_chromatography_sensitivity_tests:
+                
+        chromatography_sensitivities.chromatography_sensitivity_tests(
+            n_jobs=n_jobs, database_path=database_path+"chromatography/", small_test=small_test,
+            output_path=str(output_path) + "/chromatography/sensitivity", cadet_path=cadet_path
+            )
+    
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/chromatography/sensitivity", exclude_files=exclude_files)
     
     if run_chromatography_system_tests:
         
