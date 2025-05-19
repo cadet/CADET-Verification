@@ -211,12 +211,12 @@ def fv_benchmark(database_path, small_test=False, sensitivities=False):
             setting_GRM_SMA_4comp_benchmark1.get_model(database_path)
         ],
         'cadet_config_names': [
-            'configuration_LRM_dynLin_1comp_benchmark1_FV_Z256.json',
-            'configuration_LRMP_dynLin_1comp_benchmark1_FV_Z32.json',
-            'configuration_GRM_dynLin_1comp_benchmark1_FV_Z32parZ4.json',
-            'configuration_LRM_reqSMA_4comp_benchmark1_FV_Z64.json',
-            'configuration_LRMP_reqSMA_4comp_benchmark1_FV_Z32.json',
-            'configuration_GRM_reqSMA_4comp_benchmark1_FV_Z16parZ2.json'
+            'LRM_dynLin_1comp_benchmark1',
+            'LRMP_dynLin_1comp_benchmark1',
+            'GRM_dynLin_1comp_benchmark1',
+            'LRM_reqSMA_4comp_benchmark1',
+            'LRMP_reqSMA_4comp_benchmark1',
+            'GRM_reqSMA_4comp_benchmark1'
         ],
         'include_sens': [True] * 6 if sensitivities else [False] * 6,
         'ref_files': [
@@ -272,12 +272,12 @@ def dg_benchmark(database_path, small_test=False, sensitivities=False):
             setting_GRM_SMA_4comp_benchmark1.get_model(database_path)
         ],
         'cadet_config_names': [
-            'configuration_LRM_dynLin_1comp_benchmark1_FV_Z256.json',
-            'configuration_LRMP_dynLin_1comp_benchmark1_FV_Z32.json',
-            'configuration_GRM_dynLin_1comp_benchmark1_FV_Z32parZ4.json',
-            'configuration_LRM_reqSMA_4comp_benchmark1_FV_Z64.json',
-            'configuration_LRMP_reqSMA_4comp_benchmark1_FV_Z32.json',
-            'configuration_GRM_reqSMA_4comp_benchmark1_FV_Z16parZ2.json'
+            'LRM_dynLin_1comp_benchmark1',
+            'LRMP_dynLin_1comp_benchmark1',
+            'GRM_dynLin_1comp_benchmark1',
+            'LRM_reqSMA_4comp_benchmark1',
+            'LRMP_reqSMA_4comp_benchmark1',
+            'GRM_reqSMA_4comp_benchmark1'
         ],
         'include_sens': [True] * 6 if sensitivities else [False] * 6,
         'ref_files': [
@@ -402,13 +402,9 @@ def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
             setting_radGRM_dynLin_1comp_benchmark1.get_model(database_path)
         ],
         'cadet_config_names': [
-            'configuration_radLRM_dynLin_1comp_benchmark1_FV_Z256.json',
-            'configuration_radLRMP_dynLin_1comp_benchmark1_FV_Z32.json',
-            'configuration_radGRM_dynLin_1comp_benchmark1_FV_Z32parZ4.json'
-        ] if not sensitivities else [
-            'radLRM_dynLin_1comp_sensbenchmark1',
-            'radLRMP_dynLin_1comp_sensbenchmark1',
-            'radGRM_dynLin_1comp_sensbenchmark1'
+            'radLRM_dynLin_1comp_benchmark1',
+            'radLRMP_dynLin_1comp_benchmark1',
+            'radGRM_dynLin_1comp_benchmark1'
         ],
         'include_sens': [True] * 3 if sensitivities else [False] * 3,
         'ref_files': [
@@ -484,7 +480,7 @@ def LRM_dynLin_1comp_benchmark1(
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_LRM_dynLin_1comp_sensbenchmark1_FV_Z256.json'
+            'LRM_dynLin_1comp_sensbenchmark1_FV_Z256.json'
         ],
         'include_sens': [include_sens],
         'ref_files': [
@@ -529,7 +525,7 @@ def LRMP_dynLin_1comp_benchmark1(
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32.json'
+            'LRMP_dynLin_1comp_sensbenchmark1_FV_Z32.json'
         ],
         'include_sens': [include_sens],
         'ref_files': [
@@ -574,7 +570,7 @@ def GRM_dynLin_1comp_benchmark1(
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json'
+            'GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json'
         ],
         'include_sens': [include_sens],
         'ref_files': [
@@ -619,7 +615,7 @@ def LRM_reqSMA_4comp_benchmark1(
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_LRM_reqSMA_4comp_sensbenchmark1_FV_Z64.json'
+            'LRM_reqSMA_4comp_sensbenchmark1_FV_Z64.json'
         ],
         'include_sens': [include_sens],
         'ref_files': [
@@ -664,7 +660,7 @@ def LRMP_reqSMA_4comp_benchmark1(
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.json'
+            'LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.json'
         ],
         'include_sens': [include_sens],
         'ref_files': [
@@ -709,7 +705,7 @@ def GRM_reqSMA_4comp_benchmark1(
 
     benchmark_config = {
         'cadet_config_jsons': [
-            'configuration_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.json'
+            'GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.json'
         ],
         'include_sens': [include_sens],
         'ref_files': [
