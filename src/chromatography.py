@@ -26,7 +26,7 @@ import bench_configs
 # %% Run with CADET-RDM
 
 def chromatography_tests(n_jobs, database_path, small_test, sensitivities,
-                         output_path, cadet_path):
+                         output_path, cadet_path, nRuns=1):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -46,19 +46,19 @@ def chromatography_tests(n_jobs, database_path, small_test, sensitivities,
     par_methods = []
     par_discs = []
 
-    addition = bench_configs.radial_flow_benchmark(database_path+r'radial/', small_test=small_test)
+    # addition = bench_configs.radial_flow_benchmark(database_path+r'radial/', small_test=small_test)
 
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
-        cadet_config_names=cadet_config_names, addition=addition)
+    # bench_configs.add_benchmark(
+    #     cadet_configs, include_sens, ref_files, unit_IDs, which,
+    #     idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+    #     cadet_config_names=cadet_config_names, addition=addition)
 
-    addition = bench_configs.fv_benchmark(database_path, small_test=small_test)
+    # addition = bench_configs.fv_benchmark(database_path, small_test=small_test)
 
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
-        cadet_config_names=cadet_config_names, addition=addition)
+    # bench_configs.add_benchmark(
+    #     cadet_configs, include_sens, ref_files, unit_IDs, which,
+    #     idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+    #     cadet_config_names=cadet_config_names, addition=addition)
     
     addition = bench_configs.dg_benchmark(database_path, small_test=small_test)
 
