@@ -69,6 +69,7 @@ def get_sensbenchmark1(filename=None):
 def get_sensbenchmark2(filename=None):
     
     model = get_model(filename)
+    model['input']['model']['unit_001']['PAR_SURFDIFFUSION'] = 5.0e-11
     model['input'].pop('sensitivity')
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'FILM_DIFFUSION')
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PAR_SURFDIFFUSION')
