@@ -363,8 +363,8 @@ def sensitivity_benchmark1(database_path, spatial_method, small_test):
         ],
         'ax_methods': [[3]] * 7 if spatial_method == "DG" else [[0]] * 7,
         'ax_discs': [
-            [bench_func.disc_list(1 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
-            [bench_func.disc_list(1 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(2 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
+            [bench_func.disc_list(2 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
             [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
             [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
             [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
@@ -415,7 +415,7 @@ def sensitivity_benchmark2(spatial_method, small_test):
         ],
         'ax_methods': [[3]] * 1 if spatial_method == "DG" else [[0]] * 1,
         'ax_discs': [
-            [bench_func.disc_list(1 if spatial_method == "DG" else 8, 4 if not small_test else 3)]
+            [bench_func.disc_list(2 if spatial_method == "DG" else 4, 4 if not small_test else 3)]
         ],
         'par_methods':
             [[3]] if spatial_method == "DG" else [[0]],
