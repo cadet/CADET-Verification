@@ -33,6 +33,7 @@ import crystallization_partII
 import MCT
 import chrom_systems
 import twoDimChromatography
+import ASM3
 
 #%% User Input
 
@@ -52,6 +53,7 @@ run_chromatography_system_tests = True
 run_crystallization_tests = True
 run_MCT_tests = True
 run_2Dmodels_tests = True
+run_ASM3_tests = True
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
@@ -129,4 +131,13 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/2Dchromatography", exclude_files=exclude_files)
+    
+    if run_ASM3_tests:
+        print("Running ASM3h tests:")
+        ASM3.ASM3h_SIMBA_test(output_path=str(output_path) + "/ASM3h", 
+                              cadet_path=cadet_path, data_path = str(project_repo.output_path.parent) + '/data/ref_CSTR_ASM3hC_simulation_results.xlsx')
+        
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/ASM3h", exclude_files=exclude_files)
+
         
