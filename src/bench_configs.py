@@ -446,9 +446,9 @@ def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
             'radLRMP_dynLin_1comp_sensbenchmark1',
             'radGRM_dynLin_1comp_sensbenchmark1'
         ] if sensitivities else [
-            'radLRM_dynLin_1comp_sensbenchmark1',
-            'radLRMP_dynLin_1comp_sensbenchmark1',
-            'radGRM_dynLin_1comp_sensbenchmark1'
+            'radLRM_dynLin_1comp_benchmark1',
+            'radLRMP_dynLin_1comp_benchmark1',
+            'radGRM_dynLin_1comp_benchmark1'
         ],
         'include_sens': [True] * 3 if sensitivities else [False] * 3,
         'ref_files': [
