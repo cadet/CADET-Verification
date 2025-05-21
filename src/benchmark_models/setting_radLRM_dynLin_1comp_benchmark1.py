@@ -21,7 +21,7 @@ def add_sensitivity_radLRM_dynLin_1comp_benchmark1(model, sensName):
 
     sensDepIdx = {
         'COL_DISPERSION': {'sens_comp': np.int64(0)},
-        'TOTAL_POROSITY': {'sens_comp': np.int64(0)},
+        'TOTAL_POROSITY': { },
         'LIN_KA': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)}
     }    
 

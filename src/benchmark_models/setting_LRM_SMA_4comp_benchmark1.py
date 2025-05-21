@@ -21,7 +21,7 @@ def add_sensitivity_LRM_SMA_4comp_benchmark1(model, sensName):
 
     sensDepIdx = {
         'COL_DISPERSION': {'sens_comp': np.int64(-1)},
-        'TOTAL_POROSITY': {'sens_comp': np.int64(0)},
+        'TOTAL_POROSITY': { },
         'SMA_KA': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)}
     }    
 
