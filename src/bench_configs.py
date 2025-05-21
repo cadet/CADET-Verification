@@ -21,6 +21,7 @@ from benchmark_models import settings_columnSystems
 from benchmark_models import setting_LRM_dynLin_1comp_benchmark1
 from benchmark_models import setting_LRMP_dynLin_1comp_benchmark1
 from benchmark_models import setting_GRM_dynLin_1comp_benchmark1
+from benchmark_models import setting_GRMparType2_dynLin_2comp_benchmark1
 from benchmark_models import setting_LRM_SMA_4comp_benchmark1
 from benchmark_models import setting_LRMP_SMA_4comp_benchmark1
 from benchmark_models import setting_GRM_SMA_4comp_benchmark1
@@ -322,7 +323,7 @@ def dg_benchmark(database_path, small_test=False, sensitivities=False):
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 
-def sensitivity_benchmark(database_path, spatial_method, small_test):
+def sensitivity_benchmark1(database_path, spatial_method, small_test):
     
     if spatial_method not in ["DG", "FV"]:
         raise ValueError(
@@ -385,6 +386,45 @@ def sensitivity_benchmark(database_path, spatial_method, small_test):
 
     return benchmark_config
 
+
+def sensitivity_benchmark2(spatial_method, small_test):
+    
+    if spatial_method not in ["DG", "FV"]:
+        raise ValueError(
+            f"spatial method must be FV or DG.")
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_GRMparType2_dynLin_2comp_benchmark1.get_sensbenchmark1()
+        ],
+        'cadet_config_names': [
+            'GRMparType2_dynLin_2comp_sensbenchmark1'
+        ],
+        'include_sens': [True] * 1,
+        'ref_files': [
+            [None] * 1
+        ],
+        'unit_IDs': [
+            '001'
+        ],
+        'which': [
+            'outlet'
+        ],
+        'idas_abstol': [
+            [1e-8]
+        ],
+        'ax_methods': [[3]] * 1 if spatial_method == "DG" else [[0]] * 1,
+        'ax_discs': [
+            [bench_func.disc_list(1 if spatial_method == "DG" else 8, 4 if not small_test else 3)]
+        ],
+        'par_methods':
+            [[3]] if spatial_method == "DG" else [[0]],
+        'par_discs': [
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)]
+        ]
+    }
+
+    return benchmark_config
 
 # %% Radial flow (FV) benchmark configuration used in CADET-Core tests
 

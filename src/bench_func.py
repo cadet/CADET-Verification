@@ -312,6 +312,7 @@ def create_object_from_config(
     if 'sensitivity' in config_data['input']:
         if include_sens:
             sensitivity = config_data['input']['sensitivity']
+            # config_data['input']['solver']['time_integrator']['SENS_ABSTOL'] = idas_abstol * 1000
         else:
             config_data['input'].pop('sensitivity')
             sensitivity = {'NSENS': 0}

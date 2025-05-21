@@ -54,7 +54,7 @@ def chromatography_sensitivity_tests(
         idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
         cadet_config_names=cadet_config_names, addition=addition)
 
-    addition = bench_configs.sensitivity_benchmark(
+    addition = bench_configs.sensitivity_benchmark1(
         database_path, spatial_method="FV", small_test=small_test
         )
 
@@ -63,7 +63,7 @@ def chromatography_sensitivity_tests(
         idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
         cadet_config_names=cadet_config_names, addition=addition)
     
-    addition = bench_configs.sensitivity_benchmark(
+    addition = bench_configs.sensitivity_benchmark1(
         database_path, spatial_method="DG", small_test=small_test
         )
 
@@ -72,6 +72,25 @@ def chromatography_sensitivity_tests(
         idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
         cadet_config_names=cadet_config_names, addition=addition)
 
+    addition = bench_configs.sensitivity_benchmark2(
+        spatial_method="FV", small_test=small_test
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        cadet_config_names=cadet_config_names, addition=addition)
+    
+    addition = bench_configs.sensitivity_benchmark2(
+        spatial_method="DG", small_test=small_test
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        cadet_config_names=cadet_config_names, addition=addition)
+    
+    
     bench_func.run_convergence_analysis(
         output_path=output_path,
         cadet_path=cadet_path,
@@ -114,7 +133,7 @@ def chromatography_sensitivity_tests(
         idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
         cadet_config_names=cadet_config_names, addition=addition)
     
-    addition = bench_configs.sensitivity_benchmark(
+    addition = bench_configs.sensitivity_benchmark1(
         database_path, spatial_method="FV", small_test=small_test
         )
 
@@ -123,8 +142,26 @@ def chromatography_sensitivity_tests(
         idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
         cadet_config_names=cadet_config_names, addition=addition)
     
-    addition = bench_configs.sensitivity_benchmark(
+    addition = bench_configs.sensitivity_benchmark1(
         database_path, spatial_method="DG", small_test=small_test
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        cadet_config_names=cadet_config_names, addition=addition)
+
+    addition = bench_configs.sensitivity_benchmark2(
+        spatial_method="FV", small_test=small_test
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        cadet_config_names=cadet_config_names, addition=addition)
+    
+    addition = bench_configs.sensitivity_benchmark2(
+        spatial_method="DG", small_test=small_test
         )
 
     bench_configs.add_benchmark(
@@ -148,28 +185,29 @@ def chromatography_sensitivity_tests(
             par_methods[modelIdx][-1], par_discs[modelIdx][0][-1])
             
         
-        name = output_path + '/' + settingName
-        simDict = convergence.get_simulation(name).root
-        nSens = convergence.sim_go_to(simDict,
-                  ['input', 'sensitivity', 'nsens'])
+        name = str(output_path) + '/' + settingName
+        sensDict = convergence.get_simulation(name).root.input.sensitivity
+        nSens = sensDict['nsens']
         
         for sensIdx in range(nSens):
             
             sensIdxStr = str(sensIdx).zfill(3)
-            sensName = convergence.sim_go_to(simDict,
-                      ['input', 'sensitivity', f'param_{sensIdxStr}', 'sens_name'])
-            sensUnit = str(convergence.sim_go_to(simDict,
-                      ['input', 'sensitivity', f'param_{sensIdxStr}', 'sens_unit'])).zfill(3)
+            sensName = str(sensDict[f'param_{sensIdxStr}']['sens_name'].decode('UTF-8'))
+            sensUnit = str(sensDict[f'param_{sensIdxStr}']['sens_unit']).zfill(3)
             
             sensitivity = convergence.get_solution(
                 name, unit=f'unit_{sensUnit}', which='sens_outlet', **{'sensIdx': sensIdx})
             
-            if sensitivity.ndim == 2: # happens for multicomponent sensitivities
-                sensitivity = sensitivity[:, -1]
-            
-            plt.plot(convergence.get_solution_times(name), sensitivity, label=sensName)
+            if sensitivity.ndim == 2: # multi component systems
+                for i in range(sensitivity.shape[1]):
+                    plt.plot(convergence.get_solution_times(name), sensitivity[:, i], label=f'comp {i}')
+            elif sensitivity.ndim == 1:
+                plt.plot(convergence.get_solution_times(name), sensitivity, label='comp 0')
+            else:
+                raise Exception(f"Cannot plot parameter sensitivities with more than one dependence")
+                
             plt.legend()
-            plt.title(settingName)
-            plt.savefig(name + '.png')
+            plt.title(f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'_sensbenchmark\d+\s*(.*)', '', settingName))
+            plt.savefig(str(output_path) + '/' + f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'.h5', '', settingName) + '.png')
             plt.show()
             
