@@ -442,9 +442,13 @@ def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
             setting_radGRM_dynLin_1comp_benchmark1.get_model(database_path)
         ],
         'cadet_config_names': [
-            'radLRM_dynLin_1comp_benchmark1',
-            'radLRMP_dynLin_1comp_benchmark1',
-            'radGRM_dynLin_1comp_benchmark1'
+            'radLRM_dynLin_1comp_sensbenchmark1',
+            'radLRMP_dynLin_1comp_sensbenchmark1',
+            'radGRM_dynLin_1comp_sensbenchmark1'
+        ] if sensitivities else [
+            'radLRM_dynLin_1comp_sensbenchmark1',
+            'radLRMP_dynLin_1comp_sensbenchmark1',
+            'radGRM_dynLin_1comp_sensbenchmark1'
         ],
         'include_sens': [True] * 3 if sensitivities else [False] * 3,
         'ref_files': [
