@@ -28,6 +28,7 @@ import bench_func
 import bench_configs
 
 import chromatography
+import bindings
 import crystallization_partI
 import crystallization_partII
 import MCT
@@ -50,6 +51,7 @@ exclude_files = None # ["file1", "file2"] # specify h5 files that should not be 
 
 run_chromatography_tests = False
 run_chromatography_sensitivity_tests = True
+run_binding_tests = True
 run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_MCT_tests = False
@@ -80,6 +82,16 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
 
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/chromatography", exclude_files=exclude_files)
+            
+    if run_binding_tests:
+        
+        bindings.binding_tests(
+            n_jobs=n_jobs, cadet_path=cadet_path,
+            output_path=str(output_path) + "/chromatography/binding"
+            )
+
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/chromatography/binding", exclude_files=exclude_files)
             
     if run_chromatography_sensitivity_tests:
                 
