@@ -192,14 +192,11 @@ def GRM2D_linBnd_benchmark1(
         tolerance=1e-12,
         plot=False, run=False,
         save_path="C:/Users/jmbr/JupyterNotebooks/",
-        cadet_path="C:/Users/jmbr/Cadet/code/out/install/MS_MKL_RELEASE/bin/cadet-cli.exe",
         file_name=None,
         export_json_config=False,
         transport_model=None,
         **kwargs
 ):
-
-    Cadet.cadet_path = cadet_path
 
     nRadPoints = (radMethod + 1) * radNElem
     nInlets = max(1, nRadialZones) if kwargs.get(
