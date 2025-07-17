@@ -3,7 +3,7 @@
   "is_output_repo": false,
   "project_uuid": "48729a17-8d76-47cb-8f7f-c280c619ab3c",
   "output_uuid": "0a48f565-9030-4428-a47d-6b1aeae51361",
-  "cadet_rdm_version": "0.0.40",
+  "cadet_rdm_version": "1.0.0",
   "output_remotes": {
     "output_folder_name": "output",
     "output_remotes": {

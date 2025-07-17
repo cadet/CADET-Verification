@@ -27,4 +27,5 @@ We welcome and appreciate all contributions!
 If you are a CADET-Core developer adding a new feature, you must also include an appropriate set of verification tests or case studies in this repository.
 This ensures that your contribution meets the quality standards and helps maintain the long-term reliability and maintainability of the project.
 
-Furthermore, contributions aimed at improving or extending the evaluation functions are highly encouraged.
+Furthermore, contributions aimed at improving or extending the evaluation functions are highly encouraged.The output repo can be found at:
+[output_repo](https://github.com/cadet/CADET-Verification-Output)
