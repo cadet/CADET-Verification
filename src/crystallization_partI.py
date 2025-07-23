@@ -60,11 +60,11 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, output_path):
     
     model = target_model(N_x_ref, output_path)
     model.save()
-    data = model.run()
+    data = model.run_simulation()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
-    model.load()
+    model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
 
@@ -82,11 +82,11 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, output_path):
     for Nx in N_x_test:
         model = target_model(Nx, output_path)
         model.save()
-        data = model.run()
+        data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
             raise Exception(f"simulation failed")
-        model.load() 
+        model.load_from_file() 
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
         sim_times.append(model.root.meta.time_sim)
@@ -250,11 +250,11 @@ def crystallization_tests(n_jobs, database_path, small_test,
         
     model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref, N_col_ref, output_path)
     model.save()
-    data = model.run()
+    data = model.run_simulation()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
-    model.load() 
+    model.load_from_file() 
     
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
     
@@ -275,11 +275,11 @@ def crystallization_tests(n_jobs, database_path, small_test,
     for Nx in N_x_test_c6:
         model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(Nx, N_col_ref, output_path)
         model.save()
-        data = model.run()
+        data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
             raise Exception(f"simulation failed")
-        model.load() 
+        model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
         simTimesIntRefinement.append(model.root.meta.time_sim)
@@ -306,11 +306,11 @@ def crystallization_tests(n_jobs, database_path, small_test,
     for Ncol in N_col_test_c6:
         model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref+2, Ncol, output_path)
         model.save()
-        data = model.run()
+        data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
             raise Exception(f"simulation failed")
-        model.load() 
+        model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
     

@@ -37,8 +37,8 @@ def MCT_tests(n_jobs, database_path, small_test,
         cadet_config_json_name='configuration_LRM_dynLin_1comp_MCTbenchmark.json',
         output_path=str(output_path)
         )
-    data = model.run()
-    model.load()
+    data = model.run_simulation()
+    model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
@@ -49,8 +49,8 @@ def MCT_tests(n_jobs, database_path, small_test,
         cadet_config_json_name='configuration_LRM_noBnd_1comp_MCTbenchmark.json',
         output_path=str(output_path)
         )
-    data = model.run()
-    model.load()
+    data = model.run_simulation()
+    model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
@@ -61,8 +61,8 @@ def MCT_tests(n_jobs, database_path, small_test,
         cadet_config_json_name='configuration_MCT1ch_noEx_noReac_benchmark1.json',
         output_path=str(output_path)
         )
-    data = model.run()
-    model.load()
+    data = model.run_simulation()
+    model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
@@ -83,8 +83,8 @@ def MCT_tests(n_jobs, database_path, small_test,
         cadet_config_json_name='configuration_MCT1ch_noEx_reac_benchmark1.json',
         output_path=str(output_path)
         )
-    data = model.run()
-    model.load()
+    data = model.run_simulation()
+    model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
@@ -105,8 +105,8 @@ def MCT_tests(n_jobs, database_path, small_test,
         cadet_config_json_name='configuration_MCT2ch_oneWayEx_reac_benchmark1.json',
         output_path=str(output_path)
         )
-    data = model.run()
-    model.load()
+    data = model.run_simulation()
+    model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
@@ -129,8 +129,8 @@ def MCT_tests(n_jobs, database_path, small_test,
         cadet_config_json_name='configuration_MCT3ch_twoWayExc_reac_benchmark1.json',
         output_path=str(output_path)
         )
-    data = model.run()
-    model.load()
+    data = model.run_simulation()
+    model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
         raise Exception(f"simulation failed")
