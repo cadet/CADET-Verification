@@ -32,7 +32,7 @@ def MCT_tests(n_jobs, database_path, small_test,
     
     Cadet.cadet_path = cadet_path
     
-    model = bf.create_object_from_database(
+    model = bf.create_cadet_model_from_database(
         database_path,
         cadet_config_json_name='configuration_LRM_dynLin_1comp_MCTbenchmark.json',
         output_path=str(output_path)
@@ -44,7 +44,7 @@ def MCT_tests(n_jobs, database_path, small_test,
         raise Exception(f"simulation failed")
     model.save()
     
-    model = bf.create_object_from_database(
+    model = bf.create_cadet_model_from_database(
         database_path,
         cadet_config_json_name='configuration_LRM_noBnd_1comp_MCTbenchmark.json',
         output_path=str(output_path)
@@ -56,7 +56,7 @@ def MCT_tests(n_jobs, database_path, small_test,
         raise Exception(f"simulation failed")
     model.save()
     
-    model = bf.create_object_from_database(
+    model = bf.create_cadet_model_from_database(
         database_path,
         cadet_config_json_name='configuration_MCT1ch_noEx_noReac_benchmark1.json',
         output_path=str(output_path)
@@ -78,7 +78,7 @@ def MCT_tests(n_jobs, database_path, small_test,
     
     model.save()
     
-    model = bf.create_object_from_database(
+    model = bf.create_cadet_model_from_database(
         database_path,
         cadet_config_json_name='configuration_MCT1ch_noEx_reac_benchmark1.json',
         output_path=str(output_path)
@@ -100,7 +100,7 @@ def MCT_tests(n_jobs, database_path, small_test,
     
     model.save()
     
-    model = bf.create_object_from_database(
+    model = bf.create_cadet_model_from_database(
         database_path,
         cadet_config_json_name='configuration_MCT2ch_oneWayEx_reac_benchmark1.json',
         output_path=str(output_path)
@@ -124,7 +124,7 @@ def MCT_tests(n_jobs, database_path, small_test,
     
     model.save()
     
-    model = bf.create_object_from_database(
+    model = bf.create_cadet_model_from_database(
         database_path,
         cadet_config_json_name='configuration_MCT3ch_twoWayExc_reac_benchmark1.json',
         output_path=str(output_path)

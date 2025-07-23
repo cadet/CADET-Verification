@@ -70,10 +70,16 @@ def write_meta_json(path_and_name, meta):
 
 
 def run_simulation_in_verification(model, cadet_path):
+    
     if cadet_path is not None:
         Cadet.cadet_path = cadet_path
-    model[0].save()
-    data = model[0].run_simulation()
+
+    cadet_model = Cadet()
+    cadet_model.root.input = copy.deepcopy(model[0]['model'])
+    cadet_model.filename = model[0]['filename']
+    cadet_model.save()
+    
+    data = cadet_model.run_simulation()
     if not data.return_code == 0:
         #     (f"simulation completed successfully")
         #     model.load_from_file()
@@ -82,7 +88,7 @@ def run_simulation_in_verification(model, cadet_path):
         raise Exception(f"simulation failed")
 
 
-def create_object_from_database(
+def create_cadet_model_from_database(
         database_url, cadet_config_json_name,
         unit_id=None,
         ax_method=None, ax_cells=None, par_method=None, par_cells=None,
@@ -133,7 +139,7 @@ def create_object_from_database(
     setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
                              cadet_config_json_name).group(1)
 
-    return create_object_from_config(
+    return create_cadet_model_from_config(
         config_data=config_data,
         setting_name=setting_name,
         unit_id=unit_id,
@@ -143,7 +149,7 @@ def create_object_from_database(
     )
 
 
-def create_object_from_config(
+def create_cadet_model_from_config(
         config_data, setting_name,
         unit_id=None,
         ax_method=None, ax_cells=None, par_method=None, par_cells=None,
@@ -181,8 +187,8 @@ def create_object_from_config(
         in configuration source file.
     Returns
     -------
-    Cadet-Object
-        Cadet object.
+    Dictionary
+        Dictionary with model configuration in cadet format under 'model' and model name under 'filename'.
     """
 
     convergence_sim_names = []
@@ -320,16 +326,16 @@ def create_object_from_config(
     else:
         sensitivity = {'NSENS': 0}
 
-    model = Cadet()
-    model.root.input = copy.deepcopy(config_data['input'])
+    _filename = 'test'
+
     if output_path is not None:
         if 'filename_prefix' not in kwargs.keys():
-            model.filename = str(output_path) + '/' + config_name
+            _filename = str(output_path) + '/' + config_name
         else:
-            model.filename = str(output_path) + '/' + \
+            _filename = str(output_path) + '/' + \
                 kwargs['filename_prefix'] + config_name
-        model.save()
-    return model
+
+    return {'model': config_data['input'], 'filename': _filename}
 
 # Note: if ref_file is not given but rerun ref is true, then we take the last disc as reference and exclude it from EOC
 
@@ -669,7 +675,7 @@ def run_convergence_analysis_from_configs(
                         rad_cells = None
 
                     sims.append(
-                        create_object_from_config(
+                        create_cadet_model_from_config(
                             config_data=cadet_configs[modelIdx],
                             setting_name=cadet_config_names[modelIdx],
                             unit_id=refinement_IDs[modelIdx],
@@ -690,7 +696,7 @@ def run_convergence_analysis_from_configs(
                 for sim in zip(sims))
 
         commit_hash = convergence.get_commit_hash(
-            convergence.get_simulation(sims[0].filename)
+            convergence.get_simulation(sims[0]['filename'])
             )
 
     return run_convergence_analysis_core(
@@ -822,7 +828,7 @@ def run_convergence_analysis_from_database(
                         par_cells = par_discs[modelIdx][methodIdx][discIdx]
 
                     sims.append(
-                        create_object_from_database(
+                        create_cadet_model_from_database(
                             database_url=database_path,
                             cadet_config_json_name=cadet_config_jsons[modelIdx],
                             unit_id=unit_IDs[modelIdx],
