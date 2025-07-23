@@ -1,0 +1,37 @@
+name: Verify CADET-Core
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: "Docker image to use"
+        required: true
+        default: "ghcr.io/cadet/cadet-suite:latest"
+      pytest_args:
+        description: "Additional pytest arguments"
+        required: false
+        default: ""
+
+  repository_dispatch:
+    types: [new-cadet-core-release]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.docker_image || github.event.client_payload.docker_image }}
+      PYTEST_ARGS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.pytest_args || github.event.client_payload.pytest_args || '--run-crystallization-tests' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run pytest inside Docker
+        run: |
+          echo "Using Docker image: $DOCKER_IMAGE"
+          echo "Running pytest with args: $PYTEST_ARGS"
+          docker run --rm \
+            -v ${{ github.workspace }}:/tmp/study \
+            -w /tmp/study \
+            "$DOCKER_IMAGE" \
+            pytest /tmp/study/src/verify_cadet-core.py $PYTEST_ARGS \
+              --commit-message="CADET-Core verification via ${{ github.event_name }} on $(date +%F)"
