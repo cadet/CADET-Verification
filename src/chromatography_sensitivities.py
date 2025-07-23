@@ -209,5 +209,4 @@ def chromatography_sensitivity_tests(
             plt.legend()
             plt.title(f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'_sensbenchmark\d+\s*(.*)', '', settingName))
             plt.savefig(str(output_path) + '/' + f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'.h5', '', settingName) + '.png')
-            plt.show()
             
