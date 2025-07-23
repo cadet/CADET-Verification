@@ -126,7 +126,6 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
             plt.plot(x_ct, sim, label='Numerical', linestyle='dashed')
             plt.legend(frameon=0)
             plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_CSTR_aggregation"), dpi=100, bbox_inches='tight')
-            plt.show()
 
     # print the slopes
     # The last value in this array should be around 1.2, see Zhang et al. (2025) for details
@@ -205,7 +204,6 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
             plt.ylabel('Particle count/1')
             plt.legend(frameon=0)
             plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_CSTR_fragmentation"), dpi=100, bbox_inches='tight')
-            plt.show()
 
     # print the slopes
     # The last value in this array should be around 2, see Zhang et al. (2025) for details
@@ -310,7 +308,6 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
             plt.ylabel('Particle count/1')
             plt.legend(frameon=0)
             plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_CSTR_aggregation_fragmentation"), dpi=100, bbox_inches='tight')
-            plt.show()
 
     # print the slopes
     # The last value in this array should be around 3, see Zhang et al. (2025) for details
@@ -438,7 +435,6 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_aggregation"), dpi=100, bbox_inches='tight')
-    plt.show()
 
     '''
     EOC tests in a DPFR, Constant aggregation kernel
@@ -593,7 +589,6 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_fragmentation"), dpi=100, bbox_inches='tight')
-    plt.show()
 
     '''
     EOC tests in a DPFR, Fragmentation
@@ -744,7 +739,6 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel(r'$n/(1/m / m)$')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_PBM_aggregation"), dpi=100, bbox_inches='tight')
-    plt.show()
 
     '''
     EOC tests in a DPFR, Nucleation, growth, growth rate dispersion and aggregation
@@ -898,7 +892,6 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count/1')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_aggregation_fragmentation"), dpi=100, bbox_inches='tight')
-    plt.show()
 
     '''
     EOC tests in a DPFR, Aggregation and Fragmentation

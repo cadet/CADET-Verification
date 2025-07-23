@@ -458,6 +458,5 @@ def GRM2D_linBnd_benchmark1(
             plt.title(f'Column bulk at t = {zeitpunkt}')
             plt.xlabel('$time~/~s$')
             plt.ylabel(r'$concentration~/~mol \cdot L^{-1} $')
-            plt.show()
 
         return model
