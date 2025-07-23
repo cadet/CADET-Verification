@@ -6,32 +6,68 @@ on:
       docker_image:
         description: "Docker image to use"
         required: true
-        default: "ghcr.io/cadet/cadet-suite:latest"
+        default: "ghcr.io/cadet/cadet-suite:master"
       pytest_args:
-        description: "Additional pytest arguments"
+        description: "Pytest CLI args"
         required: false
         default: ""
 
-  repository_dispatch:
-    types: [new-cadet-core-release]
+permissions:
+  contents: write
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      DOCKER_IMAGE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.docker_image || github.event.client_payload.docker_image }}
-      PYTEST_ARGS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.pytest_args || github.event.client_payload.pytest_args || '--run-crystallization-tests' }}
+      DOCKER_IMAGE: ${{ github.event.inputs.docker_image }}
+      PYTEST_ARGS: ${{ github.event.inputs.pytest_args }}
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Run pytest inside Docker
+      - name: Run test in Docker
         run: |
-          echo "Using Docker image: $DOCKER_IMAGE"
-          echo "Running pytest with args: $PYTEST_ARGS"
+          docker pull "$DOCKER_IMAGE"
           docker run --rm \
-            -v ${{ github.workspace }}:/tmp/study \
-            -w /tmp/study \
+            -e GITHUB_TOKEN="${{ secrets.GH_PAT }}" \
+            -e PYTEST_ARGS="$PYTEST_ARGS" \
+            -e EVENT_NAME="${{ github.event_name }}" \
+            -e REPOSITORY="${{ github.repository }}" \
             "$DOCKER_IMAGE" \
-            pytest /tmp/study/src/verify_cadet-core.py $PYTEST_ARGS \
-              --commit-message="CADET-Core verification via ${{ github.event_name }} on $(date +%F)"
+            bash -c "
+              set -e
+
+              echo 'Extracting branch name from pytest args...'
+              VERIFICATION_BRANCH=\$(echo \"\$PYTEST_ARGS\" | grep -oP '(?<=--branch-name=)[^ ]*')
+              VERIFICATION_BRANCH=\${VERIFICATION_BRANCH:-main}
+              echo \"Using CADET-Verification branch: \$VERIFICATION_BRANCH\"
+
+              echo 'Creating and entering workspace...'
+              mkdir -p /tmp/cadet-verification && cd /tmp/cadet-verification
+
+              echo 'Installing keyring and setting up token'
+              pip install keyring keyrings.alt
+
+              echo '\${GITHUB_TOKEN}' | keyring set https://github.com cadet-bot
+
+              echo 'Setting up Git credential helper'
+              git config --global credential.helper store
+              echo "https://cadet-bot:\$GITHUB_TOKEN@github.com" > ~/.git-credentials
+
+              echo 'Configuring Git user'
+              git config --global user.name 'cadet-bot'
+              git config --global user.email 'cadet-bot@users.noreply.github.com'
+
+              echo 'Cloning CADET-Verification'
+              rdm clone https://github.com/cadet/CADET-Verification.git .
+              git checkout \$VERIFICATION_BRANCH
+
+              echo 'Installing Python dependencies'
+              pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
+
+              echo 'Running verification'
+              pytest -s \$PYTEST_ARGS src/verify_cadet-core.py \
+                --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\"
+
+              echo 'Running rdm checks and pushing'
+              rdm check
+              rdm push
+            "
