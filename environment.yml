@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.12
+  - git-lfs
   - cadet
   - pip
   - pip:
