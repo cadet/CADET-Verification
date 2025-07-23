@@ -107,10 +107,10 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
         )
         
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
         
         sim_times.append(model.root.meta.time_sim)
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
@@ -183,10 +183,10 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
         model, x_grid, x_ct = settings_crystallization.PureFrag_LinBi(
             n_x, x_c, x_max, S_0, t, output_path)
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
         
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
         
@@ -287,10 +287,10 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
         model, x_grid, x_ct = settings_crystallization.Agg_frag(
             n_x, x_c, x_max, beta_0, S_0, t, output_path)
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
         
         analytical = get_analytical_agg_frag(n_x, x_ct, cycle_time)
@@ -350,11 +350,11 @@ def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_tes
     model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
         800, x_c, x_max, 1, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
         raise Exception(f"simulation failed")
-    model.load()
+    model.load_from_file()
     c_x_ref = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
     spl = UnivariateSpline(x_ct, c_x_ref)
 
@@ -368,8 +368,8 @@ def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_tes
         model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
         n_x, x_c, x_max, 1, t, output_path)
         model.save()
-        return_data = model.run()
-        model.load()
+        return_data = model.run_simulation()
+        model.load_from_file()
         sim = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
         normalized_l1.append(calculate_normalized_error(spl(x_ct), sim, x_ct, x_grid))
 
@@ -427,10 +427,10 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
         n_x, n_col, x_c, x_max, 1, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
     plt.xscale("log")
@@ -452,10 +452,10 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     model, ref_x_grid, x_ct = settings_crystallization.Agg_DPFR(
         N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
 
@@ -476,10 +476,10 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
         model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
             Nx, N_col_ref, x_c, x_max, 2, t, output_path)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
         
@@ -519,10 +519,10 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
         model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
             N_x_ref, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
         model.save()
-        return_return_data = model.run()
+        return_return_data = model.run_simulation()
         if not return_return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
@@ -582,10 +582,10 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
         n_x, n_col, x_c, x_max, 1, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
     plt.xscale("log")
@@ -607,10 +607,10 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
         N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
 
@@ -631,10 +631,10 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
             Nx, 250, x_c, x_max, 2, t, output_path)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
@@ -674,10 +674,10 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
             450, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
@@ -731,10 +731,10 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
         n_x, n_col, x_c, x_max, 1, 1, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
 
     t = model.root.input.solver.user_solution_times
     c_x = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
@@ -758,10 +758,10 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
         N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, output_path)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
 
@@ -782,10 +782,10 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
             Nx, 400, x_c, x_max, 3, 2, t, output_path)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(
             model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
@@ -826,10 +826,10 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
             400, Ncol, x_c, x_max, 2, 3, t, output_path)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(
             model.root.output.solution.unit_001.solution_outlet[-1, 1:-1])
@@ -887,10 +887,10 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
     model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
         n_x, n_col, x_c, x_max, 1)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
     plt.xscale("log")
@@ -912,10 +912,10 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
     model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
         N_x_ref, N_col_ref, x_c, x_max, 3)
     model.save()
-    return_data = model.run()
+    return_data = model.run_simulation()
     if not return_data.return_code == 0:
         print(return_data.error_message)
-    model.load()
+    model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
 
@@ -936,10 +936,10 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
         model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
             Nx, 250, x_c, x_max, 2)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
@@ -979,10 +979,10 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
         model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
             450, Ncol, x_c, x_max, 2)  # test on WENO23
         model.save()
-        return_data = model.run()
+        return_data = model.run_simulation()
         if not return_data.return_code == 0:
             print(return_data.error_message)
-        model.load()
+        model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
