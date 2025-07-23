@@ -1,0 +1,72 @@
+name: Verify CADET-Core
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: "Docker image to use"
+        required: true
+        default: "ghcr.io/cadet/cadet-suite:master"
+      pytest_args:
+        description: "Pytest CLI args"
+        required: false
+        default: ""
+      verification_branch:
+        description: "CADET-Verification branch to test"
+        required: true
+        default: "main"
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: ${{ github.event.inputs.docker_image }}
+      PYTEST_ARGS: ${{ github.event.inputs.pytest_args }}
+      VERIFICATION_BRANCH: ${{ github.event.inputs.verification_branch }}
+    steps:
+      - name: Run test in Docker
+        run: |
+          docker pull "$DOCKER_IMAGE"
+          docker run --rm \
+            -e GITHUB_TOKEN="${{ secrets.GH_PAT }}" \
+            -e PYTEST_ARGS="$PYTEST_ARGS" \
+            -e VERIFICATION_BRANCH="$VERIFICATION_BRANCH" \
+            -e EVENT_NAME="${{ github.event_name }}" \
+            -e REPOSITORY="${{ github.repository }}" \
+            "$DOCKER_IMAGE" \
+            bash -c "
+              set -e
+
+              # Inside Docker or CI environment
+
+              # Create and enter a clean workspace
+              mkdir -p /tmp/cadet-verification && cd /tmp/cadet-verification
+
+              # Clone and enter the project repo
+              git clone https://x-access-token:$GITHUB_TOKEN@github.com/cadet/CADET-Verification.git .
+              git checkout "$VERIFICATION_BRANCH"
+
+              # Register this Git remote with cadet-rdm
+              rdm remote add https://x-access-token:$GITHUB_TOKEN@github.com/cadet/CADET-Verification.git
+
+              # Create the output directory and clone the output repo into it
+              mkdir output
+              cd output
+              git clone https://x-access-token:$GITHUB_TOKEN@github.com/cadet/CADET-Verification-Output.git .
+              cd ..
+
+              # Register the output repo as a remote too
+              cd output
+              rdm remote add https://x-access-token:$GITHUB_TOKEN@github.com/cadet/CADET-Verification-Output.git
+              cd ..
+
+              echo 'Installing Python dependencies'
+              pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
+
+              echo 'Running pytest'
+              pytest -s \$PYTEST_ARGS src/verify_cadet-core.py \
+                --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\"
+            "
