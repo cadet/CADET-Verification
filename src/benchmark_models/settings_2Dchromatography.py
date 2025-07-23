@@ -429,10 +429,10 @@ def GRM2D_linBnd_benchmark1(
                 file_name if file_name is not None else save_path + "lrmp2d_debug.h5"
         cadet_model.save()
 
-        data = cadet_model.run()
+        data = cadet_model.run_simulation()
         if data.return_code == 0:
             print(cadet_model.filename + " simulation completed successfully")
-            cadet_model.load()
+            cadet_model.load_from_file()
         else:
             print(data)
             raise Exception(cadet_model.filename + " simulation failed")

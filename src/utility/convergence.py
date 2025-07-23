@@ -304,7 +304,7 @@ def get_simulation(simulation):
     if isinstance(simulation, str):
         sim = Cadet()
         sim.filename = simulation
-        sim.load()
+        sim.load_from_file()
         return sim
 
     elif not isinstance(simulation, Cadet):
@@ -3864,7 +3864,7 @@ def mult_sim_rerun(file_path, cadet_path, n_wdh):
                 # only keep faster simulation time
                 best_sim_time = min(best_sim_time, model.root.meta.time_sim)
 
-            model.load()
+            model.load_from_file()
             model.root.meta.time_sim = best_sim_time
             model.save()
             print(file + " rerun")

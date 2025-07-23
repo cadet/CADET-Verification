@@ -69,14 +69,14 @@ def write_meta_json(path_and_name, meta):
         json.dump(existing_data, json_file, indent=4)
 
 
-def run_simulation(model, cadet_path):
+def run_simulation_in_verification(model, cadet_path):
     if cadet_path is not None:
         Cadet.cadet_path = cadet_path
     model[0].save()
-    data = model[0].run()
+    data = model[0].run_simulation()
     if not data.return_code == 0:
         #     (f"simulation completed successfully")
-        #     model.load()
+        #     model.load_from_file()
         # else:
         print(data.error_message)
         raise Exception(f"simulation failed")
@@ -686,7 +686,7 @@ def run_convergence_analysis_from_configs(
 
         # Run simulations in one global parallelization
         backend = Parallel(n_jobs=n_jobs, verbose=0)
-        backend(delayed(run_simulation)(sim, cadet_path)
+        backend(delayed(run_simulation_in_verification)(sim, cadet_path)
                 for sim in zip(sims))
 
         commit_hash = convergence.get_commit_hash(
@@ -838,7 +838,7 @@ def run_convergence_analysis_from_database(
 
         # Run simulations in one global parallelization
         backend = Parallel(n_jobs=n_jobs, verbose=0)
-        backend(delayed(run_simulation)(sim, cadet_path)
+        backend(delayed(run_simulation_in_verification)(sim, cadet_path)
                 for sim in zip(sims))
 
         commit_hash = convergence.get_commit_hash(
