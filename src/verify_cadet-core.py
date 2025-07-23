@@ -184,3 +184,6 @@ def test_selected_model_groups(
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/2Dchromatography")
+
+    if rdm_push:
+        project_repo.push()
