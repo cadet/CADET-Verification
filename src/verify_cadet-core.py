@@ -35,6 +35,7 @@ import MCT
 import chrom_systems
 import twoDimChromatography
 import chromatography_sensitivities
+import multiple_reactions
 
 #%% User Input
 
@@ -56,6 +57,7 @@ run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_MCT_tests = False
 run_2Dmodels_tests = False
+run_reaction_tests = True
 
 database_path = "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database" + \
     "/-/raw/core_tests/cadet_config/test_cadet-core/"
@@ -66,7 +68,6 @@ output_path = project_repo.output_path / "test_cadet-core"
 
 # The get_cadet_path function searches for the cadet-cli. If you want to use a specific source build, please define the path below
 cadet_path = convergence.get_cadet_path() # path to root folder of bin\cadet-cli 
- 
 
 # %% Run with CADET-RDM
 
@@ -153,4 +154,15 @@ with project_repo.track_results(results_commit_message=commit_message, debug=rdm
     
         if delete_h5_files:
             convergence.delete_h5_files(str(output_path) + "/2Dchromatography", exclude_files=exclude_files)
+
+    if run_reaction_tests:
+        multiple_reactions.multiple_reactions_grm_test_bulk(
+            output_path = str(output_path) + "/reaction/multiple_reactions_bulk_grm.h5", cadet_path=cadet_path, plot = True)
+        multiple_reactions.multiple_reactions_lrmp_test_bulk(
+            output_path = str(output_path) + "/reaction/multiple_reactions_bulk_lrmp.h5", cadet_path=cadet_path, plot = True)
+        multiple_reactions.multiple_reactions_mct_test_bulk(
+            output_path = str(output_path) + "/reaction/multiple_reactions_bulk_mct.h5", cadet_path=cadet_path, plot = True)
+
+        if delete_h5_files:
+            convergence.delete_h5_files(str(output_path) + "/reaction", exclude_files=exclude_files)
         
