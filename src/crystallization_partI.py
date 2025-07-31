@@ -105,15 +105,8 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_p
     return np.array(slopes), sim_times
 
 
-# %% Define crystallization tests
-
-def crystallization_tests(n_jobs, database_path, small_test,
-                          output_path, cadet_path):
-
-    os.makedirs(output_path, exist_ok=True) 
-
-    # %% Verify CSTR_PBM_growth
-    
+def CSTR_PBM_growth_EOC_test(small_test, output_path, cadet_path):
+        
     N_x_ref = 800 + 2 if small_test else 2000
     ## grid for EOC
     N_x_test_c1 = [50, 100, 200, 400] if small_test else [50, 100, 200, 400, 800, 1600, ]
@@ -136,7 +129,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     with open(str(output_path) + '/CSTR_PBM_growth.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
     
-    # %% Verify CSTR_PBM_growthSizeDep
+def CSTR_PBM_growthSizeDep_EOC_test(small_test, output_path, cadet_path):
     
     N_x_ref = 700 + 2 if small_test else 1000 + 2
     
@@ -160,7 +153,8 @@ def crystallization_tests(n_jobs, database_path, small_test,
     with open(str(output_path) + '/CSTR_PBM_growthSizeDep.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
     
-    # %% Verify CSTR_PBM_primaryNucleationAndGrowth
+
+def CSTR_PBM_primaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_path):
     
     N_x_ref = 700 + 2 if small_test else 1000 + 2
     
@@ -184,8 +178,9 @@ def crystallization_tests(n_jobs, database_path, small_test,
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_primaryNucleationAndGrowth.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
+
     
-    # %% Verify CSTR_PBM_primarySecondaryNucleationAndGrowth
+def CSTR_PBM_primarySecondaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_path):
     
     N_x_ref = 700 + 2 if small_test else 1000 + 2
     
@@ -210,7 +205,9 @@ def crystallization_tests(n_jobs, database_path, small_test,
     with open(str(output_path) + '/CSTR_PBM_primarySecondaryNucleationAndGrowth.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
     
-    # %% Verify CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion
+
+def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_EOC_test(
+        small_test, output_path, cadet_path):
     
     N_x_ref = 700 + 2 if small_test else 1000 + 2
     
@@ -235,7 +232,8 @@ def crystallization_tests(n_jobs, database_path, small_test,
     with open(str(output_path) + '/CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
     
-    # %% Verify DPFR_PBM_primarySecondaryNucleationGrowth
+def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
+        small_test, output_path, cadet_path):
     # This is a special case, we have Nx and Ncol
     # Here we test EOC long each coordinate
     

@@ -48,7 +48,7 @@ def get_slope(error):
 
 
 # %% Pure aggregation
-def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
+def aggregation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Pure aggregation tests against analytical solutions for the Golovin (sum)
     kernel, EOC tests. Assumes no solute (c) and solubility component (cs).
@@ -147,7 +147,7 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
 
 
 # %% Pure fragmentation
-def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
+def fragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Pure fragmentation tests against analytical solutions for the linear
     selection function with uniform particle binary fragmentation, EOC tests. 
@@ -225,7 +225,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
 
 
 # %% Simultaneous aggregation and fragmentation
-def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Simultaneous aggregation and fragmentation tests against analytical
     solutions and EOC tests. Linear selection function with uniform particle binary
@@ -329,7 +329,7 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
 
 
 # %% PBM, aggregation and fragmentation in CSTR
-def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Combined test with PBM: nucleation, growth, growth rate dispersion, aggregation and fragmentation in CSTR. 
     '''
@@ -394,7 +394,7 @@ def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_tes
 # %% Constant aggregation in a DPFR
 
 
-def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Constant aggregation kernel in a DPFR tests and EOC tests using a
     reference solution. 
@@ -550,7 +550,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
 # %% Constant fragmentation in a DPFR
 
 
-def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Constant fragmentation kernel in a DPFR tests and EOC tests using a
     reference solution. 
@@ -702,7 +702,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
 
 
 # %% Nucleation, growth, growth rate dispersion and aggregation in a DPFR
-def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Nucleation, growth, growth rate dispersion and aggregation in a DPFR
     tests and EOC tests using a reference solution. 
@@ -854,7 +854,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
 
 
 # %% Simultaneous aggregation and fragmentation in a DPFR
-def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
     @detail: Simultaneous aggregation and fragmentation in a DPFR tests and EOC tests using a reference solution. 
     There are no solute (c) and solubility components (cs).
@@ -1005,7 +1005,7 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
 
 
 # %% Main function calling all the tests
-def crystallization_tests(n_jobs, database_path, small_test,
+def tests(n_jobs, database_path, small_test,
                           output_path, cadet_path,
                           run_CSTR_aggregation_test = 1,
                           run_CSTR_fragmentation_test = 1,
@@ -1043,33 +1043,3 @@ def crystallization_tests(n_jobs, database_path, small_test,
     if run_DPFR_aggregation_fragmentation_test:
         crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
 
-        
-# # %% run in file
-
-# cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master4_crysPartII_d0888cb\aRELEASE\bin\cadet-cli.exe"
-
-# small_test = 1
-# n_jobs = -1 # todo
-# database_path = None
-
-# sys.path.append(str(Path(".")))
-# project_repo = ProjectRepo()
-# output_path = str(project_repo.output_path /
-#                   "test_cadet-core") + "/crystallization"
-
-# os.makedirs(output_path, exist_ok=True)
-        
-# crystallization_tests(n_jobs, database_path, small_test,
-#                       output_path, cadet_path,
-#                       run_CSTR_aggregation_test = 1,
-#                       run_CSTR_fragmentation_test = 0,
-#                       run_CSTR_aggregation_fragmentation_test = 0,
-#                       run_CSTR_PBM_aggregation_fragmentation_test = 0,
-#                       run_DPFR_constAgg_test = 0,
-#                       run_DPFR_constFrag_test = 0,
-#                       run_DPFR_NGGR_aggregation_test = 0,
-#                       run_DPFR_aggregation_fragmentation_test = 0
-#                       )
-        
-        
-        

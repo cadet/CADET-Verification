@@ -30,8 +30,7 @@ import bench_configs
 
 import chromatography
 import bindings
-import crystallization_partI
-import crystallization_partII
+import crystallization
 import MCT
 import chrom_systems
 import twoDimChromatography
@@ -156,14 +155,7 @@ def test_selected_model_groups(
                 convergence.delete_h5_files(str(output_path) + "/chromatography/systems")
 
         if run_crystallization_tests:
-            crystallization_partI.crystallization_tests(
-                n_jobs=n_jobs,
-                database_path=database_path + "crystallization/",
-                small_test=small_test,
-                output_path=str(output_path) + "/crystallization",
-                cadet_path=cadet_path
-            )
-            crystallization_partII.crystallization_tests(
+            crystallization.crystallization_tests(
                 n_jobs=n_jobs,
                 database_path=database_path + "crystallization/",
                 small_test=small_test,
