@@ -32,7 +32,7 @@ def log_normal(x, y0, A, w, xc):
 # %% Crystallization settings
 
 
-def CSTR_PBM_growth(n_x, output_path):
+def CSTR_PBM_growth(n_x, cadet_path, output_path):
 
     # general settings
 
@@ -50,7 +50,8 @@ def CSTR_PBM_growth(n_x, output_path):
 
     # create model
     model = Cadet()
-
+    model.install_path = cadet_path
+    
     # Spacing
     x_grid = np.logspace(np.log10(x_c), np.log10(x_max), n_x-1)  # log grid
     x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range(1, n_x-1)]
@@ -181,9 +182,9 @@ def CSTR_PBM_growth(n_x, output_path):
 
     return model
 
-def CSTR_PBM_growthSizeDep(n_x, output_path):
+def CSTR_PBM_growthSizeDep(n_x, cadet_path, output_path):
     
-    model = CSTR_PBM_growth(n_x, output_path)  # copy the same settings
+    model = CSTR_PBM_growth(n_x, cadet_path, output_path)  # copy the same settings
 
     model.root.input.model.unit_001.reaction_bulk.cry_growth_constant = 1e8
     model.root.input.model.unit_001.reaction_bulk.cry_p = 1.5
@@ -191,7 +192,7 @@ def CSTR_PBM_growthSizeDep(n_x, output_path):
 
     return model
 
-def CSTR_PBM_primaryNucleationAndGrowth(n_x, output_path):
+def CSTR_PBM_primaryNucleationAndGrowth(n_x, cadet_path, output_path):
 
     # Initial conditions
     initial_c = []
@@ -204,7 +205,7 @@ def CSTR_PBM_primaryNucleationAndGrowth(n_x, output_path):
             initial_c.append(0.0)
     initial_c = np.asarray(initial_c)
 
-    model = CSTR_PBM_growth(n_x, output_path)  # copy the same settings
+    model = CSTR_PBM_growth(n_x, cadet_path, output_path)  # copy the same settings
     model.root.input.model.unit_001.init_c = initial_c
 
     # crystallization
@@ -221,9 +222,9 @@ def CSTR_PBM_primaryNucleationAndGrowth(n_x, output_path):
 
 # this test is different from the paper
 
-def CSTR_PBM_primarySecondaryNucleationAndGrowth(n_x, output_path):
+def CSTR_PBM_primarySecondaryNucleationAndGrowth(n_x, cadet_path, output_path):
 
-    model = CSTR_PBM_primaryNucleationAndGrowth(n_x, output_path)
+    model = CSTR_PBM_primaryNucleationAndGrowth(n_x, cadet_path, output_path)
 
     # crystallization
     # add secondary nucleation
@@ -235,9 +236,9 @@ def CSTR_PBM_primarySecondaryNucleationAndGrowth(n_x, output_path):
 
 # this test is different from the paper
 
-def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion(n_x, output_path):
+def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion(n_x, cadet_path, output_path):
 
-    model = CSTR_PBM_primaryNucleationAndGrowth(n_x, output_path)
+    model = CSTR_PBM_primaryNucleationAndGrowth(n_x, cadet_path, output_path)
 
     # crystallization
     # add growth rate dispersion
@@ -250,7 +251,7 @@ def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion(n_x, output_path):
 # DPFR case, part I
 # n_x is the total number of component = FVM cells - 2, n_col is the total number of FVM cells in the axial coordinate z, 52x50 would be a good place to start
 
-def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, output_path):
+def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, cadet_path, output_path):
     # general settings
     # feed
     c_feed = 9.0  # mg/ml
@@ -265,6 +266,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, output_path):
 
     # create model
     model = Cadet()
+    model.install_path = cadet_path
 
     # Spacing
     x_grid = np.logspace(np.log10(x_c), np.log10(x_max), n_x-1)  # log grid
@@ -415,9 +417,10 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, output_path):
 
 # STR case, part II
 
-def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t, output_path):
+def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t, cadet_path, output_path):
 
     model = Cadet()
+    model.install_path = cadet_path
 
     # crystal space
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)
@@ -513,8 +516,10 @@ def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t,
     return model, x_grid, x_ct
 
 
-def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, output_path):
+def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, cadet_path, output_path):
+    
     model = Cadet()
+    model.install_path = cadet_path
 
     # crystal space
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)
@@ -611,8 +616,10 @@ def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, output_path):
     return model, x_grid, x_ct
 
 
-def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, output_path):
+def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, cadet_path, output_path):
+    
     model = Cadet()
+    model.install_path = cadet_path
 
     # crystal space
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)
@@ -713,9 +720,10 @@ def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, output_path
     return model, x_grid, x_ct
 
 
-def CSTR_PBM_aggregation_fragmentation(n_x: 'int, number of bins', x_c, x_max, growth_order, t, output_path):
+def CSTR_PBM_aggregation_fragmentation(n_x: 'int, number of bins', x_c, x_max, growth_order, t, cadet_path, output_path):
     
     model = Cadet()
+    model.install_path = cadet_path
 
     nComp = n_x + 2
 
@@ -860,8 +868,10 @@ def CSTR_PBM_aggregation_fragmentation(n_x: 'int, number of bins', x_c, x_max, g
 
 # DPFR case, part II
 
-def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
+def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, cadet_path, output_path):
+    
     model = Cadet()
+    model.install_path = cadet_path
 
     # Spacing
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)
@@ -972,9 +982,11 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
     return model, x_grid, x_ct
 
 
-def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
+def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order, t, cadet_path, output_path):
+    
     model = Cadet()
-
+    model.install_path = cadet_path
+    
     # Spacing
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)
 
@@ -1086,9 +1098,11 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
     return model, x_grid, x_ct
 
 
-def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order, t, output_path):
+def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, x_max, axial_order: 'for weno schemes', growth_order, t, cadet_path, output_path):
+    
     model = Cadet()
-
+    model.install_path = cadet_path
+    
     nComp = n_x + 2
 
     # Spacing
@@ -1238,9 +1252,10 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
     return model, x_grid, x_ct
 
 
-def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order, t, output_path):
+def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins', x_c, x_max, axial_order, t, cadet_path, output_path):
     
     model = Cadet()
+    model.install_path = cadet_path
 
     # Spacing
     x_grid, x_ct = get_log_space(n_x, x_c, x_max)

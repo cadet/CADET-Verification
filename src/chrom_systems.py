@@ -64,8 +64,6 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
 
     # %% run convergence analysis
 
-    Cadet.cadet_path = cadet_path
-
     bench_func.run_convergence_analysis(
         database_path=database_path, output_path=output_path,
         cadet_path=cadet_path,
@@ -121,9 +119,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     config_names = ['acyclicSystem1_LRMP_linBnd_1comp']
 
     # %% run convergence analysis
-
-    Cadet.cadet_path = cadet_path
-
+    
     bench_func.run_convergence_analysis(
         database_path=database_path, output_path=output_path,
         cadet_path=cadet_path,
@@ -167,8 +163,6 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     config_names = ["SMBsystem1_LRM_linBnd_2comp_"]
 
     # %% Run convergence analysis
-
-    Cadet.cadet_path = cadet_path
 
     bench_func.run_convergence_analysis(
         database_path=database_path, output_path=output_path,

@@ -3838,8 +3838,9 @@ def mult_sim_rerun(file_path, cadet_path, n_wdh):
     n_wdh : int
         Number of reruns per simulation
     """
-    Cadet.cadet_path = cadet_path
     model = Cadet()
+    model.install_path = cadet_path
+    
     files = os.listdir(file_path)
 
     for file in files:  # file = files[0]

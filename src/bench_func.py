@@ -71,7 +71,7 @@ def write_meta_json(path_and_name, meta):
 
 def run_simulation_in_verification(model, cadet_path):
     if cadet_path is not None:
-        Cadet.cadet_path = cadet_path
+        model[0].install_path = cadet_path
     model[0].save()
     data = model[0].run_simulation()
     if not data.return_code == 0:

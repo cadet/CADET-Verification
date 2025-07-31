@@ -54,8 +54,6 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
     kernel, EOC tests. Assumes no solute (c) and solubility component (cs).
     The Golovin kernel should cover all functions implemented in the core simulator. 
     '''
-
-    Cadet.cadet_path = cadet_path
     
     # define params
     x_c, x_max = 5e-3, 0.5e3  # m # crystal phase discretization
@@ -103,7 +101,7 @@ def crystallization_aggregation_EOC_test(cadet_path, small_test, output_path):
     for n_x in Nx_grid:
         
         model, x_grid, x_ct = settings_crystallization.PureAgg_Golovin(
-            n_x, x_c, x_max, v_0, N_0, beta_0, t, output_path=output_path
+            n_x, x_c, x_max, v_0, N_0, beta_0, t, cadet_path, output_path=output_path
         )
         
         model.save()
@@ -156,7 +154,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
     Assumes no solute (c) and solubility component (cs).
     '''
 
-    Cadet.cadet_path = cadet_path
+    Cadet.install_path = cadet_path
 
     def get_analytical_frag(n_x, x_ct, cycle_time):
         return np.asarray([3.0 * x_ct[j]**2 * (1.0+cycle_time)**2 * np.exp(-x_ct[j]**3 * (1.0+cycle_time)) for j in range(n_x)])
@@ -180,7 +178,7 @@ def crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path):
     for n_x in Nx_grid:
         
         model, x_grid, x_ct = settings_crystallization.PureFrag_LinBi(
-            n_x, x_c, x_max, S_0, t, output_path)
+            n_x, x_c, x_max, S_0, t, cadet_path, output_path)
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -236,7 +234,7 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
     '''
 
     # combined aggregation and fragmentation
-    Cadet.cadet_path = cadet_path
+    Cadet.install_path = cadet_path
 
     def get_analytical_agg_frag(n_x, x_ct, t):
         x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
@@ -283,7 +281,7 @@ def crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, o
 
     for n_x in Nx_grid:
         model, x_grid, x_ct = settings_crystallization.Agg_frag(
-            n_x, x_c, x_max, beta_0, S_0, t, output_path)
+            n_x, x_c, x_max, beta_0, S_0, t, cadet_path, output_path)
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -345,7 +343,7 @@ def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_tes
 
     # numerical ref solution
     model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
-        800, x_c, x_max, 1, t, output_path)
+        800, x_c, x_max, 1, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -363,7 +361,7 @@ def crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_tes
 
     for n_x in Nx_grid:
         model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
-        n_x, x_c, x_max, 1, t, output_path)
+        n_x, x_c, x_max, 1, t, cadet_path, output_path)
         model.save()
         return_data = model.run_simulation()
         model.load_from_file()
@@ -403,7 +401,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     Assumes no solute (c) and solubility component (cs).
     '''
 
-    Cadet.cadet_path = cadet_path
+    Cadet.install_path = cadet_path
 
     # boundary condition
     # A: area, y0: offset, w:std, xc: center (A,w >0)
@@ -422,7 +420,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     '''
 
     model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
-        n_x, n_col, x_c, x_max, 1, t, output_path)
+        n_x, n_col, x_c, x_max, 1, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -446,7 +444,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     N_col_ref = 48 if small_test else 192
 
     model, ref_x_grid, x_ct = settings_crystallization.Agg_DPFR(
-        N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
+        N_x_ref, N_col_ref, x_c, x_max, 3, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -470,7 +468,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
-            Nx, N_col_ref, x_c, x_max, 2, t, output_path)  # test on WENO23
+            Nx, N_col_ref, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -513,7 +511,7 @@ def crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, outpu
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
-            N_x_ref, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
+            N_x_ref, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_return_data = model.run_simulation()
         if not return_return_data.return_code == 0:
@@ -559,7 +557,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     Assumes no solute (c) and solubility component (cs).
     '''
 
-    Cadet.cadet_path = cadet_path
+    Cadet.install_path = cadet_path
 
     # system setup
     n_x = 100
@@ -576,7 +574,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     '''
 
     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-        n_x, n_col, x_c, x_max, 1, t, output_path)
+        n_x, n_col, x_c, x_max, 1, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -600,7 +598,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     N_col_ref = 96 if small_test else 192 * 2
 
     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-        N_x_ref, N_col_ref, x_c, x_max, 3, t, output_path)
+        N_x_ref, N_col_ref, x_c, x_max, 3, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -624,7 +622,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-            Nx, 250, x_c, x_max, 2, t, output_path)  # test on WENO23
+            Nx, 250, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -667,7 +665,7 @@ def crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, out
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-            450, Ncol, x_c, x_max, 2, t, output_path)  # test on WENO23
+            450, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -711,7 +709,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     There are solute (c) and solubility components (cs).
     '''
 
-    Cadet.cadet_path = cadet_path
+    Cadet.install_path = cadet_path
 
     # set up
     n_x = 100
@@ -724,7 +722,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     t = np.linspace(0, cycle_time, 200+1)
 
     model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-        n_x, n_col, x_c, x_max, 1, 1, t, output_path)
+        n_x, n_col, x_c, x_max, 1, 1, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -750,7 +748,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     N_col_ref = 96 if small_test else 384 * 2
 
     model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-        N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, output_path)
+        N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -774,7 +772,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-            Nx, 400, x_c, x_max, 3, 2, t, output_path)  # test on WENO23
+            Nx, 400, x_c, x_max, 3, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -818,7 +816,7 @@ def crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, outpu
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-            400, Ncol, x_c, x_max, 2, 3, t, output_path)  # test on WENO23
+            400, Ncol, x_c, x_max, 2, 3, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
@@ -862,7 +860,7 @@ def crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_te
     There are no solute (c) and solubility components (cs).
     '''
 
-    Cadet.cadet_path = cadet_path
+    Cadet.install_path = cadet_path
 
     # system setup
     n_x = 100

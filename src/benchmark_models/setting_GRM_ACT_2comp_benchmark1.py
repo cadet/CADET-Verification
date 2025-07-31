@@ -16,9 +16,7 @@ import matplotlib.pyplot as plt
 from cadet import Cadet
 
 def ACT_benchmark1(cadet_path, output_path,
-                   run_simulation, plot_result):
-
-    Cadet.cadet_path = cadet_path    
+                   run_simulation, plot_result): 
 
     ## set up
     injection_volume = 1e-6         ## m^3
@@ -49,6 +47,7 @@ def ACT_benchmark1(cadet_path, output_path,
     total_porosity = column_porosity + (1.0-column_porosity)*particle_porosity
     
     model = Cadet()
+    model.install_path = cadet_path
     
     model.root.input.model.nunits = 3
     

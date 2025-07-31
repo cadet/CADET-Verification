@@ -30,8 +30,6 @@ def chromatography_tests(n_jobs, database_path, small_test, sensitivities,
 
     os.makedirs(output_path, exist_ok=True)
 
-    Cadet.cadet_path = cadet_path
-
     # Define settings and benchmarks
 
     cadet_configs = []

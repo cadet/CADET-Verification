@@ -54,11 +54,11 @@ def calculate_relative_L1_norm(predicted, analytical, x_grid):
 def get_slope(error):
     return -np.array([np.log2(error[i] / error[i-1]) for i in range (1, len(error))])
 
-def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, output_path): 
+def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_path): 
     
     ## get ref solution
     
-    model = target_model(N_x_ref, output_path)
+    model = target_model(N_x_ref, cadet_path, output_path)
     model.save()
     data = model.run_simulation()
     if not data.return_code == 0:
@@ -80,7 +80,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, output_path):
     n_xs = []   ## store the result nx here
     sim_times = []
     for Nx in N_x_test:
-        model = target_model(Nx, output_path)
+        model = target_model(Nx, cadet_path, output_path)
         model.save()
         data = model.run_simulation()
         if not data.return_code == 0:
@@ -110,9 +110,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, output_path):
 def crystallization_tests(n_jobs, database_path, small_test,
                           output_path, cadet_path):
 
-    os.makedirs(output_path, exist_ok=True)
-    
-    Cadet.cadet_path = cadet_path    
+    os.makedirs(output_path, exist_ok=True) 
 
     # %% Verify CSTR_PBM_growth
     
@@ -123,7 +121,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     EOC_c1, simTimes = get_EOC_simTimes(
         N_x_ref, N_x_test_c1, settings_crystallization.CSTR_PBM_growth,
-        1000e-6, output_path
+        1000e-6, cadet_path, output_path
         )
     
     print("CSTR_PBM_growth EOC:\n", EOC_c1)
@@ -147,7 +145,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     EOC_c2, simTimes = get_EOC_simTimes(
         N_x_ref, N_x_test_c2, settings_crystallization.CSTR_PBM_growthSizeDep,
-        1000e-6, output_path
+        1000e-6, cadet_path, output_path
         )
     
     print("CSTR_PBM_growthSizeDep EOC:\n", EOC_c2)
@@ -172,7 +170,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     EOC_c3, simTimes = get_EOC_simTimes(
         N_x_ref, N_x_test_c3,
         settings_crystallization.CSTR_PBM_primaryNucleationAndGrowth,
-        1000e-6, output_path
+        1000e-6, cadet_path, output_path
         )
     
     print("CSTR_PBM_primaryNucleationAndGrowth EOC:\n", EOC_c3)
@@ -197,7 +195,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     EOC_c4, simTimes = get_EOC_simTimes(
         N_x_ref, N_x_test_c4,
         settings_crystallization.CSTR_PBM_primarySecondaryNucleationAndGrowth,
-        1000e-6, output_path
+        1000e-6, cadet_path, output_path
         )
     
     print("CSTR_PBM_primaryNucleationAndGrowth EOC:\n", EOC_c4)
@@ -222,7 +220,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     EOC_c5, simTimes = get_EOC_simTimes(
         N_x_ref, N_x_test_c5,
         settings_crystallization.CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion,
-        1000e-6, output_path
+        1000e-6, cadet_path, output_path
         )
     
     print("CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion EOC:\n", EOC_c5)
@@ -248,7 +246,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     
     ## get ref solution
         
-    model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref, N_col_ref, output_path)
+    model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref, N_col_ref, cadet_path, output_path)
     model.save()
     data = model.run_simulation()
     if not data.return_code == 0:
@@ -273,7 +271,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     n_xs = []   ## store the result nx here
     simTimesIntRefinement = []
     for Nx in N_x_test_c6:
-        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(Nx, N_col_ref, output_path)
+        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(Nx, N_col_ref, cadet_path, output_path)
         model.save()
         data = model.run_simulation()
         if not data.return_code == 0:
@@ -304,7 +302,7 @@ def crystallization_tests(n_jobs, database_path, small_test,
     n_xs = []   ## store the result nx here
     simTimesAxRefinement = []
     for Ncol in N_col_test_c6:
-        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref+2, Ncol, output_path)
+        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref+2, Ncol, cadet_path, output_path)
         model.save()
         data = model.run_simulation()
         if not data.return_code == 0:

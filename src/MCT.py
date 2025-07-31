@@ -30,13 +30,13 @@ def MCT_tests(n_jobs, database_path, small_test,
     convergence.std_plot_prep(benchmark_plot=False, linewidth=10,
                               x_label='time / s', y_label='mol / $m^{-3}$')
     
-    Cadet.cadet_path = cadet_path
-    
     model = bf.create_object_from_database(
         database_path,
         cadet_config_json_name='configuration_LRM_dynLin_1comp_MCTbenchmark.json',
         output_path=str(output_path)
         )
+    
+    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:

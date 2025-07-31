@@ -235,8 +235,6 @@ def GRM2D_linBnd_tests(
 
     # %% Run convergence analysis
 
-    Cadet.cadet_path = cadet_path
-
     bench_func.run_convergence_analysis(
         database_path=database_path, output_path=output_path,
         cadet_path=cadet_path,
