@@ -230,7 +230,7 @@ def CSTR_PBM_primarySecondaryNucleationAndGrowth(n_x, cadet_path, output_path):
     # add secondary nucleation
     model.root.input.model.unit_001.reaction_bulk.cry_secondary_nucleation_rate = 1e5
 
-    model.filename = str(output_path) + '//ref_CSTR_PBM_CSTR_PBM_primarySecondaryNucleationAndGrowth.h5'
+    model.filename = str(output_path) + '//ref_CSTR_PBM_primarySecondaryNucleationAndGrowth.h5'
 
     return model
 
@@ -411,7 +411,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, cadet_path, output_pat
         0, cycle_time, 200)
 
     # file name
-    model.filename = str(output_path) + '//ref_DPFR_PBM_primarySecondaryNucleationGrowth.h5'
+    model.filename = str(output_path) + '//ref_DPFR_PBM_primarySecondaryNucleationAndGrowth.h5'
 
     return model
 
