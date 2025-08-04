@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: ghcr.io/cadet/cadet-suite:master
+      PYTEST_ARGS: ""
+      
+    steps:
+      - name: Run test in Docker
+        run: |
+          docker pull "$DOCKER_IMAGE"
+          docker run --rm \
+            -e REPOSITORY="${{ github.repository }}" \
+            -e VERIFICATION_BRANCH="${{ github.head_ref }}" \
+            "$DOCKER_IMAGE" \
+            bash -c "
+              set -e
+
+              echo \"Using CADET-Verification branch: \$VERIFICATION_BRANCH\"
+
+              echo 'Creating and entering workspace...'
+              mkdir -p /tmp/cadet-verification && cd /tmp/cadet-verification
+
+              echo 'Cloning CADET-Verification'
+              rdm clone https://github.com/cadet/CADET-Verification.git .
+              git checkout \$VERIFICATION_BRANCH
+
+              echo 'Installing Python dependencies'
+              pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
+
+              echo 'Running verification'
+              pytest -s \$PYTEST_ARGS src/verify_cadet-core.py
+            "
