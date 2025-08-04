@@ -12,10 +12,6 @@ incorporation of the PBM into a DPFR transport model is tested.
 
 #%% Include packages
 from pathlib import Path
-import sys
-import os
-
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import trapezoid
 from scipy.interpolate import UnivariateSpline
@@ -24,11 +20,14 @@ import json
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
+import utility.convergence as convergence
 import bench_func
 from benchmark_models import settings_crystallization
 
 
 #%% Helper functions
+
+reference_data_path = str(Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference' / 'crystallization')
 
 # seed function
 # A: area, y0: offset, w:std, xc: center (A,w >0)
@@ -57,19 +56,26 @@ def get_slope(error):
 def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_path): 
     
     ## get ref solution
+    if type(N_x_ref) is int:
+        model = target_model(N_x_ref, cadet_path, output_path)
+        model.save()
+        data = model.run_simulation()
+        if not data.return_code == 0:
+            print(data.error_message)
+            raise Exception(f"simulation failed")
+        model.load_from_file()
     
-    model = target_model(N_x_ref, cadet_path, output_path)
-    model.save()
-    data = model.run_simulation()
-    if not data.return_code == 0:
-        print(data.error_message)
-        raise Exception(f"simulation failed")
-    model.load_from_file()
-
-    c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
+        c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
+    elif type(N_x_ref) is str:
+        model = Cadet()
+        model.filename = N_x_ref
+        model.load_from_file()
+        c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
+        N_x_ref = model.root.input.model.unit_001.ncomp
+    else:
+        raise Exception("N_x_ref must be filename (string) or number of discrete points (int)")
 
     ## interpolate the reference solution
-
     x_grid = np.logspace(np.log10(1e-6), np.log10(xmax), N_x_ref - 1) 
     x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range (1, N_x_ref-1)]
 
@@ -107,7 +113,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_p
 
 def CSTR_PBM_growth_EOC_test(small_test, output_path, cadet_path):
         
-    N_x_ref = 800 + 2 if small_test else 2000
+    N_x_ref = reference_data_path + '/ref_CSTR_PBM_growth.h5'
     ## grid for EOC
     N_x_test_c1 = [50, 100, 200, 400] if small_test else [50, 100, 200, 400, 800, 1600, ]
     N_x_test_c1 = np.array(N_x_test_c1) + 2
@@ -131,7 +137,7 @@ def CSTR_PBM_growth_EOC_test(small_test, output_path, cadet_path):
     
 def CSTR_PBM_growthSizeDep_EOC_test(small_test, output_path, cadet_path):
     
-    N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = reference_data_path + '/ref_CSTR_PBM_growthSizeDep.h5'
     
     N_x_test_c2 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
     N_x_test_c2 = np.asarray(N_x_test_c2) + 2
@@ -156,7 +162,7 @@ def CSTR_PBM_growthSizeDep_EOC_test(small_test, output_path, cadet_path):
 
 def CSTR_PBM_primaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_path):
     
-    N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = reference_data_path + '/ref_CSTR_PBM_primaryNucleationAndGrowth.h5'
     
     N_x_test_c3 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
     N_x_test_c3 = np.asarray(N_x_test_c3) + 2
@@ -182,7 +188,7 @@ def CSTR_PBM_primaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_
     
 def CSTR_PBM_primarySecondaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_path):
     
-    N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = reference_data_path + '/ref_CSTR_PBM_primarySecondaryNucleationAndGrowth.h5'
     
     N_x_test_c4 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
     N_x_test_c4 = np.asarray(N_x_test_c4) + 2
@@ -209,7 +215,7 @@ def CSTR_PBM_primarySecondaryNucleationAndGrowth_EOC_test(small_test, output_pat
 def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_EOC_test(
         small_test, output_path, cadet_path):
     
-    N_x_ref = 700 + 2 if small_test else 1000 + 2
+    N_x_ref = reference_data_path + '/ref_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion.h5'
     
     N_x_test_c5 = [50, 100, 200, 400, ] if small_test else [50, 100, 200, 400, 800, ]
     N_x_test_c5 = np.asarray(N_x_test_c5) + 2
@@ -237,20 +243,16 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     # This is a special case, we have Nx and Ncol
     # Here we test EOC long each coordinate
     
-    N_x_ref   = 120 if small_test else 200 + 2 # very fine reference: 500 + 2
-    N_col_ref = 120 if small_test else 200 # very fine reference: 500
-    
     x_max = 900e-6 # um
     
     ## get ref solution
-        
-    model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_ref, N_col_ref, cadet_path, output_path)
-    model.save()
-    data = model.run_simulation()
-    if not data.return_code == 0:
-        print(data.error_message)
-        raise Exception(f"simulation failed")
-    model.load_from_file() 
+    
+    model = Cadet()
+    model.filename = reference_data_path + '/ref_DPFR_PBM_primarySecondaryNucleationAndGrowth.h5'
+    model.load_from_file()
+    c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
+    N_x_ref = model.root.input.model.unit_001.ncomp
+    N_col_ref = model.root.input.model.unit_001.discretization.ncol
     
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
     
