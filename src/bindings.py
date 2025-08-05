@@ -8,7 +8,7 @@ Created June 2025
 import os
 # from joblib import Parallel, delayed
 
-from benchmark_models import setting_GRM_ACT_2comp_benchmark1
+from src.benchmark_models import setting_GRM_ACT_2comp_benchmark1
 
 #%%
 

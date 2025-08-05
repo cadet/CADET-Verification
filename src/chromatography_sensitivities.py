@@ -19,9 +19,9 @@ import matplotlib.pyplot as plt
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import bench_func
-import bench_configs
-from utility import convergence
+import src.utility.convergence as convergence
+import src.bench_configs as bench_configs
+import src.bench_func as bench_func
 
 # %% Run with CADET-RDM
 

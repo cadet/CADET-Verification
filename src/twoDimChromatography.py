@@ -19,13 +19,13 @@ import shutil
 
 import json
 import csv
-    
+
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-from utility import convergence
-import bench_func
-import bench_configs
+import src.utility.convergence as convergence
+import src.bench_configs as bench_configs
+import src.bench_func as bench_func
 from benchmark_models import settings_2Dchromatography
 
 

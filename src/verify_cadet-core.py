@@ -24,17 +24,17 @@ import pytest
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import utility.convergence as convergence
-import bench_func
-import bench_configs
+import src.utility.convergence as convergence
+import src.bench_func as bench_func
+import src.bench_configs as bench_configs
 
-import chromatography
-import bindings
-import crystallization
-import MCT
-import chrom_systems
-import twoDimChromatography
-import chromatography_sensitivities
+import src.chromatography as chromatography
+import src.bindings as bindings
+import src.crystallization as crystallization
+import src.MCT as MCT
+import src.chrom_systems as chrom_systems
+import src.twoDimChromatography as twoDimChromatography
+import src.chromatography_sensitivities as chromatography_sensitivities
 
 @pytest.fixture
 def small_test(request):

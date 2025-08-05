@@ -8,9 +8,6 @@ This script defines model settings considered for the verification of the
 @author: jmbr
 """
 
-
-from utility import convergence
-from cadet import Cadet
 import numpy as np
 from matplotlib import pyplot as plt
 from addict import Dict
@@ -18,6 +15,10 @@ import h5py
 import json
 import re
 import copy
+
+from cadet import Cadet
+
+from src.utility import convergence
 
 # =============================================================================
 # Definition of helper functions

@@ -27,8 +27,8 @@ import json
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import utility.convergence as convergence
-from benchmark_models import settings_crystallization
+import src.utility.convergence as convergence
+from src.benchmark_models import settings_crystallization
 
 
 # %% Helper functions
