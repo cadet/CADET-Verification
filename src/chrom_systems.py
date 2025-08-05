@@ -11,9 +11,9 @@ import os
 
 from cadet import Cadet
 
-import utility.convergence as convergence
-import bench_configs
-import bench_func
+import src.utility.convergence as convergence
+import src.bench_configs as bench_configs
+import src.bench_func as bench_func
 
 
 # %% Define chromatography system tests

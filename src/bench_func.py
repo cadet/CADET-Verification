@@ -11,12 +11,12 @@ import json
 import re
 import numpy as np
 from cadet import Cadet
-import utility.convergence as convergence
 import os
 from joblib import Parallel, delayed
 import copy
 
-from benchmark_models import settings_2Dchromatography
+import src.utility.convergence as convergence
+from src.benchmark_models import settings_2Dchromatography
 
 
 # %% Import packages and define helper functions
