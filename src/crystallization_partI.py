@@ -263,15 +263,17 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     
     spl = UnivariateSpline(x_ct, c_x_reference)
     
-    ## EOC, Nx
+    # Compute convergence for joint refinement of internal and external coordinate
     
-    N_x_test_c6 = [20, 40, 80, ] if small_test else [20, 40, 80, 160, ] # very fine grid: [25, 50, 100, 200, 400, ]
+    N_x_test_c6 = [20, 40, 80, ] if small_test else [20, 40, 80, 160, ]
+    N_col_test_c6 = [20, 40, 80, ] if small_test else [20, 40, 80, 160, ]
     N_x_test_c6 = np.asarray(N_x_test_c6) + 2
+    N_col_test_c6 = np.asarray(N_col_test_c6)
     
     n_xs = []   ## store the result nx here
     simTimesIntRefinement = []
-    for Nx in N_x_test_c6:
-        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(Nx, N_col_ref, cadet_path, output_path)
+    for i in range(0, len(N_x_test_c6)):
+        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(N_x_test_c6[i], N_col_test_c6[i], cadet_path, output_path)
         model.save()
         data = model.run_simulation()
         if not data.return_code == 0:
@@ -291,14 +293,43 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     
         relative_L1_norms.append(calculate_relative_L1_norm(nx, spl(x_ct), x_grid))
     
-    slopes_Nx = get_slope(relative_L1_norms) ## calculate slopes
+    slopes = get_slope(relative_L1_norms) ## calculate slopes
+    print("DPFR_PBM_primarySecondaryNucleationGrowth L1 normalized error, refinement in both coordinates:\n", relative_L1_norms)
+    print("DPFR_PBM_primarySecondaryNucleationGrowth EOC, refinement in both coordinates:\n", slopes)
+    
+    # Only for extended/long test run, we compute convergence of external and internal coordinate independent of each other
+    if small_test:
+        return
+    
+    ## EOC, Nx
+    n_xs = []   ## store the result nx here
+    simTimesIntRefinement = []
+    for Nx in N_x_test_c6:
+        model = settings_crystallization.DPFR_PBM_primarySecondaryNucleationGrowth(Nx, N_col_ref, cadet_path, output_path)
+        model.save()
+        data = model.run_simulation()
+        if not data.return_code == 0:
+            print(data.error_message)
+            raise Exception(f"simulation failed")
+        model.load_from_file() 
+    
+        n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
+        simTimesIntRefinement.append(model.root.meta.time_sim)
+    
+    relative_L1_norms_Nx = []  ## store the relative L1 norms here
+    for nx in n_xs:
+        ## interpolate the ref solution on the test case grid
+    
+        x_grid = np.logspace(np.log10(1e-6), np.log10(900e-6), len(nx) + 1)
+        x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range (1, len(nx)+1)]
+    
+        relative_L1_norms_Nx.append(calculate_relative_L1_norm(nx, spl(x_ct), x_grid))
+    
+    slopes_Nx = get_slope(relative_L1_norms_Nx) ## calculate slopes
+    print("DPFR_PBM_primarySecondaryNucleationGrowth L1 normalized error in internal coordinate:\n", relative_L1_norms_Nx)
     print("DPFR_PBM_primarySecondaryNucleationGrowth EOC in internal coordinate:\n", slopes_Nx)
     
     ## EOC, Ncol
-    
-    N_col_test_c6 = [20, 40, 80, ] if small_test else [20, 40, 80, 160, ] # very fine grid: [25, 50, 100, 200, 400, ]   ## grid for EOC
-    N_col_test_c6 = np.asarray(N_col_test_c6)
-    
     n_xs = []   ## store the result nx here
     simTimesAxRefinement = []
     for Ncol in N_col_test_c6:
@@ -312,28 +343,30 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
     
-    relative_L1_norms = []  ## store the relative L1 norms here
+    relative_L1_norms_Ncol = []  ## store the relative L1 norms here
     for nx in n_xs:
         ## interpolate the ref solution on the test case grid
     
         x_grid = np.logspace(np.log10(1e-6), np.log10(900e-6), len(nx) + 1)
         x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range (1, len(nx)+1)]
     
-        relative_L1_norms.append(calculate_relative_L1_norm(nx, spl(x_ct), x_grid))
+        relative_L1_norms_Ncol.append(calculate_relative_L1_norm(nx, spl(x_ct), x_grid))
         simTimesAxRefinement.append(model.root.meta.time_sim)
     
-    slopes_Ncol = get_slope(relative_L1_norms) ## calculate slopes
-    print(slopes_Ncol)
+    slopes_Ncol = get_slope(relative_L1_norms_Ncol) ## calculate slopes
     
+    print("DPFR_PBM_primarySecondaryNucleationGrowth L1 normalized error in axial coordinate:\n", relative_L1_norms_Ncol)
     print("DPFR_PBM_primarySecondaryNucleationGrowth EOC in axial direction:\n", slopes_Ncol)
     data = {
         "Convergence in axial direction" : {
         "Ncol" : N_col_test_c6.tolist(),
+        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Ncol.tolist(),
         "EOC" : slopes_Ncol.tolist(),
         "time_sim" : simTimesAxRefinement
         },
         "Convergence in internal coordinate" : {
         "Nx" : N_x_test_c6.tolist(),
+        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Nx.tolist(),
         "EOC" : slopes_Nx.tolist(),
         "time_sim" : simTimesIntRefinement
         }
