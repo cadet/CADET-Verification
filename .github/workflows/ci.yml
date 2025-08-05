@@ -33,10 +33,12 @@ jobs:
               git clone https://github.com/cadet/CADET-Verification.git .
               git fetch origin
               git checkout $VERIFICATION_BRANCH
+              CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+              echo "Current branch: $CURRENT_BRANCH"
 
               echo 'Installing Python dependencies'
               pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
 
               echo 'Running verification'
-              pytest -s \$PYTEST_ARGS src/verify_cadet-core.py
+              pytest -s \$PYTEST_ARGS src/runner.py
             "

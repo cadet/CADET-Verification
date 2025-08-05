@@ -64,7 +64,7 @@ jobs:
               pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
 
               echo 'Running verification'
-              pytest -s \$PYTEST_ARGS src/verify_cadet-core.py \
+              pytest -s \$PYTEST_ARGS src/runner.py \
                 --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\"
 
               echo 'Running rdm checks and pushing'
