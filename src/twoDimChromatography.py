@@ -11,7 +11,6 @@ the 2DGRM. The results of this convergence analysis are published in Rao et al.
 """
 
 # %% import packages and files
-import utility.convergence as convergence
 import os
 import numpy as np
 import json
@@ -19,14 +18,14 @@ import shutil
 
 import json
 import csv
-    
+
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-from utility import convergence
-import bench_func
-import bench_configs
-from benchmark_models import settings_2Dchromatography
+import src.utility.convergence as convergence
+import src.bench_configs as bench_configs
+import src.bench_func as bench_func
+from src.benchmark_models import settings_2Dchromatography
 
 
 # %% We define multiple settings convering binding modes, surface diffusion and

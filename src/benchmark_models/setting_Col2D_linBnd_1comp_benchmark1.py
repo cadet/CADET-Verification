@@ -2,7 +2,7 @@ import numpy as np
 from addict import Dict
 import copy
 
-from . import helper_connections_2Dmodels as helper
+import src.benchmark_models.helper_connections_2Dmodels as helper
 
 
 def get_model(

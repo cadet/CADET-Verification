@@ -19,8 +19,8 @@ import numpy as np
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import bench_func
-import bench_configs
+import src.bench_configs as bench_configs
+import src.bench_func as bench_func
 
 
 # %% Run with CADET-RDM

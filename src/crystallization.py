@@ -1,8 +1,8 @@
 from joblib import Parallel, delayed
 import os
 
-import crystallization_partI as partI
-import crystallization_partII as partII
+import src.crystallization_partI as partI
+import src.crystallization_partII as partII
 
 
 def crystallization_tests(

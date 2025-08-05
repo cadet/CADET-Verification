@@ -10,8 +10,7 @@ from addict import Dict
 import re
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'utility')))
-import convergence
+import src.utility.convergence as convergence
 
 
 def get_model():

@@ -14,20 +14,21 @@ import os
 import json
 import copy
 
-import bench_func
+import src.bench_func as bench_func
 
-from benchmark_models import settings_2Dchromatography
-from benchmark_models import settings_columnSystems
-from benchmark_models import setting_LRM_dynLin_1comp_benchmark1
-from benchmark_models import setting_LRMP_dynLin_1comp_benchmark1
-from benchmark_models import setting_GRM_dynLin_1comp_benchmark1
-from benchmark_models import setting_GRMparType2_dynLin_2comp_benchmark1
-from benchmark_models import setting_LRM_SMA_4comp_benchmark1
-from benchmark_models import setting_LRMP_SMA_4comp_benchmark1
-from benchmark_models import setting_GRM_SMA_4comp_benchmark1
-from benchmark_models import setting_radLRM_dynLin_1comp_benchmark1
-from benchmark_models import setting_radLRMP_dynLin_1comp_benchmark1
-from benchmark_models import setting_radGRM_dynLin_1comp_benchmark1
+from src.benchmark_models import settings_2Dchromatography
+from src.benchmark_models import settings_columnSystems
+from src.benchmark_models import setting_LRM_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_LRMP_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_GRM_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_GRMparType2_dynLin_2comp_benchmark1
+from src.benchmark_models import setting_LRM_SMA_4comp_benchmark1
+from src.benchmark_models import setting_LRMP_SMA_4comp_benchmark1
+from src.benchmark_models import setting_GRM_SMA_4comp_benchmark1
+from src.benchmark_models import setting_radLRM_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_radLRMP_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_radGRM_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
 
 # %% benchmark templates
 

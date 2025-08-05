@@ -11,14 +11,14 @@ This script creates reference data for the MCT tests in CADET-Core.
 import os
 import sys
 from pathlib import Path
+import matplotlib.pyplot as plt
+import re
 
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import bench_func as bf
-import utility.convergence as convergence
-import matplotlib.pyplot as plt
-import re
+import src.bench_func as bf
+import src.utility.convergence as convergence
 
 # %% Run with CADET-RDM
 
