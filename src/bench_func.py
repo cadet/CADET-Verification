@@ -75,11 +75,8 @@ def run_simulation_in_verification(model, cadet_path):
     model[0].save()
     data = model[0].run_simulation()
     if not data.return_code == 0:
-        #     (f"simulation completed successfully")
-        #     model.load_from_file()
-        # else:
-        print(data.error_message)
-        raise Exception(f"simulation failed")
+        sim_name = model[0].filename
+        raise Exception(f"simulation failed for {sim_name} with error {data.error_message}")
 
 
 def create_object_from_database(
