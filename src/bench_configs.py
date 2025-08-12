@@ -237,12 +237,12 @@ def fv_benchmark(database_path, small_test=False, sensitivities=False):
             [0], [0], [0], [0], [0], [0]
         ],
         'ax_discs': [
-            [bench_func.disc_list(8, 15 if not small_test else 3)],
-            [bench_func.disc_list(8, 15 if not small_test else 3)],
-            [bench_func.disc_list(8, 12 if not small_test else 3)],
-            [bench_func.disc_list(8, 12 if not small_test else 3)],
-            [bench_func.disc_list(8, 11 if not small_test else 3)],
-            [bench_func.disc_list(8, 11 if not small_test else 3)]
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)]
         ],
         'par_methods': [
             [None], [None], [0], [None], [None], [0]
@@ -250,10 +250,10 @@ def fv_benchmark(database_path, small_test=False, sensitivities=False):
         'par_discs': [
             [None],
             [None],
-            [bench_func.disc_list(1, 12 if not small_test else 3)],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
             [None],
             [None],
-            [bench_func.disc_list(1, 11 if not small_test else 3)]
+            [bench_func.disc_list(1, 6 if not small_test else 3)]
         ]
     }
 
@@ -298,12 +298,12 @@ def dg_benchmark(database_path, small_test=False, sensitivities=False):
             [3], [3], [3], [3], [3], [3],
         ],
         'ax_discs': [
-            [bench_func.disc_list(1, 9 if not small_test else 3)],
-            [bench_func.disc_list(1, 9 if not small_test else 3)],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
             [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(4, 4 if not small_test else 3)]
+            [bench_func.disc_list(4, 6 if not small_test else 3)]
         ],
         'par_methods': [
             [None], [None], [3], [None], [None], [3]
@@ -314,7 +314,7 @@ def dg_benchmark(database_path, small_test=False, sensitivities=False):
             [bench_func.disc_list(1, 5 if not small_test else 3)],
             [None],
             [None],
-            [bench_func.disc_list(1, 4 if not small_test else 3)]
+            [bench_func.disc_list(1, 6 if not small_test else 3)]
         ]
     }
 
@@ -416,12 +416,12 @@ def sensitivity_benchmark2(spatial_method, small_test):
         ],
         'ax_methods': [[3]] * 1 if spatial_method == "DG" else [[0]] * 1,
         'ax_discs': [
-            [bench_func.disc_list(2 if spatial_method == "DG" else 4, 4 if not small_test else 3)]
+            [bench_func.disc_list(2 if spatial_method == "DG" else 4, 3 if not small_test else 3)]
         ],
         'par_methods':
             [[3]] if spatial_method == "DG" else [[0]],
         'par_discs': [
-            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)]
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 3 if not small_test else 3)]
         ]
     }
 
@@ -468,9 +468,9 @@ def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
             [0], [0], [0]
         ],
         'ax_discs': [
-            [bench_func.disc_list(8, 11 if not small_test else 3)],
-            [bench_func.disc_list(8, 7 if not small_test else 3)],
-            [bench_func.disc_list(8, 6 if not small_test else 3)]
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)]
         ],
         'par_methods': [
             [None], [None], [0]
@@ -478,7 +478,7 @@ def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
         'par_discs': [
             [None],
             [None],
-            [bench_func.disc_list(1, 6 if not small_test else 3)]
+            [bench_func.disc_list(1, 5 if not small_test else 3)]
         ]
     }
 
