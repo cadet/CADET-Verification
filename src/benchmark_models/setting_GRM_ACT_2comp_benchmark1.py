@@ -196,3 +196,4 @@ def ACT_benchmark1(cadet_path, output_path,
             ax_ph.plot(time/60*Q*6e7, pH_outlet, label='pH')
             ax_ph.set_ylabel('pH')
             plt.savefig(output_path + '/GRM_ACT_2comp_benchmark1.png')
+            plt.close()

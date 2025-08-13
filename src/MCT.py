@@ -71,9 +71,11 @@ def MCT_tests(n_jobs, database_path, small_test,
     time = convergence.get_solution_times(sol_name)
     channel1 = convergence.get_solution(sol_name, unit='unit_001', which='outlet')
 
+    plt.figure()
     plt.plot(time, channel1, label='channel 1')
     plt.legend(fontsize=20)
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.close()
     
     model.save()
     
@@ -92,9 +94,11 @@ def MCT_tests(n_jobs, database_path, small_test,
     time = convergence.get_solution_times(sol_name)
     channel1 = convergence.get_solution(sol_name, unit='unit_001', which='outlet')
 
+    plt.figure()
     plt.plot(time, channel1, label='channel 1')
     plt.legend(fontsize=20)
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.close()
     
     model.save()
     
@@ -114,10 +118,12 @@ def MCT_tests(n_jobs, database_path, small_test,
     channel1 = convergence.get_solution(sol_name, unit='unit_001', which='outlet_port_000')
     channel2 = convergence.get_solution(sol_name, unit='unit_001', which='outlet_port_001')
 
+    plt.figure()
     plt.plot(time, channel1, label='channel 1')
     plt.plot(time, channel2, label='channel 2')
     plt.legend(fontsize=20)
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.close()
     
     model.save()
     
@@ -138,11 +144,13 @@ def MCT_tests(n_jobs, database_path, small_test,
     channel2 = convergence.get_solution(sol_name, unit='unit_001', which='outlet_port_001')
     channel3 = convergence.get_solution(sol_name, unit='unit_001', which='outlet_port_002')
 
+    plt.figure()
     plt.plot(time, channel1, label='channel 1')
     plt.plot(time, channel2, label='channel 2')
     plt.plot(time, channel3, label='channel 3')
     plt.legend(fontsize=20)
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.close()
     
     model.save()
     

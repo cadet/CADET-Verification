@@ -196,6 +196,8 @@ def chromatography_sensitivity_tests(
             sensitivity = convergence.get_solution(
                 name, unit=f'unit_{sensUnit}', which='sens_outlet', **{'sensIdx': sensIdx})
             
+            plt.figure()
+            
             if sensitivity.ndim == 2: # multi component systems
                 for i in range(sensitivity.shape[1]):
                     plt.plot(convergence.get_solution_times(name), sensitivity[:, i], label=f'comp {i}')
@@ -207,4 +209,5 @@ def chromatography_sensitivity_tests(
             plt.legend()
             plt.title(f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'_sensbenchmark\d+\s*(.*)', '', settingName))
             plt.savefig(str(output_path) + '/' + f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'.h5', '', settingName) + '.png')
+            plt.close()
             

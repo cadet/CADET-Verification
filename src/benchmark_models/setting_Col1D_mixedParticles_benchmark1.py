@@ -293,13 +293,14 @@ if run_simulation:
     solution = model.root.output.solution.unit_001.solution_outlet
         
     if plot_result:
+        plt.figure()
         plt.plot(time, solution[:,0], c="blue", label="comp 0")
         plt.plot(time, solution[:,1], c="red", label="comp 1")
         plt.xlabel("time in $s$")
         plt.ylabel("concentration in $mol / L^3$")
         plt.legend()
         plt.savefig(output_path + '/COL1D_2parTypeMixed_2comp_benchmark1.png')
-        plt.show()
+        plt.close()
 
 
         nSens = model.root.input.sensitivity.nsens
@@ -323,8 +324,9 @@ if run_simulation:
             else:
                 raise Exception(f"Cannot plot parameter sensitivities with more than one dependence")
                 
+            plt.figure()
             plt.legend()
             plt.title(f'SENS{sensIdx}_' + sensName)
             plt.savefig(str(output_path) + '/' + f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'.h5', '', settingName) + '.png')
-            plt.show()
+            plt.close()
 

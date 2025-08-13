@@ -117,6 +117,7 @@ def aggregation_EOC_test(cadet_path, small_test, output_path):
             analytical1, sim, x_ct, x_grid))
         
         if n_x == Nx_grid[-1]:
+            plt.figure()
             plt.xscale("log")
             plt.xlabel(r'size/$\mu m$')
             plt.ylabel('particle number/1')
@@ -124,6 +125,7 @@ def aggregation_EOC_test(cadet_path, small_test, output_path):
             plt.plot(x_ct, sim, label='Numerical', linestyle='dashed')
             plt.legend(frameon=0)
             plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_CSTR_aggregation"), dpi=100, bbox_inches='tight')
+            plt.close()
 
     # print the slopes
     # The last value in this array should be around 1.2, see Zhang et al. (2025) for details
@@ -195,6 +197,7 @@ def fragmentation_EOC_test(cadet_path, small_test, output_path):
 
         if n_x == Nx_grid[-1]:
             # plot the result
+            plt.figure()
             plt.xscale("log")
             plt.plot(x_ct, analytical, linewidth=2.5, label="Analytical")
             plt.plot(x_ct, sim, label="Numerical", linestyle='dashed')
@@ -202,6 +205,7 @@ def fragmentation_EOC_test(cadet_path, small_test, output_path):
             plt.ylabel('Particle count/1')
             plt.legend(frameon=0)
             plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_CSTR_fragmentation"), dpi=100, bbox_inches='tight')
+            plt.close()
 
     # print the slopes
     # The last value in this array should be around 2, see Zhang et al. (2025) for details
@@ -299,6 +303,7 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
         if n_x == Nx_grid[-1]:
             
             # plot the result
+            plt.figure()
             plt.xscale("log")
             plt.plot(x_ct, analytical, linewidth=2.5, label="Analytical")
             plt.plot(x_ct, sim, label="Numerical")
@@ -306,6 +311,7 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
             plt.ylabel('Particle count/1')
             plt.legend(frameon=0)
             plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_CSTR_aggregation_fragmentation"), dpi=100, bbox_inches='tight')
+            plt.close()
 
     # print the slopes
     # The last value in this array should be around 3, see Zhang et al. (2025) for details
@@ -428,11 +434,13 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
+    plt.figure()
     plt.xscale("log")
     plt.plot(x_ct, c_x, label="Numerical reference")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_aggregation"), dpi=100, bbox_inches='tight')
+    plt.close()
 
     '''
     EOC tests in a DPFR, Constant aggregation kernel
@@ -582,11 +590,13 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
+    plt.figure()
     plt.xscale("log")
     plt.plot(x_ct, c_x, label="Numerical reference")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_fragmentation"), dpi=100, bbox_inches='tight')
+    plt.close()
 
     '''
     EOC tests in a DPFR, Fragmentation
@@ -732,11 +742,13 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     t = model.root.input.solver.user_solution_times
     c_x = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
 
+    plt.figure()
     plt.xscale("log")
     plt.plot(x_ct, c_x, label="Numerical reference")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel(r'$n/(1/m / m)$')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_PBM_aggregation"), dpi=100, bbox_inches='tight')
+    plt.close()
 
     '''
     EOC tests in a DPFR, Nucleation, growth, growth rate dispersion and aggregation
@@ -885,11 +897,13 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
+    plt.figure()
     plt.xscale("log")
     plt.plot(x_ct, c_x, label="Numerical reference")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count/1')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_aggregation_fragmentation"), dpi=100, bbox_inches='tight')
+    plt.close()
 
     '''
     EOC tests in a DPFR, Aggregation and Fragmentation
