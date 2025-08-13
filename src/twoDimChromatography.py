@@ -390,7 +390,7 @@ def GRM2D_linBnd_tests(
             target_data['convergence']['FV']['outlet']['$L^2$ error'] = L2Error.tolist()
             target_data['convergence']['FV']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
 
-            print("jojo setting no. ", idx)
+            print("2D chromatography convergence for setting no. ", idx)
             print(target_data)
             with open(target_name, "w") as file:
                 # Write with pretty formatting
