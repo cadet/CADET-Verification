@@ -360,13 +360,13 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     data = {
         "Convergence in axial direction" : {
         "Ncol" : N_col_test_c6.tolist(),
-        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Ncol.tolist(),
+        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Ncol,
         "EOC" : slopes_Ncol.tolist(),
         "time_sim" : simTimesAxRefinement
         },
         "Convergence in internal coordinate" : {
         "Nx" : N_x_test_c6.tolist(),
-        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Nx.tolist(),
+        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Nx,
         "EOC" : slopes_Nx.tolist(),
         "time_sim" : simTimesIntRefinement
         }
