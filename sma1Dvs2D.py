@@ -64,6 +64,19 @@ import matplotlib.pyplot as plt
 import src.utility.convergence as convergence
 
 
+filenameOldGRM = r"C:\Users\jmbr\software\CADET-Core\test\data\ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5"
+outletOld = convergence.get_outlet(filenameOldGRM, "000")
+timeOld = convergence.get_solution_times(filenameOldGRM)
+plt.title("1D Old solution - components")
+plt.plot(timeOld, outletOld[:, 1:4])
+plt.show()
+plt.title("1D Old solution - salt")
+plt.plot(timeOld, outletOld[:, 0])
+plt.show()
+
+#%%
+
+
 filename1D = r"C:\Users\jmbr\software\CADET-Verification\test1D_SMA.h5"
 outlet1D = convergence.get_outlet(filename1D, "000")
 time1D = convergence.get_solution_times(filename1D)
@@ -103,5 +116,12 @@ error = np.max(np.abs(outlet2D[:, 0, 1:4]-outlet2D[:, 1, 1:4]))
 print("port0 - port1 error: ", error)
 error = np.max(np.abs(outlet2D[:, 0, 1:4]-outlet1D[:, 1:4]))
 print("2D port0 - 1D error: ", error)
+
+#%%
+
+error = np.max(np.abs(outletOld[:, :]-outlet1D[:, :]))
+print("error 1D old vs new with salt", error)
+error = np.max(np.abs(outletOld[:, 1:4]-outlet1D[:, 1:4]))
+print("error 1D old vs new without salt", error)
 
 
