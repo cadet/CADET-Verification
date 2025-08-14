@@ -183,6 +183,9 @@ def create_object_from_config(
     """
 
     convergence_sim_names = []
+    
+    uotype = str(config_data['input']['model']['unit_' + unit_id]['UNIT_TYPE'])
+    newUnitInterface = re.search('COLUMN_', uotype) is not None
 
     # Adjust configuration to desired numerical refinement
     if idas_abstol is not None:
@@ -222,14 +225,23 @@ def create_object_from_config(
                                                   tmpID]['discretization']['AX_NELEM'] = ax_cells
 
             if par_method is not None:
-                if par_method == 0:
+                
+                if newUnitInterface:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['NPAR'] = par_cells
+                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'DG'
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['PAR_POLYDEG'] = par_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['PAR_NELEM'] = par_cells
                 else:
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['PAR_POLYDEG'] = par_method
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['PAR_NELEM'] = par_cells
+                    if par_method == 0:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['NPAR'] = par_cells
+                    else:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['PAR_POLYDEG'] = par_method
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['PAR_NELEM'] = par_cells
             if rad_method is not None:
             
                 config_data['input']['model']['unit_'+tmpID].PORTS = (rad_method + 1 ) * rad_cells
