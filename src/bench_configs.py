@@ -28,6 +28,7 @@ from src.benchmark_models import setting_GRM_SMA_4comp_benchmark1
 from src.benchmark_models import setting_radLRM_dynLin_1comp_benchmark1
 from src.benchmark_models import setting_radLRMP_dynLin_1comp_benchmark1
 from src.benchmark_models import setting_radGRM_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_dynLin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
 
 # %% benchmark templates
@@ -320,6 +321,59 @@ def dg_benchmark(database_path, small_test=False, sensitivities=False):
 
     return benchmark_config
 
+# %% DG benchmark configuration for generalized units used in CADET-Core tests
+
+
+def dg_generalized_unit_benchmark(database_path, small_test=False, sensitivities=False):
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='HOMOGENEOUS_PARTICLE'),
+            setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE'),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(particle_type='HOMOGENEOUS_PARTICLE'),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE')
+        ],
+        'cadet_config_names': [
+            'COL1D_LRMP_dynLin_1comp_benchmark1',
+            'COL1D_GRM_dynLin_1comp_benchmark1',
+            'COL1D_LRMP_reqSMA_4comp_benchmark1',
+            'COL1D_GRM_reqSMA_4comp_benchmark1'
+        ],
+        'include_sens': [True] * 6 if sensitivities else [False] * 6,
+        'ref_files': [
+            [None], [None], [None], [None], [None], [None]
+        ],
+        'unit_IDs': [
+            '001', '001', '000', '000'
+        ],
+        'which': [
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+        ],
+        'idas_abstol': [
+           [1e-10], [1e-10], [1e-10], [1e-8]
+        ],
+        'ax_methods': [
+            [3], [3], [3], [3], [3], [3],
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 9 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 4 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None], [3], [None], [3]
+        ],
+        'par_discs': [
+            [None],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [None],
+            [bench_func.disc_list(1, 4 if not small_test else 3)]
+        ]
+    }
+
+    return benchmark_config
+
 
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
@@ -416,12 +470,12 @@ def sensitivity_benchmark2(spatial_method, small_test):
         ],
         'ax_methods': [[3]] * 1 if spatial_method == "DG" else [[0]] * 1,
         'ax_discs': [
-            [bench_func.disc_list(2 if spatial_method == "DG" else 4, 3 if not small_test else 3)]
+            [bench_func.disc_list(2 if spatial_method == "DG" else 4, 4 if not small_test else 3)]
         ],
         'par_methods':
             [[3]] if spatial_method == "DG" else [[0]],
         'par_discs': [
-            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 3 if not small_test else 3)]
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)]
         ]
     }
 
@@ -468,9 +522,9 @@ def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
             [0], [0], [0]
         ],
         'ax_discs': [
-            [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(8, 5 if not small_test else 3)]
+            [bench_func.disc_list(8, 11 if not small_test else 3)],
+            [bench_func.disc_list(8, 7 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)]
         ],
         'par_methods': [
             [None], [None], [0]
