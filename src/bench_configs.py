@@ -326,46 +326,52 @@ def dg_benchmark(database_path, small_test=False, sensitivities=False):
 
 def dg_generalized_unit_benchmark(database_path, small_test=False, sensitivities=False):
 
+    n_settings = 5  
+
     benchmark_config = {
         'cadet_config_jsons': [
             setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='HOMOGENEOUS_PARTICLE'),
             setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE'),
+            setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE', par_surfdiffusion=5E-11),
             setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(particle_type='HOMOGENEOUS_PARTICLE'),
             setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE')
         ],
         'cadet_config_names': [
             'COL1D_LRMP_dynLin_1comp_benchmark1',
             'COL1D_GRM_dynLin_1comp_benchmark1',
+            'COL1D_GRMsd_dynLin_1comp_benchmark1',
             'COL1D_LRMP_reqSMA_4comp_benchmark1',
             'COL1D_GRM_reqSMA_4comp_benchmark1'
         ],
-        'include_sens': [True] * 6 if sensitivities else [False] * 6,
+        'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None]
+            [None], [None], [None], [None], [None], [None], [None]
         ],
         'unit_IDs': [
-            '001', '001', '000', '000'
+            '001', '001', '001', '000', '000'
         ],
         'which': [
-            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
-        ],
+            'outlet'
+        ] * n_settings,
         'idas_abstol': [
-           [1e-10], [1e-10], [1e-10], [1e-8]
+           [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
         ],
         'ax_methods': [
-            [3], [3], [3], [3], [3], [3],
+            [3] * n_settings
         ],
         'ax_discs': [
             [bench_func.disc_list(1, 9 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 4 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [3], [None], [3]
+            [None], [3], [3], [None], [3]
         ],
         'par_discs': [
             [None],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
             [bench_func.disc_list(1, 5 if not small_test else 3)],
             [None],
             [bench_func.disc_list(1, 4 if not small_test else 3)]
