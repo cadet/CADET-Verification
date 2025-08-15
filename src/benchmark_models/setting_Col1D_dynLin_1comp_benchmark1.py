@@ -46,7 +46,7 @@ def get_model(
     column.particle_type_000.par_coreradius = 0.0
     column.particle_type_000.par_porosity = 0.75
     column.particle_type_000.par_diffusion = 6.07e-11
-    column.particle_type_000.par_surfdiffusion = 0.0
+    column.particle_type_000.par_surfdiffusion = kwargs.get('par_surfdiffusion', 0.0)
     column.particle_type_000.film_diffusion = 6.9e-06
     column.particle_type_000.nbound = [ 1 ]
     column.particle_type_000.adsorption.is_kinetic = True
