@@ -156,8 +156,6 @@ def fragmentation_EOC_test(cadet_path, small_test, output_path):
     Assumes no solute (c) and solubility component (cs).
     '''
 
-    Cadet.install_path = cadet_path
-
     def get_analytical_frag(n_x, x_ct, cycle_time):
         return np.asarray([3.0 * x_ct[j]**2 * (1.0+cycle_time)**2 * np.exp(-x_ct[j]**3 * (1.0+cycle_time)) for j in range(n_x)])
 
@@ -238,7 +236,6 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
 
     # combined aggregation and fragmentation
-    Cadet.install_path = cadet_path
 
     def get_analytical_agg_frag(n_x, x_ct, t):
         x_grid, x_ct = settings_crystallization.get_log_space(n_x, x_c, x_max)
@@ -407,8 +404,6 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     Assumes no solute (c) and solubility component (cs).
     '''
 
-    Cadet.install_path = cadet_path
-
     # boundary condition
     # A: area, y0: offset, w:std, xc: center (A,w >0)
 
@@ -565,8 +560,6 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
     Assumes no solute (c) and solubility component (cs).
     '''
 
-    Cadet.install_path = cadet_path
-
     # system setup
     n_x = 100
     n_col = 100
@@ -719,8 +712,6 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     There are solute (c) and solubility components (cs).
     '''
 
-    Cadet.install_path = cadet_path
-
     # set up
     n_x = 100
     n_col = 100
@@ -871,9 +862,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     @detail: Simultaneous aggregation and fragmentation in a DPFR tests and EOC tests using a reference solution. 
     There are no solute (c) and solubility components (cs).
     '''
-
-    Cadet.install_path = cadet_path
-
+    
     # system setup
     n_x = 100
     n_col = 100
@@ -889,7 +878,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     '''
 
     model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
-        n_x, n_col, x_c, x_max, 1)
+        n_x, n_col, x_c, x_max, 1, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
@@ -1034,26 +1023,26 @@ def tests(n_jobs, database_path, small_test,
     os.makedirs(output_path, exist_ok=True)
     
     if run_CSTR_aggregation_test:
-        crystallization_aggregation_EOC_test(cadet_path, small_test, output_path)
+        aggregation_EOC_test(cadet_path, small_test, output_path)
     
     if run_CSTR_fragmentation_test:
-        crystallization_fragmentation_EOC_test(cadet_path, small_test, output_path)
+        fragmentation_EOC_test(cadet_path, small_test, output_path)
     
     if run_CSTR_aggregation_fragmentation_test:
-        crystallization_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
+        aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     
     if run_CSTR_PBM_aggregation_fragmentation_test:
-        crystallization_PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
+        PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
         
     if run_DPFR_constAgg_test:
-        crystallization_DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path)
+        DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path)
     
     if run_DPFR_constFrag_test:
-        crystallization_DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path)
+        DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path)
     
     if run_DPFR_NGGR_aggregation_test:
-        crystallization_DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path)
+        DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path)
     
     if run_DPFR_aggregation_fragmentation_test:
-        crystallization_DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
+        DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
 
