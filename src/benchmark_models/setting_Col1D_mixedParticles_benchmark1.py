@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created June 2025
 
-@author: jmbr
+This script defines an axial flow model with two particle types. One particle type can have radial gradients, the other is homogeneous.
+
 """
 
 import numpy as np

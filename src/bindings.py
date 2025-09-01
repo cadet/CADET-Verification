@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created June 2025
 
-@author: jmbr
+This script defines binding model tests
+
 """
 
 import os

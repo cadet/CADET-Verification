@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created January 2023
 
 This script impements evaluation functionalities related to numerical 
 convergence analysis for CADET simulations.
 
-@author: Jan Michael Breuer
 """
 
 from cadet import Cadet
