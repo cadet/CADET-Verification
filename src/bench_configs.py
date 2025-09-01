@@ -7,7 +7,6 @@ sensitivities, the considered numerical methods, etc.
 The individual model settings considered are specified in the CADET-Database
 github project.
 
-@author: jmbr
 """
 
 import os

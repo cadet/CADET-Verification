@@ -1,5 +1,4 @@
 '''
-Created January 2025
 
 This script implements the EOC tests to verify the aggregation and fragmentation,
 part of the crystallization models implemented in CADET-Core. Additionally, all
@@ -11,7 +10,6 @@ Similar verification studies were published in Zhang et al.
     Part II: Size-based Smoluchowski coagulation and fragmentation equations
     in batch and continuous modes' (2025)
 
-@author: Wendi Zhang and Jan M. Breuer
 '''
 
 from mpmath import *  # used to compute a high precision reference solution

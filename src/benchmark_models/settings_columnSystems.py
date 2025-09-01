@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created in Jan 2025
 
 This file contains the system settings for a linear SMB, a cyclic and acyclic
 system. These settings are used to verify the implementation of systems
@@ -8,7 +7,6 @@ published in Frandsen et al.
     'High-Performance C++ and Julia solvers in CADET for weakly and strongly
     coupled continuous chromatography problems' (2025b)
 
-@author: Jesper Frandsen
 """
 
 from addict import Dict
