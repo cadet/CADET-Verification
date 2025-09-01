@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created May 2025
 
-This script defines the chromatography sensitivity CADET-Verification tests for CADET-Core.
+This script defines chromatography sensitivity tests.
 
-@author: jmbr
 """
 
 # %% Include packages

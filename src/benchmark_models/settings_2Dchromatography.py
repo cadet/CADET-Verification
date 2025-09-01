@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep  3 11:21:20 2024
 
 This script defines model settings considered for the verification of the
 2D flow chromatography models in CADET-Core
 
-@author: jmbr
 """
 
 import numpy as np
