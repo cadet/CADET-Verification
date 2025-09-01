@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created March 2024
 
 This script implements helper functions to create json files
 (as used in cadet-database) from cadet h5 input files.
 
-@author: Jan M. Breuer
 """
 
 import numpy as np

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created Oct 2024
 
 This script executes all the CADET-Verification tests for CADET-Core.
 Modify the input in the 'User Input' section if needed.
@@ -9,7 +8,6 @@ To test if the script works, specify rdm_debug_mode and small_test as true.
 Only specify rdm_debug_mode as False if you are sure that this run shall be
 saved to the output repository!
 
-@author: jmbr
 """ 
   
 #%% Include packages

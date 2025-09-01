@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created June 2025
 
 This script implements an ACT binding setting for the GRM as used in Zhang et
 al. (2025) 'An Affinity Complex Titration Isotherm for Mechanistic Modeling in
 Protein A Chromatography'. The specific setting is given in the manuscript in
 table 3, 5 ml MSS, mAb A.
 
-@author: Wendi Zhang
 """ 
 
 import numpy as np

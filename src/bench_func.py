@@ -1,9 +1,7 @@
 """
-Created April 2024
 
 This script implement helper functions to create benchmarks.
 
-@author: jmbr
 """
 
 import urllib.request
