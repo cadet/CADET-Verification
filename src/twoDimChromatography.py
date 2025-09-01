@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Nov 2024
 
 This file contains the software verification code for the FV implementation of
 the 2DGRM. The results of this convergence analysis are published in Rao et al.
     'Two-dimensional general rate model with particle size distribution in CADET
     calibrated with high-definition CFD simulated intra-column data' (2025)
 
-@author: jmbr
 """
 
 # %% import packages and files
@@ -63,7 +61,7 @@ def GRM2D_linBnd_tests(
                 'nRadialZones': 3,
                 'name': '2DGRM3Zone_noBnd_1Comp',
                 'adsorption_model': 'NONE',
-                'par_surfdiffusion': 0.0,
+                'surface_diffusion': 0.0,
                 'reference': convergence.get_solution(
                     reference_data_path + '/CASEMA_reference/ref_2DGRM3Zone_noBnd_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
                 )
@@ -74,7 +72,7 @@ def GRM2D_linBnd_tests(
                 'name': '2DGRM3Zone_dynLin_1Comp',
                 'adsorption_model': 'LINEAR',
                 'adsorption.is_kinetic': 1,
-                'par_surfdiffusion': 0.0,
+                'surface_diffusion': 0.0,
                 'reference': convergence.get_solution(
                     reference_data_path + '/' + 'CASEMA_reference/ref_2DGRM3Zone_dynLin_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
                 )
@@ -85,7 +83,7 @@ def GRM2D_linBnd_tests(
                 'name': '2DGRMsd3Zone_dynLin_1Comp',
                 'adsorption_model': 'LINEAR',
                 'adsorption.is_kinetic': 1,
-                'par_surfdiffusion': 1e-11,
+                'surface_diffusion': 1e-11,
                 'reference': convergence.get_solution(
                     reference_data_path + '/CASEMA_reference/ref_2DGRMsd3Zone_dynLin_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
                 )
@@ -96,7 +94,7 @@ def GRM2D_linBnd_tests(
                 'name': '2DGRM3Zone_reqLin_1Comp',
                 'adsorption_model': 'LINEAR',
                 'adsorption.is_kinetic': 0,
-                'par_surfdiffusion': 0.0,
+                'surface_diffusion': 0.0,
                 'init_cp': [0.0],
                 'init_cs': [0.0],
                 'reference': convergence.get_solution(
@@ -109,7 +107,7 @@ def GRM2D_linBnd_tests(
                 'name': '2DGRMsd3Zone_reqLin_1Comp',
                 'adsorption_model': 'LINEAR',
                 'adsorption.is_kinetic': 0,
-                'par_surfdiffusion': 1e-11,
+                'surface_diffusion': 1e-11,
                 'init_cp': [0.0],
                 'init_cs': [0.0],
                 'reference': convergence.get_solution(
@@ -129,9 +127,9 @@ def GRM2D_linBnd_tests(
                 # unbound component is ignored
                 'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0],
                 'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
-                'par_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
                 # unbound component is ignored
-                'par_surfdiffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0],
+                'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0],
                 'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
                 'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
                 'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],

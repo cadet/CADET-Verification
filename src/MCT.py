@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created 2024
 
 This script creates reference data for the MCT tests in CADET-Core.
 
-@author: jmbr
 """ 
 
 #%% Include packages

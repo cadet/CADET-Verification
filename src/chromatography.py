@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created May 2024
 
-This script defines the chromatography CADET-Verification tests for CADET-Core.
-Modify the input in the 'user definitions' section if needed.
+This script defines chromatography tests.
 
-@author: jmbr
 """
 
 # %% Include packages

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created December 2024
 
-@author: Jesper Frandsen and Jan Breuer
+This scirpt defines chromatography system tests
+
 """
 
 

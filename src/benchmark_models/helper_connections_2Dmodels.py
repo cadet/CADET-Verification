@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul 2025
 
-@author: jmbr
+This script implements helper functions to set up the connectivity/flow rate matrices for 2D settings
+
 """
 
 import numpy as np
