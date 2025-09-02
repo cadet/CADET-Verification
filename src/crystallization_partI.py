@@ -20,7 +20,6 @@ import json
 from cadet import Cadet
 from cadetrdm import ProjectRepo
 
-import src.utility.convergence as convergence
 import src.bench_func as bench_func
 from src.benchmark_models import settings_crystallization
 
