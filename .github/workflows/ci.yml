@@ -2,6 +2,9 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - master
 
 permissions:
   contents: read
@@ -12,27 +15,26 @@ jobs:
     env:
       DOCKER_IMAGE: ghcr.io/cadet/cadet-suite:master
       PYTEST_ARGS: ""
-      
     steps:
       - name: Run test in Docker
         run: |
           docker pull "$DOCKER_IMAGE"
           docker run --rm \
             -e REPOSITORY="${{ github.repository }}" \
-            -e VERIFICATION_BRANCH="${{ github.head_ref }}" \
+            -e COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}" \
             "$DOCKER_IMAGE" \
             bash -c "
               set -e
 
-              echo \"Using CADET-Verification branch: \$VERIFICATION_BRANCH\"
+              echo \"Using CADET-Verification commit: \$COMMIT_SHA\"
 
               echo 'Creating and entering workspace...'
               mkdir -p /tmp/cadet-verification && cd /tmp/cadet-verification
 
               echo 'Cloning CADET-Verification'
               git clone https://github.com/cadet/CADET-Verification.git .
-              git fetch origin
-              git checkout $VERIFICATION_BRANCH
+              git fetch origin \$COMMIT_SHA
+              git checkout \$COMMIT_SHA
 
               echo 'Installing Python dependencies'
               pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
