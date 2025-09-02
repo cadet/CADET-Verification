@@ -1311,7 +1311,7 @@ def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins'
 
     # crystallization reaction
     model.root.input.model.unit_001.reaction_model = 'CRYSTALLIZATION'
-    model.root.input.model.unit_001.reaction.cry_mode = 7
+    model.root.input.model.unit_001.reaction.cry_mode = 6
     
     model.root.input.model.unit_001.reaction.cry_bins = x_grid
     

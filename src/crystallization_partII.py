@@ -107,7 +107,7 @@ def aggregation_EOC_test(cadet_path, small_test, output_path):
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
         
         sim_times.append(model.root.meta.time_sim)
@@ -182,7 +182,7 @@ def fragmentation_EOC_test(cadet_path, small_test, output_path):
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
         
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
@@ -286,7 +286,7 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
         
@@ -332,7 +332,7 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
 
 
 # %% PBM, aggregation and fragmentation in CSTR
-def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path, reference_solution_file=None):
     '''
     @detail: Combined test with PBM: nucleation, growth, growth rate dispersion, aggregation and fragmentation in CSTR. 
     '''
@@ -345,14 +345,22 @@ def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     t = np.linspace(0, cycle_time, time_res)
 
     # numerical ref solution
-    model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
-        800, x_c, x_max, 1, t, cadet_path, output_path)
-    model.save()
-    return_data = model.run_simulation()
-    if not return_data.return_code == 0:
-        print(return_data.error_message)
-        raise Exception(f"simulation failed")
-    model.load_from_file()
+    if reference_solution_file is None:
+        model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
+            800, x_c, x_max, 1, t, cadet_path, output_path)
+        model.save()
+        return_data = model.run_simulation()
+        if not return_data.return_code == 0:
+            raise Exception(return_data.error_message)
+            raise Exception(f"simulation failed")
+        model.load_from_file()
+    else:
+        model = Cadet()
+        model.filename = reference_solution_file
+        model.load_from_file()
+        x_grid = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'reaction_bulk', 'cry_bins'])
+        n_x = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'ncomp'])
+        x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range(1, n_x-1)]
     c_x_ref = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
     spl = UnivariateSpline(x_ct, c_x_ref)
 
@@ -360,7 +368,7 @@ def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     normalized_l1 = []
     sim_times = []
 
-    Nx_grid = np.asarray([12, 25, 50, 100, 200, 400])
+    Nx_grid = np.asarray([12, 25, 50, 100, 200]) if small_test else np.asarray([12, 25, 50, 100, 200, 400])
 
     for n_x in Nx_grid:
         model, x_grid, x_ct = settings_crystallization.CSTR_PBM_aggregation_fragmentation(
@@ -397,7 +405,7 @@ def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
 # %% Constant aggregation in a DPFR
 
 
-def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, reference_solution_file=None):
     '''
     @detail: Constant aggregation kernel in a DPFR tests and EOC tests using a
     reference solution. 
@@ -417,21 +425,28 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     t = np.linspace(0, cycle_time, 200)
 
     '''
-    @note: There is no analytical solution in this case, thus we use a numerical reference
+    @note: There is no analytical solution in this case. Hence, we use a numerical reference
     '''
-
-    model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
-        n_x, n_col, x_c, x_max, 1, t, cadet_path, output_path)
-    model.save()
-    return_data = model.run_simulation()
-    if not return_data.return_code == 0:
-        print(return_data.error_message)
-    model.load_from_file()
+    if reference_solution_file is None:
+        model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
+            n_x, n_col, x_c, x_max, 1, t, cadet_path, output_path)
+        model.save()
+        return_data = model.run_simulation()
+        if not return_data.return_code == 0:
+            raise Exception(return_data.error_message)
+        model.load_from_file()
+    else:
+        model = Cadet()
+        model.filename = reference_solution_file
+        model.load_from_file()
+        x_grid = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'reaction', 'cry_bins'])
+        n_x = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'ncomp'])
+        x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range(1, n_x+1)]
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
     plt.figure()
     plt.xscale("log")
-    plt.plot(x_ct, c_x, label="Numerical reference")
+    plt.plot(x_ct, c_x, label="Numerical approximation")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_aggregation"), dpi=100, bbox_inches='tight')
@@ -443,7 +458,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     '''
 
     # get ref solution
-    N_x_ref = 96 if small_test else 384
+    N_x_ref = 48 if small_test else 384
     N_col_ref = 48 if small_test else 192
 
     model, ref_x_grid, x_ct = settings_crystallization.Agg_DPFR(
@@ -451,7 +466,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        print(return_data.error_message)
+        raise Exception(return_data.error_message)
     model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
@@ -463,7 +478,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     spl = UnivariateSpline(x_ct, c_x_reference)
 
     # EOC for refinement in internal coordinate
-    N_x_test = np.asarray([12, 24, 48]) if small_test else np.asarray(
+    N_x_test = np.asarray([12, 24]) if small_test else np.asarray(
         [12, 24, 48, 96, 192, ])
 
     n_xs = []
@@ -471,11 +486,11 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
-            Nx, N_col_ref, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
+            Nx, N_x_test[-1]*2, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -507,18 +522,18 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
 
     # EOC for refinement in the axial coordinate
     N_col_test = np.asarray(
-        [12, 24, 48, ]) if small_test else np.asarray([12, 24, 48, 96, ])
+        [12, 24, ]) if small_test else np.asarray([12, 24, 48, 96, ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.Agg_DPFR(
-            N_x_ref, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
+            N_col_test[-1]*2, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_return_data = model.run_simulation()
         if not return_return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -553,7 +568,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path):
 # %% Constant fragmentation in a DPFR
 
 
-def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, reference_solution_file=None):
     '''
     @detail: Constant fragmentation kernel in a DPFR tests and EOC tests using a
     reference solution. 
@@ -569,23 +584,19 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
 
     cycle_time = 300                      # s
     t = np.linspace(0, cycle_time, 200)
-
-    '''
-    @note: There is no analytical solution in this case. Hence, we use a numerical reference
-    '''
-
+    
     model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
         n_x, n_col, x_c, x_max, 1, t, cadet_path, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        print(return_data.error_message)
+        raise Exception(return_data.error_message)
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
     plt.figure()
     plt.xscale("log")
-    plt.plot(x_ct, c_x, label="Numerical reference")
+    plt.plot(x_ct, c_x, label="Numerical approximation")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_fragmentation"), dpi=100, bbox_inches='tight')
@@ -594,19 +605,29 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
     '''
     EOC tests in a DPFR, Fragmentation
     @note: the EOC is obtained along the Nx and Ncol coordinate, separately
+    @note: There is no analytical solution in this case. Hence, we use a numerical reference
     '''
 
     # get ref solution
-    N_x_ref = 96 if small_test else 384 * 2
-    N_col_ref = 96 if small_test else 192 * 2
-
-    model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-        N_x_ref, N_col_ref, x_c, x_max, 3, t, cadet_path, output_path)
-    model.save()
-    return_data = model.run_simulation()
-    if not return_data.return_code == 0:
-        print(return_data.error_message)
-    model.load_from_file()
+    if reference_solution_file is None:
+        N_x_ref = 48 if small_test else 384
+        N_col_ref = 48 if small_test else 192
+    
+        model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
+            N_x_ref, N_col_ref, x_c, x_max, 3, t, cadet_path, output_path)
+        model.save()
+        return_data = model.run_simulation()
+        if not return_data.return_code == 0:
+            raise Exception(return_data.error_message)
+        model.load_from_file()
+    else:
+        model = Cadet()
+        model.filename = reference_solution_file
+        model.load_from_file()
+        x_grid = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'reaction', 'cry_bins'])
+        N_x_ref = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'ncomp'])
+        N_col_ref = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'discretization', 'ncol'])
+        x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range(1, n_x+1)]
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
 
@@ -617,19 +638,19 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
     spl = UnivariateSpline(x_ct, c_x_reference)
 
     # EOC for refinement in internal coordinate
-    N_x_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, 384, ])
+    N_x_test = np.asarray([12, 24, ]) if small_test else np.asarray(
+        [12, 24, 48, 96, 192, ])
 
     n_xs = []
     sim_times_int = []
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-            Nx, 250, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
+            Nx, N_x_test[-1]*2, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -660,19 +681,19 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
     }
 
     # EOC for refinement in axial coordinate
-    N_col_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, ])
+    N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
+        [12, 24, 48, 96, ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
-            450, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
+            N_col_test[-1]*2, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -705,7 +726,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path):
 
 
 # %% Nucleation, growth, growth rate dispersion and aggregation in a DPFR
-def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, reference_solution_file=None):
     '''
     @detail: Nucleation, growth, growth rate dispersion and aggregation in a DPFR
     tests and EOC tests using a reference solution. 
@@ -727,7 +748,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        print(return_data.error_message)
+        raise Exception(return_data.error_message)
     model.load_from_file()
 
     t = model.root.input.solver.user_solution_times
@@ -735,7 +756,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
 
     plt.figure()
     plt.xscale("log")
-    plt.plot(x_ct, c_x, label="Numerical reference")
+    plt.plot(x_ct, c_x, label="Numerical approximation")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel(r'$n/(1/m / m)$')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_PBM_aggregation"), dpi=100, bbox_inches='tight')
@@ -747,16 +768,24 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     '''
 
     # get ref solution
-    N_x_ref = 96 if small_test else 384 * 2
-    N_col_ref = 96 if small_test else 384 * 2
-
-    model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-        N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, cadet_path, output_path)
-    model.save()
-    return_data = model.run_simulation()
-    if not return_data.return_code == 0:
-        print(return_data.error_message)
-    model.load_from_file()
+    if reference_solution_file is None:
+        N_x_ref = 48 if small_test else 384
+        N_col_ref = 48 if small_test else 192
+        
+        model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
+            N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, cadet_path, output_path)
+        model.save()
+        return_data = model.run_simulation()
+        if not return_data.return_code == 0:
+            raise Exception(return_data.error_message)
+        model.load_from_file()
+    else:
+        model = Cadet()
+        model.filename = reference_solution_file
+        model.load_from_file()
+        x_grid = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'reaction', 'cry_bins'])
+        N_x_ref = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'ncomp'])-2
+        x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range(1, N_x_ref+1)]
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, 1:-1]
 
@@ -767,19 +796,19 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     spl = UnivariateSpline(x_ct, c_x_reference)
 
     # EOC for refinement in internal coordinate
-    N_x_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, 384, ])
+    N_x_test = np.asarray([12, 24, ]) if small_test else np.asarray(
+        [12, 24, 48, 96, 192 ])
 
     n_xs = []
     sim_times_int = []
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-            Nx, 400, x_c, x_max, 3, 2, t, cadet_path, output_path)  # test on WENO23
+            Nx, N_x_test[-1]*2, x_c, x_max, 3, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(
@@ -811,19 +840,19 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
     }
 
     # EOC for refinement in axial coordinate
-    N_col_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, 384, ])
+    N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
+        [12, 24, 48, 96, ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
-            400, Ncol, x_c, x_max, 2, 3, t, cadet_path, output_path)  # test on WENO23
+            N_col_test[-1]*2, Ncol, x_c, x_max, 2, 3, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(
@@ -857,7 +886,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path):
 
 
 # %% Simultaneous aggregation and fragmentation in a DPFR
-def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
+def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path, reference_solution_file=None):
     '''
     @detail: Simultaneous aggregation and fragmentation in a DPFR tests and EOC tests using a reference solution. 
     There are no solute (c) and solubility components (cs).
@@ -882,13 +911,13 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        print(return_data.error_message)
+        raise Exception(return_data.error_message)
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
     plt.figure()
     plt.xscale("log")
-    plt.plot(x_ct, c_x, label="Numerical reference")
+    plt.plot(x_ct, c_x, label="Numerical approximation")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel('Particle count/1')
     plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_aggregation_fragmentation"), dpi=100, bbox_inches='tight')
@@ -900,16 +929,24 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     '''
 
     # get ref solution
-    N_x_ref = 96 if small_test else 384 * 2
-    N_col_ref = 96 if small_test else 192 * 2
-
-    model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
-        N_x_ref, N_col_ref, x_c, x_max, 3)
-    model.save()
-    return_data = model.run_simulation()
-    if not return_data.return_code == 0:
-        print(return_data.error_message)
-    model.load_from_file()
+    if reference_solution_file is None:
+        N_x_ref = 48 if small_test else 384
+        N_col_ref = 48 if small_test else 192
+    
+        model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
+            N_x_ref, N_col_ref, x_c, x_max, 3, t, cadet_path, output_path)
+        model.save()
+        return_data = model.run_simulation()
+        if not return_data.return_code == 0:
+            raise Exception(return_data.error_message)
+        model.load_from_file()
+    else:
+        model = Cadet()
+        model.filename = reference_solution_file
+        model.load_from_file()
+        x_grid = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'reaction', 'cry_bins'])
+        N_x_ref = convergence.sim_go_to(model.root, ['input', 'model', 'unit_001', 'ncomp'])
+        x_ct = [0.5*x_grid[p] + 0.5*x_grid[p-1] for p in range(1, N_x_ref+1)]
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
 
@@ -920,19 +957,19 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     spl = UnivariateSpline(x_ct, c_x_reference)
 
     # EOC for refinement in internal coordinate
-    N_x_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, 384, ])
+    N_x_test = np.asarray([12, 24, ]) if small_test else np.asarray(
+        [12, 24, 48, 96, 192, ])
 
     n_xs = []
     sim_times_int = []
     
     for Nx in N_x_test:
         model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
-            Nx, 250, x_c, x_max, 2)  # test on WENO23
+            Nx, N_x_test[-1]*2, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -963,19 +1000,19 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     }
 
     # EOC for refinement in axial coordinate
-    N_col_test = np.asarray([12, 24, 48, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, ])
+    N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
+        [12, 24, 48, 96, ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
     
     for Ncol in N_col_test:
         model, x_grid, x_ct = settings_crystallization.Agg_Frag_DPFR(
-            450, Ncol, x_c, x_max, 2)  # test on WENO23
+            N_col_test[-1]*2, Ncol, x_c, x_max, 2, t, cadet_path, output_path)  # test on WENO23
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            print(return_data.error_message)
+            raise Exception(return_data.error_message)
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -1005,44 +1042,4 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/DPFR_aggregation_fragmentation.json', 'w') as json_file:
         json.dump(data, json_file, indent=4)
-
-
-# %% Main function calling all the tests
-def tests(n_jobs, database_path, small_test,
-                          output_path, cadet_path,
-                          run_CSTR_aggregation_test = 1,
-                          run_CSTR_fragmentation_test = 1,
-                          run_CSTR_aggregation_fragmentation_test = 0, # not included in test pipeline per default, due to redundancy
-                          run_CSTR_PBM_aggregation_fragmentation_test = 1,
-                          run_DPFR_constAgg_test = 0, # not included in test pipeline per default, due to redundancy
-                          run_DPFR_constFrag_test = 1,
-                          run_DPFR_NGGR_aggregation_test = 1,
-                          run_DPFR_aggregation_fragmentation_test = 0 # not included in test pipeline per default, due to redundancy
-                          ):
-    
-    os.makedirs(output_path, exist_ok=True)
-    
-    if run_CSTR_aggregation_test:
-        aggregation_EOC_test(cadet_path, small_test, output_path)
-    
-    if run_CSTR_fragmentation_test:
-        fragmentation_EOC_test(cadet_path, small_test, output_path)
-    
-    if run_CSTR_aggregation_fragmentation_test:
-        aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
-    
-    if run_CSTR_PBM_aggregation_fragmentation_test:
-        PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
-        
-    if run_DPFR_constAgg_test:
-        DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path)
-    
-    if run_DPFR_constFrag_test:
-        DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path)
-    
-    if run_DPFR_NGGR_aggregation_test:
-        DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path)
-    
-    if run_DPFR_aggregation_fragmentation_test:
-        DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path)
 
