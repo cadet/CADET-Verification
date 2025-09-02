@@ -41,7 +41,7 @@ def chromatography_tests(n_jobs, database_path, small_test, sensitivities,
         idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
         cadet_config_names=cadet_config_names, addition=addition)
         
-    addition = bench_configs.dg_generalized_unit_benchmark(database_path, small_test=small_test)
+    addition = bench_configs.dg_generalized_unit_benchmark(small_test=small_test)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
