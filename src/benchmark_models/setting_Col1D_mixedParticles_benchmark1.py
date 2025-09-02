@@ -13,7 +13,7 @@ import sys
 import src.utility.convergence as convergence
 
 
-def get_model():
+def get_model(spatial_method_bulk, spatial_method_particle):
 
     model = Dict()
     
@@ -55,7 +55,7 @@ def get_model():
     
     # Spatial discretization unit level
     model.input.model.unit_001.discretization.USE_ANALYTIC_JACOBIAN = True
-    model.input.model.unit_001.discretization.SPATIAL_METHOD = 'DG'
+    model.input.model.unit_001.discretization.SPATIAL_METHOD = spatial_method_bulk
     model.input.model.unit_001.discretization.POLYDEG = 3
     model.input.model.unit_001.discretization.NELEM = 5
     model.input.model.unit_001.discretization.EXACT_INTEGRATION = 0
@@ -72,12 +72,12 @@ def get_model():
     model.input.model.unit_001.particle_type_000.init_cp = np.array([0., 0.])
     model.input.model.unit_001.particle_type_000.init_cs = np.array([0., 0.])
     model.input.model.unit_001.particle_type_000.par_coreradius = 0.0
-    model.input.model.unit_001.particle_type_000.par_diffusion = [
+    model.input.model.unit_001.particle_type_000.pore_diffusion = [
         6.07e-11, 1e-11, # section0: comp0, comp1
         2*6.07e-11, 2*1e-11 # section1: comp0, comp1
         ]
-    model.input.model.unit_001.particle_type_000.par_diffusion_multiplex = 1 # section, component
-    model.input.model.unit_001.particle_type_000.par_diffusion_partype_dependent = 1
+    model.input.model.unit_001.particle_type_000.surface_diffusion_multiplex = 1 # section, component
+    model.input.model.unit_001.particle_type_000.surface_diffusion_partype_dependent = 1
     model.input.model.unit_001.particle_type_000.film_diffusion = [1.0e-07, 4e-06, 2*1.0e-07, 2*4e-06]
     model.input.model.unit_001.particle_type_000.film_diffusion_multiplex = 1 # component and section
     model.input.model.unit_001.particle_type_000.film_diffusion_partype_dependent = 0
@@ -86,11 +86,11 @@ def get_model():
     model.input.model.unit_001.particle_type_000.par_porosity_partype_dependent = 1 # which is also the default
     model.input.model.unit_001.particle_type_000.par_radius = 4.5e-05
     model.input.model.unit_001.particle_type_000.par_radius_partype_dependent = 1 # which is also the default
-    model.input.model.unit_001.particle_type_000.par_surfdiffusion = [
+    model.input.model.unit_001.particle_type_000.surface_diffusion = [
         5e-11, 2e-11
         ]
-    model.input.model.unit_001.particle_type_000.par_surfdiffusion_multiplex = 0 # component
-    model.input.model.unit_001.particle_type_000.par_surfdiffusion_partype_dependent = 1
+    model.input.model.unit_001.particle_type_000.surface_diffusion_multiplex = 0 # component
+    model.input.model.unit_001.particle_type_000.surface_diffusion_partype_dependent = 1
     
     # Binding
     model.input.model.unit_001.particle_type_000.adsorption_model = 'LINEAR'
@@ -102,7 +102,7 @@ def get_model():
 
     # Spatial discretization
     model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = ['EQUIDISTANT_PAR']
-    model.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = "DG"
+    model.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = spatial_method_particle
     model.input.model.unit_001.particle_type_000.discretization.PAR_POLYDEG = 3
     model.input.model.unit_001.particle_type_000.discretization.PAR_NELEM = 1
 
@@ -182,11 +182,11 @@ def add_sensitivity_Column1D_mixedGRHomParticles_benchmark1(model, sensName):
         'FILM_DIFFUSION_COMP0_SEC0': { 
             'sens_name': 'FILM_DIFFUSION', 'sens_comp': 0, 'sens_section': 0
             },
-        'PAR_SURFDIFFUSION': { 
-            'sens_name': 'PAR_SURFDIFFUSION', 'sens_comp': 0, 'sens_boundphase': 0
+        'SURFACE_DIFFUSION': { 
+            'sens_name': 'SURFACE_DIFFUSION', 'sens_comp': 0, 'sens_boundphase': 0
             },
-        'PAR_DIFFUSION_COMP0_SEC1': { 
-            'sens_name': 'PAR_DIFFUSION', 'sens_comp': 0, 'sens_section': 1
+        'SURFACE_DIFFUSION_COMP0_SEC1': { 
+            'sens_name': 'PORE_DIFFUSION', 'sens_comp': 0, 'sens_section': 1
             }
     }
 
@@ -226,11 +226,11 @@ def add_sensitivity_Column1D_mixedGRHomParticles_benchmark1(model, sensName):
 # 6) parameter that exists in only one of the two, test for both types
 # -> test particle diffusion and test a parmaeter that has a different multiplex for homoParticle
 # 7) test 
-def get_sensbenchmark1():
+def get_sensbenchmark1(spatial_method_bulk, spatial_method_particle):
 
-    model = get_model()
+    model = get_model(spatial_method_bulk, spatial_method_particle)
     if 'sensitivity' in model.keys():
-        model['input'].pop('sensitivity')
+        model['input'].pop('sensitivity', None)
         
     # test parTypeDep parameter for both types
     model = add_sensitivity_Column1D_mixedGRHomParticles_benchmark1(
@@ -248,85 +248,85 @@ def get_sensbenchmark1():
         
     # test parTypeDep/Indep parameter thats present in one type
     model = add_sensitivity_Column1D_mixedGRHomParticles_benchmark1(
-        model, 'PAR_SURFDIFFUSION'
+        model, 'SURFACE_DIFFUSION'
         )
         
     # test parTypeDep/Indep parameter thats present in one type with additional
     # dependencies
     model = add_sensitivity_Column1D_mixedGRHomParticles_benchmark1(
-        model, 'PAR_DIFFUSION_COMP0_SEC1'
+        model, 'SURFACE_DIFFUSION_COMP0_SEC1'
         )
         
     
     return model
 
 
-from cadet import Cadet
-from cadetrdm import ProjectRepo
-import matplotlib.pyplot as plt
+# from cadet import Cadet
+# from cadetrdm import ProjectRepo
+# import matplotlib.pyplot as plt
 
-cadet_path = r'C:/Users\jmbr\Cadet_testBuild\CADET_2DmodelsDG\out\install\aRELEASE\bin\cadet-cli.exe'
+# cadet_path = r'C:/Users\jmbr\Cadet_testBuild\CADET_2DmodelsDG\out\install\aRELEASE\bin\cadet-cli.exe'
 
-project_repo = ProjectRepo()
-output_path = str(project_repo.output_path / "test_cadet-core")
-run_simulation=1
-plot_result=1
+# project_repo = ProjectRepo()
+# output_path = str(project_repo.output_path / "test_cadet-core")
+# run_simulation=1
+# plot_result=1
 
-Cadet.cadet_path = cadet_path
+# Cadet.cadet_path = cadet_path
 
-model = Cadet()
-model.root = get_sensbenchmark1()
-model.filename = output_path + '/COL1D_2parTypeMixed_2comp_benchmark1.h5'
-model.save()
+# model = Cadet()
+# model.root = get_sensbenchmark1()
+# model.filename = output_path + '/COL1D_2parTypeMixed_2comp_benchmark1.h5'
+# model.save()
 
-if run_simulation:
-    data = model.run()
-    if not data.return_code == 0:
-        print(data.error_message)
-        raise Exception(f"simulation failed")
-    else:
-        print(data.log)
+# if run_simulation:
+#     data = model.run()
+#     if not data.return_code == 0:
+#         print(data.error_message)
+#         raise Exception(f"simulation failed")
+#     else:
+#         print(data.log)
 
-    model.load()  
+#     model.load()  
     
-    time = model.root.output.solution.solution_times
-    solution = model.root.output.solution.unit_001.solution_outlet
+#     time = model.root.output.solution.solution_times
+#     solution = model.root.output.solution.unit_001.solution_outlet
         
-    if plot_result:
-        plt.figure()
-        plt.plot(time, solution[:,0], c="blue", label="comp 0")
-        plt.plot(time, solution[:,1], c="red", label="comp 1")
-        plt.xlabel("time in $s$")
-        plt.ylabel("concentration in $mol / L^3$")
-        plt.legend()
-        plt.savefig(output_path + '/COL1D_2parTypeMixed_2comp_benchmark1.png')
-        plt.close()
+#     if plot_result:
+#         plt.figure()
+#         plt.plot(time, solution[:,0], c="blue", label="comp 0")
+#         plt.plot(time, solution[:,1], c="red", label="comp 1")
+#         plt.xlabel("time in $s$")
+#         plt.ylabel("concentration in $mol / L^3$")
+#         plt.legend()
+#         plt.savefig(output_path + '/COL1D_2parTypeMixed_2comp_benchmark1.png')
+#         plt.close()
 
 
-        nSens = model.root.input.sensitivity.nsens
-        sensDict = convergence.get_simulation(model.filename).root.input.sensitivity
-        settingName = 'COL1D_2parTypeMixed_2comp_benchmark1'
+#         nSens = model.root.input.sensitivity.nsens
+#         sensDict = convergence.get_simulation(model.filename).root.input.sensitivity
+#         settingName = 'COL1D_2parTypeMixed_2comp_benchmark1'
         
-        for sensIdx in range(nSens):
+#         for sensIdx in range(nSens):
             
-            sensIdxStr = str(sensIdx).zfill(3)
-            sensName = str(sensDict[f'param_{sensIdxStr}']['sens_name'].decode('UTF-8'))
-            sensUnit = str(sensDict[f'param_{sensIdxStr}']['sens_unit']).zfill(3)
+#             sensIdxStr = str(sensIdx).zfill(3)
+#             sensName = str(sensDict[f'param_{sensIdxStr}']['sens_name'].decode('UTF-8'))
+#             sensUnit = str(sensDict[f'param_{sensIdxStr}']['sens_unit']).zfill(3)
             
-            sensitivity = convergence.get_solution(
-                model.filename, unit=f'unit_{sensUnit}', which='sens_outlet', **{'sensIdx': sensIdx})
+#             sensitivity = convergence.get_solution(
+#                 model.filename, unit=f'unit_{sensUnit}', which='sens_outlet', **{'sensIdx': sensIdx})
             
-            if sensitivity.ndim == 2: # multi component systems
-                for i in range(sensitivity.shape[1]):
-                    plt.plot(convergence.get_solution_times(model.filename), sensitivity[:, i], label=f'comp {i}')
-            elif sensitivity.ndim == 1:
-                plt.plot(convergence.get_solution_times(model.filename), sensitivity, label='comp 0')
-            else:
-                raise Exception(f"Cannot plot parameter sensitivities with more than one dependence")
+#             if sensitivity.ndim == 2: # multi component systems
+#                 for i in range(sensitivity.shape[1]):
+#                     plt.plot(convergence.get_solution_times(model.filename), sensitivity[:, i], label=f'comp {i}')
+#             elif sensitivity.ndim == 1:
+#                 plt.plot(convergence.get_solution_times(model.filename), sensitivity, label='comp 0')
+#             else:
+#                 raise Exception(f"Cannot plot parameter sensitivities with more than one dependence")
                 
-            plt.figure()
-            plt.legend()
-            plt.title(f'SENS{sensIdx}_' + sensName)
-            plt.savefig(str(output_path) + '/' + f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'.h5', '', settingName) + '.png')
-            plt.close()
+#             plt.figure()
+#             plt.legend()
+#             plt.title(f'SENS{sensIdx}_' + sensName)
+#             plt.savefig(str(output_path) + '/' + f'SENS{sensIdx}_' + sensName + '_' + re.sub(r'.h5', '', settingName) + '.png')
+#             plt.close()
 
