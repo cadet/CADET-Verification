@@ -19,7 +19,7 @@ import src.bench_func as bench_func
 # %% Define chromatography system tests
 
 
-def chromatography_systems_tests(n_jobs, database_path, small_test,
+def chromatography_systems_tests(n_jobs, small_test,
                                  output_path, cadet_path,
                                  analytical_reference=True,
                                  reference_data_path=None):
@@ -45,7 +45,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     par_discs = []
 
     addition = bench_configs.cyclic_systems_tests(
-        n_jobs, database_path, output_path, cadet_path, small_test=small_test,
+        n_jobs, output_path, cadet_path, small_test=small_test,
         analytical_reference=analytical_reference)
 
     bench_configs.add_benchmark(
@@ -65,7 +65,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     # %% run convergence analysis
 
     bench_func.run_convergence_analysis(
-        database_path=database_path, output_path=output_path,
+        output_path=output_path,
         cadet_path=cadet_path,
         cadet_configs=cadet_configs,
         cadet_config_names=config_names,
@@ -97,7 +97,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     par_discs = []
 
     addition = bench_configs.acyclic_systems_tests(
-        n_jobs, database_path, output_path, cadet_path, small_test=small_test,
+        n_jobs, output_path, cadet_path, small_test=small_test,
         analytical_reference=analytical_reference)
 
     bench_configs.add_benchmark(
@@ -121,7 +121,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     # %% run convergence analysis
     
     bench_func.run_convergence_analysis(
-        database_path=database_path, output_path=output_path,
+        output_path=output_path,
         cadet_path=cadet_path,
         cadet_configs=cadet_configs,
         cadet_config_names=config_names,
@@ -153,7 +153,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     par_discs = []
 
     addition = bench_configs.smb_systems_tests(
-        n_jobs, database_path, output_path, cadet_path, small_test=small_test)
+        n_jobs, output_path, cadet_path, small_test=small_test)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which, idas_abstol,
@@ -165,7 +165,7 @@ def chromatography_systems_tests(n_jobs, database_path, small_test,
     # %% Run convergence analysis
 
     bench_func.run_convergence_analysis(
-        database_path=database_path, output_path=output_path,
+        output_path=output_path,
         cadet_path=cadet_path,
         cadet_configs=cadet_configs,
         cadet_config_names=config_names,

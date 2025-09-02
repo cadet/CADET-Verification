@@ -101,17 +101,12 @@ def test_selected_model_groups(
     project_repo = ProjectRepo(branch=branch_name)
     output_path = project_repo.output_path / "test_cadet-core"
     cadet_path = convergence.get_cadet_path()
-    database_path = (
-        "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database"
-        "/-/raw/core_tests/cadet_config/test_cadet-core/"
-    )
 
     with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
 
         if run_chromatography_tests:
             chromatography.chromatography_tests(
                 n_jobs=n_jobs,
-                database_path=database_path + "chromatography/",
                 small_test=small_test,
                 sensitivities=True,
                 output_path=str(output_path) + "/chromatography",
@@ -131,7 +126,6 @@ def test_selected_model_groups(
         if run_chromatography_sensitivity_tests:
             chromatography_sensitivities.chromatography_sensitivity_tests(
                     n_jobs=n_jobs,
-                    database_path=database_path + "chromatography/",
                     small_test=small_test,
                     output_path=str(output_path) + "/chromatography/sensitivity",
                     cadet_path=cadet_path
@@ -142,7 +136,6 @@ def test_selected_model_groups(
         if run_chromatography_system_tests:
             chrom_systems.chromatography_systems_tests(
                 n_jobs=n_jobs,
-                database_path=None,
                 small_test=small_test,
                 output_path=str(output_path) + "/chromatography/systems",
                 cadet_path=cadet_path,
@@ -155,13 +148,25 @@ def test_selected_model_groups(
         if run_crystallization_tests:
             crystallization.crystallization_tests(
                 n_jobs=n_jobs,
-                database_path=database_path + "crystallization/",
                 small_test=small_test,
                 output_path=str(output_path) + "/crystallization",
                 cadet_path=cadet_path
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/crystallization")
+
+        if run_2Dmodels_tests:
+            twoDimChromatography.GRM2D_linBnd_tests(
+                n_jobs=n_jobs,
+                small_test=small_test,
+                output_path=str(output_path) + "/2Dchromatography",
+                cadet_path=cadet_path,
+                reference_data_path=str(project_repo.output_path.parent / 'data'),
+                use_CASEMA_reference=True,
+                rerun_sims=True
+            )
+            if delete_h5_files:
+                convergence.delete_h5_files(str(output_path) + "/2Dchromatography")
 
         if run_MCT_tests:
             MCT.MCT_tests(
@@ -172,20 +177,6 @@ def test_selected_model_groups(
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/mct")
-
-        if run_2Dmodels_tests:
-            twoDimChromatography.GRM2D_linBnd_tests(
-                n_jobs=n_jobs,
-                database_path=None,
-                small_test=small_test,
-                output_path=str(output_path) + "/2Dchromatography",
-                cadet_path=cadet_path,
-                reference_data_path=str(project_repo.output_path.parent / 'data'),
-                use_CASEMA_reference=True,
-                rerun_sims=True
-            )
-            if delete_h5_files:
-                convergence.delete_h5_files(str(output_path) + "/2Dchromatography")
 
     if rdm_push:
         project_repo.push()

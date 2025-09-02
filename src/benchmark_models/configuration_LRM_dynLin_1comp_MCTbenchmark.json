@@ -65,32 +65,41 @@
         }
       },
       "unit_001": {
-        "ADSORPTION_MODEL": "LINEAR",
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "TOTAL_POROSITY": 0.6,
+        "NPARTYPE": 1,
+        "NCOMP": 1,
+        "VELOCITY": 0.03333333333333333,
         "COL_DISPERSION": 0.0,
         "COL_LENGTH": 1.0,
         "INIT_C": [
           0.0
         ],
-        "INIT_Q": [
-          0.0
-        ],
-        "NCOMP": 1,
-        "TOTAL_POROSITY": 0.6,
-        "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
-        "VELOCITY": 0.03333333333333333,
-        "adsorption": {
-          "IS_KINETIC": 1,
-          "LIN_KA": [
-            2.0
-          ],
-          "LIN_KD": [
-            1.0
-          ]
-        },
-        "discretization": {
+        "particle_type_000":{
+          "HAS_FILM_DIFFUSION": 0,
+          "HAS_PORE_DIFFUSION": 0,
+          "HAS_SURFACE_DIFFUSION": 0,
           "NBOUND": [
             1
           ],
+          "ADSORPTION_MODEL": "LINEAR",
+          "INIT_CP": [
+            0.0
+          ],
+          "INIT_CS": [
+            0.0
+          ],
+          "adsorption": {
+            "IS_KINETIC": 1,
+            "LIN_KA": [
+              2.0
+            ],
+            "LIN_KD": [
+              1.0
+            ]
+          }
+        },
+        "discretization": {
           "NCOL": 256,
           "RECONSTRUCTION": "WENO",
           "SPATIAL_METHOD": "FV",
