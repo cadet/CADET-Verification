@@ -25,6 +25,8 @@ def MCT_tests(n_jobs, database_path, small_test,
 
     os.makedirs(output_path, exist_ok=True)
     
+    Cadet.cadet_path = cadet_path
+    
     convergence.std_plot_prep(benchmark_plot=False, linewidth=10,
                               x_label='time / s', y_label='mol / $m^{-3}$')
     
@@ -34,7 +36,6 @@ def MCT_tests(n_jobs, database_path, small_test,
         output_path=str(output_path)
         )
     
-    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:

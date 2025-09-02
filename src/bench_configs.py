@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created May 2024
 
 This script defines benchmark configurations, e.g. whether or not to include
 sensitivities, the considered numerical methods, etc.
@@ -17,18 +16,12 @@ import src.bench_func as bench_func
 
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
-from src.benchmark_models import setting_LRM_dynLin_1comp_benchmark1
-from src.benchmark_models import setting_LRMP_dynLin_1comp_benchmark1
-from src.benchmark_models import setting_GRM_dynLin_1comp_benchmark1
-from src.benchmark_models import setting_GRMparType2_dynLin_2comp_benchmark1
-from src.benchmark_models import setting_LRM_SMA_4comp_benchmark1
-from src.benchmark_models import setting_LRMP_SMA_4comp_benchmark1
-from src.benchmark_models import setting_GRM_SMA_4comp_benchmark1
-from src.benchmark_models import setting_radLRM_dynLin_1comp_benchmark1
-from src.benchmark_models import setting_radLRMP_dynLin_1comp_benchmark1
-from src.benchmark_models import setting_radGRM_dynLin_1comp_benchmark1
-from src.benchmark_models import setting_Col1D_dynLin_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
+from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
+from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
+from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
 
 # %% benchmark templates
 
@@ -201,42 +194,62 @@ def run_benchmark(
 # %% FV benchmark configuration used in CADET-Core tests
 
 
-def fv_benchmark(database_path, small_test=False, sensitivities=False):
+def fv_benchmark(small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_LRM_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_LRMP_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_GRM_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_LRM_SMA_4comp_benchmark1.get_model(database_path),
-            setting_LRMP_SMA_4comp_benchmark1.get_model(database_path),
-            setting_GRM_SMA_4comp_benchmark1.get_model(database_path)
+            setting_Col1D_linLRM_1comp_benchmark1.get_model(
+                spatial_method_bulk=0
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+               particle_type='GENERAL_RATE_PARTICLE'
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+               particle_type='GENERAL_RATE_PARTICLE', surface_diffusion=5E-11
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='EQUILIBRIUM_PARTICLE'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE'
+               ),
+           setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+              spatial_method_bulk=0, spatial_method_particle=0,
+              particle_type='GENERAL_RATE_PARTICLE'
+              )
         ],
         'cadet_config_names': [
             'LRM_dynLin_1comp_benchmark1',
             'LRMP_dynLin_1comp_benchmark1',
             'GRM_dynLin_1comp_benchmark1',
+            'GRMsd_dynLin_1comp_benchmark1',
             'LRM_reqSMA_4comp_benchmark1',
             'LRMP_reqSMA_4comp_benchmark1',
             'GRM_reqSMA_4comp_benchmark1'
         ],
-        'include_sens': [True] * 6 if sensitivities else [False] * 6,
+        'include_sens': [True] * 7 if sensitivities else [False] * 7,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None]
+            [None], [None], [None], [None], [None], [None], [None]
         ],
         'unit_IDs': [
-            '001', '001', '001', '000', '000', '000'
+            '001', '001', '001', '001', '000', '000', '000'
         ],
         'which': [
-            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
         ],
         'idas_abstol': [
-            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
+            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
         ],
         'ax_methods': [
-            [0], [0], [0], [0], [0], [0]
+            [0], [0], [0], [0], [0], [0], [0]
         ],
         'ax_discs': [
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
             [bench_func.disc_list(8, 8 if not small_test else 3)],
             [bench_func.disc_list(8, 8 if not small_test else 3)],
             [bench_func.disc_list(8, 8 if not small_test else 3)],
@@ -245,11 +258,12 @@ def fv_benchmark(database_path, small_test=False, sensitivities=False):
             [bench_func.disc_list(8, 6 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [None], [0], [None], [None], [0]
+            [None], [None], [0], [0], [None], [None], [0]
         ],
         'par_discs': [
             [None],
             [None],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
             [bench_func.disc_list(1, 8 if not small_test else 3)],
             [None],
             [None],
@@ -258,87 +272,48 @@ def fv_benchmark(database_path, small_test=False, sensitivities=False):
     }
 
     return benchmark_config
+
 
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(database_path, small_test=False, sensitivities=False):
+def dg_generalized_unit_benchmark(small_test=False, sensitivities=False):
+
+    n_settings = 7
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_LRM_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_LRMP_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_GRM_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_LRM_SMA_4comp_benchmark1.get_model(database_path),
-            setting_LRMP_SMA_4comp_benchmark1.get_model(database_path),
-            setting_GRM_SMA_4comp_benchmark1.get_model(database_path)
+            setting_Col1D_linLRM_1comp_benchmark1.get_model(
+                spatial_method_bulk=3
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE'
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', surface_diffusion=5E-11
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='EQUILIBRIUM_PARTICLE'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE'
+               )
         ],
         'cadet_config_names': [
-            'LRM_dynLin_1comp_benchmark1',
-            'LRMP_dynLin_1comp_benchmark1',
-            'GRM_dynLin_1comp_benchmark1',
-            'LRM_reqSMA_4comp_benchmark1',
-            'LRMP_reqSMA_4comp_benchmark1',
-            'GRM_reqSMA_4comp_benchmark1'
-        ],
-        'include_sens': [True] * 6 if sensitivities else [False] * 6,
-        'ref_files': [
-            [None], [None], [None], [None], [None], [None]
-        ],
-        'unit_IDs': [
-            '001', '001', '001', '000', '000', '000'
-        ],
-        'which': [
-            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
-        ],
-        'idas_abstol': [
-            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
-        ],
-        'ax_methods': [
-            [3], [3], [3], [3], [3], [3],
-        ],
-        'ax_discs': [
-            [bench_func.disc_list(1, 8 if not small_test else 3)],
-            [bench_func.disc_list(1, 8 if not small_test else 3)],
-            [bench_func.disc_list(8, 5 if not small_test else 3)],
-            [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(4, 6 if not small_test else 3)]
-        ],
-        'par_methods': [
-            [None], [None], [3], [None], [None], [3]
-        ],
-        'par_discs': [
-            [None],
-            [None],
-            [bench_func.disc_list(1, 5 if not small_test else 3)],
-            [None],
-            [None],
-            [bench_func.disc_list(1, 6 if not small_test else 3)]
-        ]
-    }
-
-    return benchmark_config
-
-# %% DG benchmark configuration for generalized units used in CADET-Core tests
-
-
-def dg_generalized_unit_benchmark(database_path, small_test=False, sensitivities=False):
-
-    n_settings = 5  
-
-    benchmark_config = {
-        'cadet_config_jsons': [
-            setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='HOMOGENEOUS_PARTICLE'),
-            setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE'),
-            setting_Col1D_dynLin_1comp_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE', par_surfdiffusion=5E-11),
-            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(particle_type='HOMOGENEOUS_PARTICLE'),
-            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(particle_type='GENERAL_RATE_PARTICLE')
-        ],
-        'cadet_config_names': [
+            'COL1D_LRM_dynLin_1comp_benchmark1',
             'COL1D_LRMP_dynLin_1comp_benchmark1',
             'COL1D_GRM_dynLin_1comp_benchmark1',
             'COL1D_GRMsd_dynLin_1comp_benchmark1',
+            'COL1D_LRM_reqSMA_4comp_benchmark1',
             'COL1D_LRMP_reqSMA_4comp_benchmark1',
             'COL1D_GRM_reqSMA_4comp_benchmark1'
         ],
@@ -347,31 +322,35 @@ def dg_generalized_unit_benchmark(database_path, small_test=False, sensitivities
             [None], [None], [None], [None], [None], [None], [None]
         ],
         'unit_IDs': [
-            '001', '001', '001', '000', '000'
+            '001', '001', '001', '001', '000', '000', '000'
         ],
         'which': [
             'outlet'
         ] * n_settings,
         'idas_abstol': [
-           [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
+           [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
         ],
         'ax_methods': [
-            [3] * n_settings
+            [3], [3], [3], [3], [3], [3], [3]
         ],
         'ax_discs': [
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
             [bench_func.disc_list(1, 9 if not small_test else 3)],
             [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 4 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [3], [3], [None], [3]
+            [None], [None], [3], [3], [None], [None], [3]
         ],
         'par_discs': [
             [None],
+            [None],
             [bench_func.disc_list(1, 5 if not small_test else 3)],
             [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [None],
             [None],
             [bench_func.disc_list(1, 4 if not small_test else 3)]
         ]
@@ -383,21 +362,43 @@ def dg_generalized_unit_benchmark(database_path, small_test=False, sensitivities
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 
-def sensitivity_benchmark1(database_path, spatial_method, small_test):
+def sensitivity_benchmark1(spatial_method, small_test):
     
     if spatial_method not in ["DG", "FV"]:
         raise ValueError(
             f"spatial method must be FV or DG.")
 
+    if spatial_method == "FV":
+        spatial_method_polyDeg = 0
+    elif spatial_method == "DG":
+        spatial_method_polyDeg = 3
+
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_LRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_LRMP_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_GRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_GRM_dynLin_1comp_benchmark1.get_sensbenchmark2(database_path),
-            setting_LRM_SMA_4comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_LRMP_SMA_4comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_GRM_SMA_4comp_benchmark1.get_sensbenchmark1(database_path)
+            setting_Col1D_linLRM_1comp_benchmark1.get_sensbenchmark1(
+                spatial_method_bulk=spatial_method_polyDeg
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(
+                spatial_method_bulk=spatial_method_polyDeg
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_GRM_sensbenchmark1(
+               spatial_method_bulk=spatial_method_polyDeg,
+               spatial_method_particle=spatial_method_polyDeg
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_GRM_sensbenchmark2(
+               spatial_method_bulk=spatial_method_polyDeg,
+               spatial_method_particle=spatial_method_polyDeg
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_LRM_sensbenchmark1(
+                spatial_method_bulk=spatial_method_polyDeg
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_LRMP_sensbenchmark1(
+                spatial_method_bulk=spatial_method_polyDeg
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_GRM_sensbenchmark1(
+               spatial_method_bulk=spatial_method_polyDeg,
+               spatial_method_particle=spatial_method_polyDeg
+               )
         ],
         'cadet_config_names': [
             'LRM_dynLin_1comp_sensbenchmark1',
@@ -453,9 +454,16 @@ def sensitivity_benchmark2(spatial_method, small_test):
         raise ValueError(
             f"spatial method must be FV or DG.")
 
+    if spatial_method == "FV":
+        spatial_method_polyDeg = 0
+    elif spatial_method == "DG":
+        spatial_method_polyDeg = 3
+
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_GRMparType2_dynLin_2comp_benchmark1.get_sensbenchmark1()
+            setting_COL1D_GRMparType2_dynLin_2comp_benchmark1.get_sensbenchmark1(
+                spatial_method_bulk=spatial_method_polyDeg, 
+                spatial_method_particle=spatial_method_polyDeg)
         ],
         'cadet_config_names': [
             'GRMparType2_dynLin_2comp_sensbenchmark1'
@@ -489,17 +497,29 @@ def sensitivity_benchmark2(spatial_method, small_test):
 # %% Radial flow (FV) benchmark configuration used in CADET-Core tests
 
 
-def radial_flow_benchmark(database_path, small_test=False, sensitivities=False):
+def radial_flow_benchmark(small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_radLRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_radLRMP_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path),
-            setting_radGRM_dynLin_1comp_benchmark1.get_sensbenchmark1(database_path)
+            setting_radCol1D_LRM_lin_1comp_benchmark1.get_sensbenchmark1(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_GRM_sensbenchmark1(
+                spatial_method_bulk=0, spatial_method_par=0
+                )
         ] if sensitivities else [
-            setting_radLRM_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_radLRMP_dynLin_1comp_benchmark1.get_model(database_path),
-            setting_radGRM_dynLin_1comp_benchmark1.get_model(database_path)
+            setting_radCol1D_LRM_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, spatial_method_par=0
+                )
         ],
         'cadet_config_names': [
             'radLRM_dynLin_1comp_sensbenchmark1',
@@ -1003,7 +1023,7 @@ def smb1_systems_tests(n_jobs, database_path, output_path,
     return benchmark_config
 
 
-def cyclic_systems_tests(n_jobs, database_path, output_path,
+def cyclic_systems_tests(n_jobs, output_path,
                          cadet_path, small_test=False, **kwargs):
 
     # The analytical reference for the cyclic case has only ~1e-8 accuracy
@@ -1047,7 +1067,7 @@ def cyclic_systems_tests(n_jobs, database_path, output_path,
     return benchmark_config
 
 
-def acyclic_systems_tests(n_jobs, database_path, output_path,
+def acyclic_systems_tests(n_jobs, output_path,
                           cadet_path, small_test=False, **kwargs):
 
     nDisc = 5 if small_test else 5
@@ -1089,14 +1109,14 @@ def acyclic_systems_tests(n_jobs, database_path, output_path,
     return benchmark_config
 
 
-def smb_systems_tests(n_jobs, database_path, output_path,
+def smb_systems_tests(n_jobs, output_path,
                        cadet_path, small_test=False, **kwargs):
 
-    nDisc = 4 if small_test else 6
+    nDisc = 3 if small_test else 6
 
     benchmark_config = {
         'cadet_config_jsons': [
-            settings_columnSystems.SMB_model1(nDisc, 4, 1)
+            settings_columnSystems.SMB_model1(nDisc, 3, 1)
         ],
         'include_sens': [
             False
@@ -1117,7 +1137,7 @@ def smb_systems_tests(n_jobs, database_path, output_path,
             [3]
         ],
         'ax_discs': [
-            [bench_func.disc_list(4, nDisc)]
+            [bench_func.disc_list(3, nDisc)]
         ],
         'par_methods': [
             [None]
