@@ -59,10 +59,9 @@ def SMB_model1(nelem, polydeg, exactInt):
     smb_model.model.unit_003.unit_type = 'OUTLET'
 
     # Columns
-    smb_model.model.unit_004.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    smb_model.model.unit_004.unit_type = 'COLUMN_MODEL_1D'
     smb_model.model.unit_004.ncomp = n_comp
-
-    # Geometry
+    smb_model.model.unit_004.npartype = 1
     smb_model.model.unit_004.total_porosity = 0.38
     smb_model.model.unit_004.col_dispersion = 3.81e-6
     smb_model.model.unit_004.col_length = 5.36e-1
@@ -70,15 +69,21 @@ def SMB_model1(nelem, polydeg, exactInt):
     smb_model.model.unit_004.cross_section_area = 5.31e-4
 
     # Isotherm specification
-    smb_model.model.unit_004.adsorption_model = 'LINEAR'
-    smb_model.model.unit_004.adsorption.is_kinetic = False    # Kinetic binding
-    smb_model.model.unit_004.adsorption.LIN_KA = [
+    smb_model.model.unit_004.particle_type_000.has_film_diffusion = 0
+    smb_model.model.unit_004.particle_type_000.has_pore_diffusion = 0
+    smb_model.model.unit_004.particle_type_000.has_surface_diffusion = 0
+    smb_model.model.unit_004.particle_type_000.adsorption_model = 'LINEAR'
+    # Bound states - for zero the compound does not bind, >1 = multiple binding sites
+    smb_model.model.unit_004.particle_type_000.nbound = np.ones(n_comp, dtype=int)
+    smb_model.model.unit_004.particle_type_000.adsorption.is_kinetic = False    # Kinetic binding
+    smb_model.model.unit_004.particle_type_000.adsorption.LIN_KA = [
         0.54, 0.28]  # m^3 / (mol * s)   (mobile phase)
-    smb_model.model.unit_004.adsorption.LIN_KD = [
+    smb_model.model.unit_004.particle_type_000.adsorption.LIN_KD = [
         1, 1]      # 1 / s (desorption)
     # Initial conditions
     smb_model.model.unit_004.init_c = [0, 0]
-    smb_model.model.unit_004.init_q = [0, 0]  # salt starts at max capacity
+    smb_model.model.unit_004.particle_type_000.init_cp = [0, 0]
+    smb_model.model.unit_004.particle_type_000.init_cs = [0, 0]  # salt starts at max capacity
 
     # Grid cells in column and particle: the most important ones - ensure grid-independent solutions
     smb_model.model.unit_004.discretization.SPATIAL_METHOD = "DG"
@@ -87,9 +92,6 @@ def SMB_model1(nelem, polydeg, exactInt):
     # Polynomial order
     smb_model.model.unit_004.discretization.POLYDEG = polydeg
     smb_model.model.unit_004.discretization.EXACT_INTEGRATION = exactInt
-
-    # Bound states - for zero the compound does not bind, >1 = multiple binding sites
-    smb_model.model.unit_004.discretization.nbound = np.ones(n_comp, dtype=int)
 
     smb_model.model.unit_004.discretization.par_disc_type = 'EQUIDISTANT_PAR'
     smb_model.model.unit_004.discretization.use_analytic_jacobian = 1
@@ -338,29 +340,34 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     Cyclic_model.root.input.model.unit_003.unit_type = 'OUTLET'
 
     # Unit LRMP2
-    Cyclic_model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITH_PORES'
+    Cyclic_model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     Cyclic_model.root.input.model.unit_001.ncomp = n_comp
-
-    # Geometry
+    Cyclic_model.root.input.model.unit_001.npartype = 1
     Cyclic_model.root.input.model.unit_001.col_porosity = 0.37
-    Cyclic_model.root.input.model.unit_001.par_porosity = 0.75
     Cyclic_model.root.input.model.unit_001.col_dispersion = 2e-7
     Cyclic_model.root.input.model.unit_001.col_length = 1.4e-2
     Cyclic_model.root.input.model.unit_001.cross_section_area = 1
-    Cyclic_model.root.input.model.unit_001.film_diffusion = 6.9e-6
-    Cyclic_model.root.input.model.unit_001.par_radius = 45e-6
     LRMP_Q3 = 3.45*1e-2 / 60 * 0.37
-
-    # Isotherm specification
-    Cyclic_model.root.input.model.unit_001.adsorption_model = 'LINEAR'
-    Cyclic_model.root.input.model.unit_001.adsorption.is_kinetic = True    # Kinetic binding
-    Cyclic_model.root.input.model.unit_001.adsorption.LIN_KA = [
+    # particle
+    Cyclic_model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 1
+    Cyclic_model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
+    Cyclic_model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
+    Cyclic_model.root.input.model.unit_001.particle_type_000.film_diffusion = 6.9e-6
+    Cyclic_model.root.input.model.unit_001.particle_type_000.par_radius = 45e-6
+    Cyclic_model.root.input.model.unit_001.particle_type_000.par_porosity = 0.75
+    Cyclic_model.root.input.model.unit_001.particle_type_000.adsorption_model = 'LINEAR'
+    # Bound states - for zero the compound does not bind, >1 = multiple binding sites
+    Cyclic_model.root.input.model.unit_001.particle_type_000.nbound = np.ones(
+        n_comp, dtype=int)
+    Cyclic_model.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = True    # Kinetic binding
+    Cyclic_model.root.input.model.unit_001.particle_type_000.adsorption.LIN_KA = [
         3.55]  # m^3 / (mol * s)   (mobile phase)
-    Cyclic_model.root.input.model.unit_001.adsorption.LIN_KD = [
+    Cyclic_model.root.input.model.unit_001.particle_type_000.adsorption.LIN_KD = [
         0.1]      # 1 / s (desorption)
     # Initial conditions
     Cyclic_model.root.input.model.unit_001.init_c = [0]
-    Cyclic_model.root.input.model.unit_001.init_q = [
+    Cyclic_model.root.input.model.unit_001.particle_type_000.init_cp = [0]
+    Cyclic_model.root.input.model.unit_001.particle_type_000.init_cs = [
         0]  # salt starts at max capacity
 
     # Grid cells in column and particle: the most important ones - ensure grid-independent solutions
@@ -370,10 +377,6 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     # Polynomial order
     Cyclic_model.root.input.model.unit_001.discretization.POLYDEG = polydeg
     Cyclic_model.root.input.model.unit_001.discretization.EXACT_INTEGRATION = exactInt
-
-    # Bound states - for zero the compound does not bind, >1 = multiple binding sites
-    Cyclic_model.root.input.model.unit_001.discretization.nbound = np.ones(
-        n_comp, dtype=int)
 
     Cyclic_model.root.input.model.unit_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     Cyclic_model.root.input.model.unit_001.discretization.USE_ANALYTIC_JACOBIAN = 1
@@ -392,10 +395,10 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
         Cyclic_model.root.input.model.unit_001)
 
     # Unit LRMP2
-    Cyclic_model.root.input.model.unit_002.adsorption.is_kinetic = False    # Kinetic binding
-    Cyclic_model.root.input.model.unit_002.adsorption.LIN_KA = [
+    Cyclic_model.root.input.model.unit_002.particle_type_000.adsorption.is_kinetic = False    # Kinetic binding
+    Cyclic_model.root.input.model.unit_002.particle_type_000.adsorption.LIN_KA = [
         35.5]  # m^3 / (mol * s)   (mobile phase)
-    Cyclic_model.root.input.model.unit_002.adsorption.LIN_KD = [
+    Cyclic_model.root.input.model.unit_002.particle_type_000.adsorption.LIN_KD = [
         1]      # 1 / s (desorption)
 
     # To write out last output to check for steady state
@@ -493,29 +496,34 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     Acyclic_model.root.input.model.unit_006.unit_type = 'OUTLET'
 
     # Unit LRMP3
-    Acyclic_model.root.input.model.unit_002.unit_type = 'LUMPED_RATE_MODEL_WITH_PORES'
+    Acyclic_model.root.input.model.unit_002.unit_type = 'COLUMN_MODEL_1D'
     Acyclic_model.root.input.model.unit_002.ncomp = n_comp
-
-    # Geometry
+    Acyclic_model.root.input.model.unit_002.npartype = 1
     Acyclic_model.root.input.model.unit_002.col_porosity = 0.37
-    Acyclic_model.root.input.model.unit_002.par_porosity = 0.75
     Acyclic_model.root.input.model.unit_002.col_dispersion = 2e-7
     Acyclic_model.root.input.model.unit_002.col_length = 1.4e-2
     Acyclic_model.root.input.model.unit_002.cross_section_area = 1
-    Acyclic_model.root.input.model.unit_002.film_diffusion = 6.9e-6
-    Acyclic_model.root.input.model.unit_002.par_radius = 45e-6
     LRMP_Q3 = 3.45*1e-2 / 60 * 0.37
-
-    # Isotherm specification
-    Acyclic_model.root.input.model.unit_002.adsorption_model = 'LINEAR'
-    Acyclic_model.root.input.model.unit_002.adsorption.is_kinetic = True    # Kinetic binding
-    Acyclic_model.root.input.model.unit_002.adsorption.LIN_KA = [
+    # Particle
+    Acyclic_model.root.input.model.unit_002.particle_type_000.has_film_diffusion = 1
+    Acyclic_model.root.input.model.unit_002.particle_type_000.has_pore_diffusion = 0
+    Acyclic_model.root.input.model.unit_002.particle_type_000.has_surface_diffusion = 0
+    Acyclic_model.root.input.model.unit_002.particle_type_000.film_diffusion = 6.9e-6
+    Acyclic_model.root.input.model.unit_002.particle_type_000.par_radius = 45e-6
+    Acyclic_model.root.input.model.unit_002.particle_type_000.par_porosity = 0.75
+    Acyclic_model.root.input.model.unit_002.particle_type_000.adsorption_model = 'LINEAR'
+    # Bound states - for zero the compound does not bind, >1 = multiple binding sites
+    Acyclic_model.root.input.model.unit_002.particle_type_000.nbound = np.ones(
+        n_comp, dtype=int)
+    Acyclic_model.root.input.model.unit_002.particle_type_000.adsorption.is_kinetic = True    # Kinetic binding
+    Acyclic_model.root.input.model.unit_002.particle_type_000.adsorption.LIN_KA = [
         3.55]  # m^3 / (mol * s)   (mobile phase)
-    Acyclic_model.root.input.model.unit_002.adsorption.LIN_KD = [
+    Acyclic_model.root.input.model.unit_002.particle_type_000.adsorption.LIN_KD = [
         0.1]      # 1 / s (desorption)
     # Initial conditions
     Acyclic_model.root.input.model.unit_002.init_c = [0]
-    Acyclic_model.root.input.model.unit_002.init_q = [
+    Acyclic_model.root.input.model.unit_002.particle_type_000.init_cp = [0]
+    Acyclic_model.root.input.model.unit_002.particle_type_000.init_cs = [
         0]  # salt starts at max capacity
 
     # Grid cells in column and particle: the most important ones - ensure grid-independent solutions
@@ -525,10 +533,6 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     # Polynomial order
     Acyclic_model.root.input.model.unit_002.discretization.POLYDEG = polydeg
     Acyclic_model.root.input.model.unit_002.discretization.EXACT_INTEGRATION = exactInt
-
-    # Bound states - for zero the compound does not bind, >1 = multiple binding sites
-    Acyclic_model.root.input.model.unit_002.discretization.nbound = np.ones(
-        n_comp, dtype=int)
 
     Acyclic_model.root.input.model.unit_002.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     Acyclic_model.root.input.model.unit_002.discretization.USE_ANALYTIC_JACOBIAN = 1
@@ -552,23 +556,23 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Unit LRMP4
     Acyclic_model.root.input.model.unit_003.col_length = 4.2e-2
-    Acyclic_model.root.input.model.unit_003.adsorption.is_kinetic = False    # Kinetic binding
-    Acyclic_model.root.input.model.unit_003.adsorption.LIN_KA = [
+    Acyclic_model.root.input.model.unit_003.particle_type_000.adsorption.is_kinetic = False    # Kinetic binding
+    Acyclic_model.root.input.model.unit_003.particle_type_000.adsorption.LIN_KA = [
         35.5]  # m^3 / (mol * s)   (mobile phase)
-    Acyclic_model.root.input.model.unit_003.adsorption.LIN_KD = [
+    Acyclic_model.root.input.model.unit_003.particle_type_000.adsorption.LIN_KD = [
         1]      # 1 / s (desorption)
 
     # Unit LRMP5
-    Acyclic_model.root.input.model.unit_004.adsorption.is_kinetic = False    # Kinetic binding
-    Acyclic_model.root.input.model.unit_004.adsorption.LIN_KA = [
+    Acyclic_model.root.input.model.unit_004.particle_type_000.adsorption.is_kinetic = False    # Kinetic binding
+    Acyclic_model.root.input.model.unit_004.particle_type_000.adsorption.LIN_KA = [
         21.4286]  # m^3 / (mol * s)   (mobile phase)
-    Acyclic_model.root.input.model.unit_004.adsorption.LIN_KD = [
+    Acyclic_model.root.input.model.unit_004.particle_type_000.adsorption.LIN_KD = [
         1]      # 1 / s (desorption)
 
     # Unit LRMP6
-    Acyclic_model.root.input.model.unit_005.adsorption.LIN_KA = [
+    Acyclic_model.root.input.model.unit_005.particle_type_000.adsorption.LIN_KA = [
         4.55]  # m^3 / (mol * s)   (mobile phase)
-    Acyclic_model.root.input.model.unit_005.adsorption.LIN_KD = [
+    Acyclic_model.root.input.model.unit_005.particle_type_000.adsorption.LIN_KD = [
         0.12]      # 1 / s (desorption)
 
     # To write out last output to check for steady state

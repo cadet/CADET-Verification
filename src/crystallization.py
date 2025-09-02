@@ -7,7 +7,7 @@ import src.crystallization_partII as partII
 
 
 def crystallization_tests(
-        n_jobs, database_path, small_test, output_path, cadet_path,
+        n_jobs, small_test, output_path, cadet_path,
         run_primary_dynamics_tests = True, # part I
         run_secondary_dynamics_tests = True, # part II without (partly) redundant tests
         run_full_secondary_dynamics_tests = False, # full part II tests
