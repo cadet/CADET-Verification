@@ -63,8 +63,8 @@ def get_model(
         column.particle_type_000.par_coreradius = 0.0
         column.particle_type_000.par_porosity = 0.75
         column.particle_type_000.film_diffusion = [6.9e-06] * nComp
-        column.particle_type_000.par_diffusion = [6.07e-11] * nComp
-        column.particle_type_000.par_surfdiffusion = [0.0] * nComp
+        column.particle_type_000.pore_diffusion = [6.07e-11] * nComp
+        column.particle_type_000.surface_diffusion = [0.0] * nComp
         column.particle_type_000.nbound = [1] * nComp
         column.init_cp = [0.0] * nComp
         column.init_cs = [0.0] * nComp
