@@ -100,7 +100,7 @@ def test_selected_model_groups(
     sys.path.append(str(Path(".")))
     project_repo = ProjectRepo(branch=branch_name)
     output_path = project_repo.output_path / "test_cadet-core"
-    cadet_path = convergence.get_cadet_path()
+    cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET-Core\out\install\aRELEASE\bin\cadet-cli.exe" # convergence.get_cadet_path()
     database_path = (
         "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database"
         "/-/raw/core_tests/cadet_config/test_cadet-core/"
