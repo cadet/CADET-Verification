@@ -255,7 +255,7 @@ def create_object_from_config(
                     add_inlet_per_port = nInlets if nInlets > 2 else False
                 else:
                     add_inlet_per_port = kwargs.get('rad_inlet_profile')
-                    nOutlets = 1 if kwargs.get('analytical_reference', 0) else 0
+                    nOutlets = 1
                     n_units = (rad_method + 1 ) * rad_cells + 1 + nOutlets
                 config_data['input']['model'].nunits = n_units
                 
@@ -267,7 +267,7 @@ def create_object_from_config(
                                                            tmpID].COL_POROSITY,
                     col_radius=config_data['input']['model']['unit_' +
                                                              tmpID].COL_RADIUS,
-                    add_inlet_per_port=add_inlet_per_port, add_outlet=int(kwargs.get('analytical_reference', 0))
+                    add_inlet_per_port=add_inlet_per_port, add_outlet=True
                 )
 
                 if add_inlet_per_port is True:
