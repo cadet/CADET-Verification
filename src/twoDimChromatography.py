@@ -384,4 +384,7 @@ def GRM2D_linBnd_tests(
             with open(target_name, "w") as file:
                 # Write with pretty formatting
                 json.dump(target_data, file, indent=4)
+                new_name = str(output_path) + '/convergence_portsMaxNorm_' + \
+                    settings[idx]['name'] + '.json'
+                rename_json_file(target_name, new_name)
 
