@@ -515,10 +515,11 @@ def radial_flow_benchmark(small_test=False, sensitivities=False):
                 spatial_method_bulk=0
                 ),
             setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0
+                spatial_method_bulk=0, particle_type="HOMOGENEOUS_PARTICLE"
                 ),
             setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, spatial_method_par=0
+                spatial_method_bulk=0, spatial_method_par=0,
+                particle_type="GENERAL_RATE_PARTICLE"
                 )
         ],
         'cadet_config_names': [
