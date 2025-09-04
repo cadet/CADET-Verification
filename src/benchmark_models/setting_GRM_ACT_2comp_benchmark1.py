@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created June 2025
 
 This script implements an ACT binding setting for the GRM as used in Zhang et
 al. (2025) 'An Affinity Complex Titration Isotherm for Mechanistic Modeling in
 Protein A Chromatography'. The specific setting is given in the manuscript in
 table 3, 5 ml MSS, mAb A.
 
-@author: Wendi Zhang
 """ 
 
 import numpy as np
@@ -51,6 +49,7 @@ def ACT_benchmark1(cadet_path, output_path,
     
     model.root.input.model.nunits = 3
     
+    # Inlet 
     model.root.input.model.unit_000.unit_type = 'INLET'
     model.root.input.model.unit_000.ncomp = 2
     model.root.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
@@ -58,54 +57,58 @@ def ACT_benchmark1(cadet_path, output_path,
     model.root.input.model.unit_001.unit_type = 'GENERAL_RATE_MODEL'
     model.root.input.model.unit_001.ncomp = 2
     
-    ## Geometry
+    ## Column
+
     model.root.input.model.unit_001.col_length = column_length              # m              
     model.root.input.model.unit_001.cross_section_area = column_volume/column_length   # m^2
-    model.root.input.model.unit_001.col_porosity = column_porosity              # 1      
-    model.root.input.model.unit_001.par_porosity = particle_porosity              # 1      
-    model.root.input.model.unit_001.par_radius = 0.0425e-3            # m     
-                                                                    
-    ## Transport
+    model.root.input.model.unit_001.col_porosity = column_porosity              # 1
     model.root.input.model.unit_001.col_dispersion = 1.36e-8           # m^2/s       
-    model.root.input.model.unit_001.film_diffusion = [1, 1.41e-5,]     # m/s
-    model.root.input.model.unit_001.par_diffusion = [1, 1.99e-11]      # m^2/s  
-    model.root.input.model.unit_001.par_surfdiffusion = [0.0, 0.0]      
-    
-    model.root.input.model.unit_001.adsorption_model = 'AFFINITY_COMPLEX_TITRATION'
-    
-    model.root.input.model.unit_001.adsorption.is_kinetic = 1
-    model.root.input.model.unit_001.adsorption.act_ka = [1.0, Keq*protein_MW*(1.0-total_porosity), ]          ##  m^3 solid phase / mol protein / s   ml/mg=m^3/kg    1 kda = 1 kg/mol
-    model.root.input.model.unit_001.adsorption.act_kd = [1.0, 1.0]                                            ## s^-1
-    model.root.input.model.unit_001.adsorption.act_qmax = [1e-10, Q_max/protein_MW/(1.0-total_porosity),]     ##  mol/m^3 solid phase mg/ml=kg/m^3 / 150 kg/mol = 1/150 mol/m^3
-    
-    model.root.input.model.unit_001.adsorption.act_etaA = [0, 1.81,  ]
-    model.root.input.model.unit_001.adsorption.act_pkaA = [0, 2.07, ]
-    model.root.input.model.unit_001.adsorption.act_etaG = [0, 2.28, ]
-    model.root.input.model.unit_001.adsorption.act_pkaG = [0, 5.29, ]
-    
     model.root.input.model.unit_001.init_c = [elution_pH_start, 0.0, ]
-    model.root.input.model.unit_001.init_q = [0.0, 0.0]
-    
-    ### Grid cells
-    model.root.input.model.unit_001.discretization.ncol = 50
-    model.root.input.model.unit_001.discretization.npar = 12
-    
-    ### Bound states
-    model.root.input.model.unit_001.discretization.nbound = [0, 1,]
-    
-    ### Other options
-    model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT_PAR'    
+    ### discretization
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
+    model.root.input.model.unit_001.discretization.SPATIAL_METHOD = "FV"
+    model.root.input.model.unit_001.discretization.ncol = 50
     model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
+    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
+    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
+    model.root.input.model.unit_001.discretization.weno.weno_order = 2
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
     model.root.input.model.unit_001.discretization.max_restarts = 10
     model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
+
+    ## Particles
+          
+    model.root.input.model.unit_001.particle_type_000.par_porosity = particle_porosity              # 1      
+    model.root.input.model.unit_001.particle_type_000.par_radius = 0.0425e-3            # m     
+    model.root.input.model.unit_001.particle_type_000.film_diffusion = [1, 1.41e-5,]     # m/s
+    model.root.input.model.unit_001.particle_type_000.pore_diffusion = [1, 1.99e-11]      # m^2/s  
+    model.root.input.model.unit_001.particle_type_000.surface_diffusion = [0.0, 0.0]      
     
-    model.root.input.model.unit_001.discretization.weno.boundary_model = 0
-    model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-    model.root.input.model.unit_001.discretization.weno.weno_order = 2
+    model.root.input.model.unit_001.particle_type_000.nbound = [0, 1,]
+
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'AFFINITY_COMPLEX_TITRATION'
     
+    model.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = 1
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_ka = [1.0, Keq*protein_MW*(1.0-total_porosity), ]          ##  m^3 solid phase / mol protein / s   ml/mg=m^3/kg    1 kda = 1 kg/mol
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_kd = [1.0, 1.0]                                            ## s^-1
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_qmax = [1e-10, Q_max/protein_MW/(1.0-total_porosity),]     ##  mol/m^3 solid phase mg/ml=kg/m^3 / 150 kg/mol = 1/150 mol/m^3
+    
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_etaA = [0, 1.81,  ]
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaA = [0, 2.07, ]
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_etaG = [0, 2.28, ]
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaG = [0, 5.29, ]
+
+    model.root.input.model.unit_001.particle_type_000.init_cp = [elution_pH_start, 0.0]
+    model.root.input.model.unit_001.particle_type_000.init_cs = [0.0, 0.0]
+    
+    ### discretization
+    model.root.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = "FV"
+    model.root.input.model.unit_001.particle_type_000.discretization.par_disc_type = 'EQUIDISTANT_PAR'    
+    model.root.input.model.unit_001.particle_type_000.discretization.NCELLS = 12
+    
+    
+    # Outlet
     model.root.input.model.unit_002.unit_type = 'OUTLET'
     model.root.input.model.unit_002.ncomp = 2
     
@@ -176,15 +179,16 @@ def ACT_benchmark1(cadet_path, output_path,
         if not data.return_code == 0:
             print(data.error_message)
             raise Exception(f"simulation failed")
-    
-        model.load()  
-        
-        time = model.root.output.solution.solution_times
-        c = model.root.output.solution.unit_001.solution_outlet_comp_001
-        pH_outlet = model.root.output.solution.unit_001.solution_outlet_comp_000
-        pH_inlet = model.root.output.solution.unit_000.solution_outlet_comp_000
             
         if plot_result:
+    
+            model.load_from_file()
+        
+            time = model.root.output.solution.solution_times
+            c = model.root.output.solution.unit_001.solution_outlet_comp_001
+            pH_outlet = model.root.output.solution.unit_001.solution_outlet_comp_000
+            pH_inlet = model.root.output.solution.unit_000.solution_outlet_comp_000
+
             measurement_factor = 710     ## converts conc to mAU
             fig = plt.figure()
             ax = fig.add_subplot()

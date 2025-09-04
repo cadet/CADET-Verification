@@ -1,9 +1,7 @@
 """
-Created April 2024
 
 This script implement helper functions to create benchmarks.
 
-@author: jmbr
 """
 
 import urllib.request
@@ -222,14 +220,21 @@ def create_object_from_config(
                                                   tmpID]['discretization']['AX_NELEM'] = ax_cells
 
             if par_method is not None:
-                if par_method == 0:
+            
+                if par_method > 0:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['NPAR'] = par_cells
+                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'DG'
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['PAR_POLYDEG'] = par_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['PAR_NELEM'] = par_cells
                 else:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['PAR_POLYDEG'] = par_method
+                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'FV'
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['PAR_NELEM'] = par_cells
+                                                  tmpID]['particle_type_000']['discretization']['NCELLS'] = par_cells
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['FV_BOUNDARY_ORDER'] = 2
             if rad_method is not None:
             
                 config_data['input']['model']['unit_'+tmpID].PORTS = (rad_method + 1 ) * rad_cells
@@ -246,11 +251,11 @@ def create_object_from_config(
                 if kwargs.get('rad_inlet_profile', None) is None:
                     # if we have more than 1 inlet, there are radial zones defined
                     n_units = config_data['input']['model']['nunits']
-                    nInlets = n_units - 2 if kwargs.get('analytical_reference', 0) else n_units - 1
+                    nInlets = int((n_units - 1) / 2)
                     add_inlet_per_port = nInlets if nInlets > 2 else False
                 else:
                     add_inlet_per_port = kwargs.get('rad_inlet_profile')
-                    nOutlets = 1 if kwargs.get('analytical_reference', 0) else 0
+                    nOutlets = 1
                     n_units = (rad_method + 1 ) * rad_cells + 1 + nOutlets
                 config_data['input']['model'].nunits = n_units
                 
@@ -262,7 +267,7 @@ def create_object_from_config(
                                                            tmpID].COL_POROSITY,
                     col_radius=config_data['input']['model']['unit_' +
                                                              tmpID].COL_RADIUS,
-                    add_inlet_per_port=add_inlet_per_port, add_outlet=int(kwargs.get('analytical_reference', 0))
+                    add_inlet_per_port=add_inlet_per_port, add_outlet=True
                 )
 
                 if add_inlet_per_port is True:
@@ -454,16 +459,13 @@ def generate_convergence_data(
 
     if write_result:
         # Adjust meta data
-        if config_data is not None:
-            config_data['input']['meta'] = config_data.pop('meta')
-            config_data['input']['meta']['source'] = 'CADET-Reference convergence data https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference_data'
-            config_data['input']['meta']['info'] = 'CADET-Reference convergence data for the CADET-Database model configuration: ' + \
-                setting_name + ' whose source is ' + \
-                config_data['input']['meta']['source']
-            config_data['input']['meta']['name'] = 'convergence_' + \
-                setting_name
-            if commit_hash is not None:
-                config_data['input']['meta']['cadet_commit_last_run'] = commit_hash
+        if config_data is None:
+            config_data = {'input' : {'meta' : {}}}
+
+        config_data['input']['meta']['name'] = 'convergence_' + \
+            setting_name
+        if commit_hash is not None:
+            config_data['input']['meta']['cadet_commit_last_run'] = commit_hash
         # get method name
         if ax_method == 0:
             method_name = 'FV'
@@ -1016,7 +1018,7 @@ def run_convergence_analysis_core(
 
                 ax_discs[modelIdx][methodIdx] = ax_discs[modelIdx][methodIdx][:-1]
 
-                ref_files[modelIdx][methodIdx] = ref_file
+                ref_files[modelIdx][methodIdx] = output_path + '/' + ref_file if output_path is not None else ref_file
 
     result_names = []
 

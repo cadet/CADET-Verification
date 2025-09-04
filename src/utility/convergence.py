@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created January 2023
 
 This script impements evaluation functionalities related to numerical 
 convergence analysis for CADET simulations.
 
-@author: Jan Michael Breuer
 """
 
 from cadet import Cadet
@@ -957,8 +955,15 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
                         errors.append(calculate_abs_error(reference, sim_interpolated))
                         
                     else:  # it is assumed that solution is already given at the same discrete points
-                        errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
-                                                          reference))
+                        try:
+                            errors.append(
+                                calculate_abs_error(
+                                    get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
+                                    reference)
+                                )
+                        except ValueError as e:
+                            raise ValueError(f"Caught a ValueError: {e}\n You probably need to provide reference data info such as polyDeg, nCells, ref_coords!")
+
                 else:
                     errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp), reference))
             elif which == 'bulk':
@@ -1336,7 +1341,7 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
     np.array
         Solution at output_coords.
     """
-    if np.any(output_coords > domain_end) or np.any(output_coords < 0.0):
+    if np.any(output_coords - domain_end > 1e-17) or np.any(output_coords < 0.0):
         raise ValueError(
             "get_interpolated_solution: Output coordinates not within [0, L]"
         )
@@ -1371,10 +1376,23 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
     if polyDeg == 0:
 
         cellIdx = 0
+        coordHit = False
+        
         for outputIdx in range(len(output_coords)):
+            
             while orig_coords[cellIdx] + 0.5 * deltaZ < output_coords[outputIdx]:
-                cellIdx += 1
-            output_values[outputIdx] = orig_values[cellIdx]
+                
+                if abs(orig_coords[cellIdx] + 0.5 * deltaZ - output_coords[outputIdx]) < 1E-15:
+                    coordHit = True # if the coordinate is hit exactly, we take the average value, except for the right boundary
+                    break
+                else:
+                    cellIdx += 1 # increase the index until the output coord is within the current FV cell
+
+            if coordHit and not cellIdx == len(orig_coords) - 1: # if the coordinate is hit exactly, we take the average value, except for the right boundary
+                output_values[outputIdx] = 0.5 * (orig_values[cellIdx] + orig_values[cellIdx + 1])
+                
+            else:
+                output_values[outputIdx] = orig_values[cellIdx]
 
         return output_values
 
@@ -3514,21 +3532,21 @@ def recalculate_results(file_path, models,
             
         elif which == 'radial_outlet':
             
-            extra_keys['domain_end'] = sim_go_to(get_simulation(file_path+exact_names[modelIdx]).root,
+            extra_keys['domain_end'] = sim_go_to(get_simulation(exact_names[modelIdx]).root,
                       ['input', 'model', 'unit_'+unit, 'col_radius']
                       )
-            extra_keys['ref_coords'] = get_radial_coordinates(file_path+exact_names[modelIdx], unit)
+            extra_keys['ref_coords'] = get_radial_coordinates(exact_names[modelIdx], unit)
             nRad = len(extra_keys['ref_coords'])
             reference = []
             kwargs.update(extra_keys)
             
             for rad in range(nRad):
-                reference.append(get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
+                reference.append(get_solution(exact_names[modelIdx], 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
                     'comp', [-1])))
             reference=np.array(reference)
         else:
             
-            reference = get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, which, kwargs.get(
+            reference = get_solution(exact_names[modelIdx], 'unit_'+unit, which, kwargs.get(
                 'comp', [-1]), **{'sensIdx': kwargs.get('sensIdx', 0)})
 
         if simulation_names is None:
