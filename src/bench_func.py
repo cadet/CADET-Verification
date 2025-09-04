@@ -251,7 +251,7 @@ def create_object_from_config(
                 if kwargs.get('rad_inlet_profile', None) is None:
                     # if we have more than 1 inlet, there are radial zones defined
                     n_units = config_data['input']['model']['nunits']
-                    nInlets = n_units - 2 if kwargs.get('analytical_reference', 0) else n_units - 1
+                    nInlets = int((n_units - 1) / 2)
                     add_inlet_per_port = nInlets if nInlets > 2 else False
                 else:
                     add_inlet_per_port = kwargs.get('rad_inlet_profile')
