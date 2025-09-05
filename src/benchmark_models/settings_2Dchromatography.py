@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep  3 11:21:20 2024
 
 This script defines model settings considered for the verification of the
 2D flow chromatography models in CADET-Core
 
-@author: jmbr
 """
 
 import numpy as np
@@ -209,42 +207,69 @@ def GRM2D_linBnd_benchmark1(
     if transport_model is not None:
         column.UNIT_TYPE = transport_model
     else:
-        column.UNIT_TYPE = 'LUMPED_RATE_MODEL_WITH_PORES_2D' if axMethod > 0 else 'GENERAL_RATE_MODEL_2D'
+        column.UNIT_TYPE = 'COLUMN_MODEL_2D'
     nComp = 1
     column.NCOMP = nComp
 
     column.COL_LENGTH = 0.014
     column.COL_RADIUS = 0.0035
     column.CROSS_SECTION_AREA = np.pi * column.COL_RADIUS**2
-    column.PAR_RADIUS = kwargs.get('par_radius', 45E-6)
 
     column.NPARTYPE = kwargs.get('npartype', 1)
     # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
     column.COL_POROSITY = 0.37
-    column.PAR_POROSITY = kwargs.get('par_porosity', 0.75)
     column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
 
     column.VELOCITY = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
-    column.COL_DISPERSION = 5.75e-8
+    column.COL_DISPERSION_AXIAL = 5.75e-8
     column.COL_DISPERSION_RADIAL = kwargs.get('col_dispersion_radial', 5e-8)
-    column.FILM_DIFFUSION = kwargs.get('film_diffusion', 6.9e-6)
-    column.PAR_DIFFUSION = kwargs.get('par_diffusion', 6.07e-11)
-    column.PAR_SURFDIFFUSION = kwargs.get('par_surfdiffusion', 0.0)
+    
+    for parType in range(column.NPARTYPE):
+        groupName = 'particle_type_' + str(parType).zfill(3)
+        
+        column[groupName].has_film_diffusion = 1
 
-    # binding parameters
-    column.nbound = kwargs.get('nbound', 1)
-    column.adsorption_model = kwargs.get('adsorption_model', 'LINEAR')
-    if column.NPARTYPE > 1:
-        for parType in range(column.NPARTYPE):
-            groupName = 'adsorption_' + str(parType).zfill(3)
-            column[groupName].is_kinetic = kwargs['adsorption.is_kinetic'][parType]
-            column[groupName].lin_ka = kwargs['adsorption.lin_ka'][parType]
-            column[groupName].lin_kd = kwargs['adsorption.lin_kd'][parType]
-            
-    else:
-        column.adsorption.is_kinetic = kwargs.get('adsorption.is_kinetic', 0)
-        column.adsorption.lin_ka = kwargs.get('adsorption.lin_ka', 35.5)
-        column.adsorption.lin_kd = kwargs.get('adsorption.lin_kd', 1.0)
+        # binding parameters
+        if column.NPARTYPE > 1:
+            column[groupName].has_pore_diffusion = kwargs['pore_diffusion'][parType] > 0.0
+            column[groupName].PAR_RADIUS = kwargs['par_radius'][parType]
+            column[groupName].PAR_POROSITY = kwargs['par_porosity'][parType]
+            column[groupName].nbound = [kwargs['nbound'][parType]]
+            column[groupName].adsorption_model = kwargs['adsorption_model'][parType]
+            column[groupName].FILM_DIFFUSION = kwargs['film_diffusion'][parType]
+            column[groupName].PORE_DIFFUSION = kwargs['pore_diffusion'][parType]
+            if not column[groupName].nbound == [0]:
+                column[groupName].has_surface_diffusion = kwargs['surface_diffusion'][parType] > 0.0
+                column[groupName].SURFACE_DIFFUSION = kwargs['surface_diffusion'][parType]
+                column[groupName].init_cs = [kwargs['init_cs'][parType]]
+            else:
+                column[groupName].has_surface_diffusion = 0
+            column[groupName].adsorption.is_kinetic = kwargs['adsorption.is_kinetic'][parType]
+            column[groupName].adsorption.lin_ka = kwargs['adsorption.lin_ka'][parType]
+            column[groupName].adsorption.lin_kd = kwargs['adsorption.lin_kd'][parType]
+            column[groupName].init_cp = kwargs['init_cp'][parType]
+        else:
+            column[groupName].has_pore_diffusion = kwargs.get('par_diffusion', 6.07e-11) > 0.0
+            column[groupName].has_surface_diffusion = kwargs.get('par_surfdiffusion', 0.0) > 0.0
+            column[groupName].PAR_RADIUS = kwargs.get('par_radius', 45E-6)
+            column[groupName].PAR_POROSITY = kwargs.get('par_porosity', 0.75)
+            column[groupName].FILM_DIFFUSION = kwargs.get('film_diffusion', 6.9e-6)
+            column[groupName].PORE_DIFFUSION = kwargs.get('par_diffusion', 6.07e-11)
+            column[groupName].SURFACE_DIFFUSION = kwargs.get('par_surfdiffusion', 0.0)
+            column[groupName].adsorption_model = kwargs.get('adsorption_model', 'LINEAR')
+            column[groupName].nbound = kwargs.get('nbound', [1])
+            column[groupName].adsorption.is_kinetic = kwargs.get('adsorption.is_kinetic', 0)
+            column[groupName].adsorption.lin_ka = kwargs.get('adsorption.lin_ka', 35.5)
+            column[groupName].adsorption.lin_kd = kwargs.get('adsorption.lin_kd', 1.0)
+            column[groupName].init_cp = kwargs.get('init_cp', [0])
+        if parMethod > 0:
+            column[groupName].discretization.SPATIAL_METHOD = 'DG'
+            column[groupName].discretization.PAR_POLYDEG = parMethod
+            column[groupName].discretization.PAR_NELEM = parNElem
+        else:
+            column[groupName].discretization.SPATIAL_METHOD = 'FV'
+            column[groupName].discretization.NCELLS = parNElem
+            column[groupName].discretization.PAR_DISC_TYPE = ['EQUIDISTANT_PAR']
 
     if 'INIT_C' in kwargs:
 
@@ -270,11 +295,7 @@ def GRM2D_linBnd_benchmark1(
         column.init_c = kwargs['INIT_C'](ax_coords, rad_coords)
     else:
         column.init_c = [0] * nComp
-    column.init_cp = kwargs.get('init_cp', [0] * nComp)
-    column.init_q = kwargs.get('init_cs', [0] * nComp)
 
-    column.discretization.NPAR = parNElem
-    column.discretization.PAR_DISC_TYPE = ['EQUIDISTANT_PAR']
     if axMethod > 0:
         column.discretization.SPATIAL_METHOD = "DG"
         if re.search("2D", column.UNIT_TYPE):
@@ -286,12 +307,7 @@ def GRM2D_linBnd_benchmark1(
             column.discretization.POLYDEG = axMethod
             column.discretization.NELEM = axNElem
             column.discretization.EXACT_INTEGRATION = 1
-        column.discretization.PAR_POLYDEG = parMethod
-        column.discretization.PAR_NELEM = parNElem
     else:
-        column.discretization.NPAR = parNElem
-        column.discretization.PAR_DISC_TYPE = ['EQUIDISTANT_PAR']
-
         column.discretization.SPATIAL_METHOD = "FV"
         column.discretization.NCOL = axNElem
         column.discretization.NRAD = radNElem

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created Oct 2024
 
 This script executes all the CADET-Verification tests for CADET-Core.
 Modify the input in the 'User Input' section if needed.
@@ -9,7 +8,6 @@ To test if the script works, specify rdm_debug_mode and small_test as true.
 Only specify rdm_debug_mode as False if you are sure that this run shall be
 saved to the output repository!
 
-@author: jmbr
 """ 
   
 #%% Include packages
@@ -102,7 +100,7 @@ def test_selected_model_groups(
     sys.path.append(str(Path(".")))
     project_repo = ProjectRepo(branch=branch_name)
     output_path = project_repo.output_path / "test_cadet-core"
-    cadet_path = convergence.get_cadet_path()
+    cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET-Core\out\install\aRELEASE\bin\cadet-cli.exe" # convergence.get_cadet_path()
     database_path = (
         "https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-database"
         "/-/raw/core_tests/cadet_config/test_cadet-core/"

@@ -1,9 +1,18 @@
+# -*- coding: utf-8 -*-
+"""
+
+This script defines steric mass action load-wash-elute case studies used for
+numerical benchmarks in https://doi.org/10.1016/j.compchemeng.2023.108340
+
+"""
+
 import numpy as np
 from addict import Dict
 
 def get_model(
+        spatial_method_bulk,
         particle_type='GENERAL_RATE_PARTICLE',
-        refinement=1, polyDeg=3,
+        refinement=1,
         **kwargs):
     
     axNElem = 8 * kwargs.get('axRefinement', refinement)
@@ -36,22 +45,51 @@ def get_model(
     column.velocity = 0.000575
 
     # Spatial discretization of interstitial / bulk volume
-    column.discretization.SPATIAL_METHOD = 'DG'
-    # column.discretization.EXACT_INTEGRATION = 1
-    column.discretization.POLYDEG = kwargs.get('axP', polyDeg)
-    column.discretization.NELEM = axNElem
+    if spatial_method_bulk > 0:
+        column.discretization.SPATIAL_METHOD = 'DG'
+        column.discretization.EXACT_INTEGRATION = kwargs.get('exact_integration', 0)
+        column.discretization.POLYDEG = spatial_method_bulk
+        column.discretization.NELEM = axNElem
+    else:
+        column.discretization.SPATIAL_METHOD = 'FV'
+        column.discretization.NCOL = axNElem
+        column.discretization.RECONSTRUCTION = 'WENO'
+        column.discretization.weno.BOUNDARY_MODEL = 0
+        column.discretization.weno.WENO_EPS = 1e-10
+        column.discretization.weno.WENO_ORDER = 2
+        column.discretization.GS_TYPE = 1
+        column.discretization.MAX_KRYLOV = 0
+        column.discretization.MAX_RESTARTS = 10
+        column.discretization.SCHUR_SAFETY = 1.0e-8
     column.discretization.USE_ANALYTIC_JACOBIAN = 1
     
     if particle_type is not None:
         
-        column.particle_type_000.par_geom = ['SPHERE']
-        column.particle_type_000.particle_type = particle_type
-        column.particle_type_000.par_radius = 4.5e-05
-        column.particle_type_000.par_coreradius = 0.0
-        column.particle_type_000.par_porosity = 0.75
-        column.particle_type_000.film_diffusion = [6.9e-06, 6.9e-06, 6.9e-06, 6.9e-06]
-        column.particle_type_000.par_diffusion = [7.00e-10, 6.07e-11, 6.07e-11, 6.07e-11]
-        column.particle_type_000.par_surfdiffusion = [0.,0.,0.,0.]
+        if particle_type in ['HOMOGENEOUS_PARTICLE', 'GENERAL_RATE_PARTICLE']:
+            
+            column.particle_type_000.has_film_diffusion = 1
+            column.particle_type_000.par_geom = 'SPHERE'
+            column.particle_type_000.par_radius = 4.5e-05
+            column.particle_type_000.par_coreradius = 0.0
+            column.particle_type_000.par_porosity = 0.75
+            column.particle_type_000.film_diffusion = [6.9e-06, 6.9e-06, 6.9e-06, 6.9e-06]
+            
+            if particle_type == "GENERAL_RATE_PARTICLE":
+                column.particle_type_000.pore_diffusion = [7.00e-10, 6.07e-11, 6.07e-11, 6.07e-11]
+                column.particle_type_000.surface_diffusion = [0.,0.,0.,0.]
+                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+                if kwargs['spatial_method_particle'] > 0:
+                    column.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
+                    column.particle_type_000.discretization.PAR_POLYDEG = kwargs['spatial_method_particle']
+                    column.particle_type_000.discretization.PAR_NELEM = parNElem
+                else:
+                    column.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
+                    column.particle_type_000.discretization.NCELLS = parNElem
+                    column.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
+                    
+        else:
+            column.particle_type_000.has_film_diffusion = 0
+        
         column.particle_type_000.nbound = [1, 1, 1, 1]
         column.particle_type_000.init_cp = [50.0, 0.0, 0.0, 0.0]
         column.particle_type_000.init_cs = [1200.0, 0.0, 0.0, 0.0]
@@ -65,11 +103,6 @@ def get_model(
                 'sma_nu': [ 0.0, 4.7, 5.29, 3.7 ],
                 'sma_sigma': [ 0.0, 11.83, 10.6, 10.0 ]
                 }
-        
-        # Spatial discretization of particle volume
-        column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
-        column.particle_type_000.discretization.PAR_POLYDEG = kwargs.get('parP', polyDeg)
-        column.particle_type_000.discretization.PAR_NELEM = parNElem
     
     model.input.model.unit_000 = column
     
@@ -123,5 +156,164 @@ def get_model(
     model.input['return'].unit_000.write_solution_particle = kwargs.get('return_particle', False)
     model.input['return'].unit_000.write_solution_solid = kwargs.get('return_particle', False)
     model.input['return'].write_solution_times = 1
+    
+    return model
+
+
+#%% sensitivities
+
+
+def add_sensitivity_LRM_SMA_4comp_benchmark1(model, sensName):
+
+    sensDepIdx = {
+        'COL_DISPERSION': {'sens_comp': np.int64(-1)},
+        'TOTAL_POROSITY': { },
+        'SMA_KA': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)}
+    }    
+
+    if sensName not in sensDepIdx:
+        raise Exception(f'Sensitivity dependencies for {sensName} unknown, please implement!')
+
+    if 'sensitivity' in model['input']:
+        model['input']['sensitivity']['NSENS'] += 1
+    else:
+        model['input']['sensitivity'] = {'NSENS': np.int64(1)}
+        model['input']['sensitivity']['sens_method'] = np.bytes_(b'ad1')
+
+    sensIdx = str(model['input']['sensitivity']['NSENS'] - 1).zfill(3)
+    
+    model['input']['sensitivity'][f'param_{sensIdx}'] = {}
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_name'] = str(sensName)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_unit'] = np.int64(0)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_partype'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_reaction'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_section'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_boundphase'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_comp'] = np.int64(-1)
+    
+    if sensName in sensDepIdx:
+        param = model['input']['sensitivity'][f'param_{sensIdx}']
+        for key, value in {**sensDepIdx[sensName]}.items():
+            model['input']['sensitivity'][f'param_{sensIdx}'][key] = value
+
+    return model
+
+
+def get_LRM_sensbenchmark1(spatial_method_bulk):
+    
+    model = get_model(spatial_method_bulk, particle_type=	'EQUILIBRIUM_PARTICLE')
+    model['input'].pop('sensitivity', None)
+    model = add_sensitivity_LRM_SMA_4comp_benchmark1(model, 'COL_DISPERSION')
+    model = add_sensitivity_LRM_SMA_4comp_benchmark1(model, 'TOTAL_POROSITY')
+    model = add_sensitivity_LRM_SMA_4comp_benchmark1(model, 'SMA_KA')
+    
+    return model
+
+def add_sensitivity_LRMP_SMA_4comp_benchmark1(model, sensName):
+
+    sensDepIdx = {
+        'COL_DISPERSION': {'sens_comp': np.int64(-1)},
+        'FILM_DIFFUSION': {'sens_comp': np.int64(0)},
+        'SMA_KA': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)}
+    }    
+
+    if sensName not in sensDepIdx:
+        raise Exception(f'Sensitivity dependencies for {sensName} unknown, please implement!')
+
+    if 'sensitivity' in model['input']:
+        model['input']['sensitivity']['NSENS'] += 1
+    else:
+        model['input']['sensitivity'] = {'NSENS': np.int64(1)}
+        model['input']['sensitivity']['sens_method'] = np.bytes_(b'ad1')
+
+    sensIdx = str(model['input']['sensitivity']['NSENS'] - 1).zfill(3)
+    
+    model['input']['sensitivity'][f'param_{sensIdx}'] = {}
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_name'] = str(sensName)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_unit'] = np.int64(0)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_partype'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_reaction'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_section'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_boundphase'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_comp'] = np.int64(-1)
+    
+    if sensName in sensDepIdx:
+        param = model['input']['sensitivity'][f'param_{sensIdx}']
+        for key, value in {**sensDepIdx[sensName]}.items():
+            model['input']['sensitivity'][f'param_{sensIdx}'][key] = value
+
+    return model
+
+
+def get_LRMP_sensbenchmark1(spatial_method_bulk):
+    
+    model = get_model(spatial_method_bulk, particle_type=	'HOMOGENEOUS_PARTICLE')
+    model['input'].pop('sensitivity', None)
+    model = add_sensitivity_LRMP_SMA_4comp_benchmark1(model, 'COL_DISPERSION')
+    model = add_sensitivity_LRMP_SMA_4comp_benchmark1(model, 'FILM_DIFFUSION')
+    model = add_sensitivity_LRMP_SMA_4comp_benchmark1(model, 'SMA_KA')
+    
+    return model
+
+def add_sensitivity_GRM_SMA_4comp_benchmark1(model, sensName):
+
+    sensDepIdx = {
+        'COL_DISPERSION': {'sens_comp': np.int64(-1)},
+        'FILM_DIFFUSION': {'sens_comp': np.int64(1)},
+        'PAR_DIFFUSION': {'sens_comp': np.int64(1)},
+        'PAR_SURFDIFFUSION': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)},
+        'PAR_RADIUS': {},
+        'SMA_KA': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)}
+    }    
+
+    if sensName not in sensDepIdx:
+        raise Exception(f'Sensitivity dependencies for {sensName} unknown, please implement!')
+
+    if 'sensitivity' in model['input']:
+        model['input']['sensitivity']['NSENS'] += 1
+    else:
+        model['input']['sensitivity'] = {'NSENS': np.int64(1)}
+        model['input']['sensitivity']['sens_method'] = np.bytes_(b'ad1')
+
+    sensIdx = str(model['input']['sensitivity']['NSENS'] - 1).zfill(3)
+    
+    model['input']['sensitivity'][f'param_{sensIdx}'] = {}
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_name'] = str(sensName)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_unit'] = np.int64(0)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_partype'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_reaction'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_section'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_boundphase'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_comp'] = np.int64(-1)
+    
+    if sensName in sensDepIdx:
+        param = model['input']['sensitivity'][f'param_{sensIdx}']
+        for key, value in {**sensDepIdx[sensName]}.items():
+            model['input']['sensitivity'][f'param_{sensIdx}'][key] = value
+
+    return model
+
+
+def get_GRM_sensbenchmark1(spatial_method_bulk, spatial_method_particle):
+    
+    model = get_model(spatial_method_bulk,
+                      particle_type='GENERAL_RATE_PARTICLE',
+                      spatial_method_particle=spatial_method_particle)
+    model['input'].pop('sensitivity', None)
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'COL_DISPERSION')
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_DIFFUSION')
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'SMA_KA')
+    
+    return model
+
+def get_GRM_sensbenchmark2(spatial_method_bulk, spatial_method_particle):
+    
+    model = get_model(spatial_method_bulk,
+                      particle_type='GENERAL_RATE_PARTICLE',
+                      spatial_method_particle=spatial_method_particle)
+    model['input'].pop('sensitivity', None)
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'FILM_DIFFUSION')
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_SURFDIFFUSION')
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_RADIUS')
     
     return model

@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 '''
-Created January 2025
 
 This script implements the settings used for verification of the crystallization
 code, including PBM, aggregation, fragmentation, and all combinations, as well
 as the incorporation into both a CSTR and DPFR.
 
-@author: Wendi Zhang and jmbr
 '''
 
 
@@ -313,19 +311,23 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, cadet_path, output_pat
     model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
 
     # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
     model.root.input.model.unit_001.col_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4  # m^2
     model.root.input.model.unit_001.total_porosity = 0.21
     model.root.input.model.unit_001.col_dispersion = 4.2e-05     # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
+    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
+    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
+    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
 
     # column discretization
+    model.root.input.model.unit_001.discretization.spatial_method = 'FV'
     model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1  # jacobian enabled
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
@@ -901,19 +903,23 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
     model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
 
     # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
     model.root.input.model.unit_001.col_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
+    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
+    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
+    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
 
     # column discretization
+    model.root.input.model.unit_001.discretization.spatial_method = 'FV'
     model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
@@ -1016,19 +1022,23 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
     model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
 
     # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
     model.root.input.model.unit_001.col_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
+    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
+    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
+    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
 
     # column discretization
+    model.root.input.model.unit_001.discretization.spatial_method = 'FV'
     model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
@@ -1151,19 +1161,23 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
     model.root.input.model.unit_000.sec_000.cube_coeff = nComp*[0.0,]
 
     # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     model.root.input.model.unit_001.ncomp = nComp
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
     model.root.input.model.unit_001.col_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 3.066e-05
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = nComp*[0.0]
+    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
+    model.root.input.model.unit_001.particle_type_000.nbound = nComp*[0]
+    model.root.input.model.unit_001.particle_type_000.init_cs = nComp*[0.0]
 
     # column discretization
+    model.root.input.model.unit_001.discretization.spatial_method = 'FV'
     model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = nComp*[0]
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
@@ -1285,19 +1299,23 @@ def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins'
     model.root.input.model.unit_000.sec_000.cube_coeff = n_x*[0.0,]
 
     # Tubular reactor
-    model.root.input.model.unit_001.unit_type = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
     model.root.input.model.unit_001.col_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.init_q = n_x*[0.0]
+    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
+    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
+    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
 
     # column discretization
+    model.root.input.model.unit_001.discretization.spatial_method = 'FV'
     model.root.input.model.unit_001.discretization.ncol = n_col
-    model.root.input.model.unit_001.discretization.nbound = n_x*[0]
     model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
