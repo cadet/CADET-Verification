@@ -168,7 +168,6 @@ def test_selected_model_groups(
         if run_MCT_tests:
             MCT.MCT_tests(
                 n_jobs=n_jobs,
-                database_path=database_path + "mct/",
                 small_test=small_test,
                 output_path=str(output_path) + "/mct",
                 cadet_path=cadet_path
