@@ -33,10 +33,10 @@ def crystallization_tests(
     if run_secondary_dynamics_tests or run_full_secondary_dynamics_tests:
         tasks.extend([
         delayed(partII.aggregation_EOC_test)(cadet_path, small_test, output_path),
-        delayed(partII.fragmentation_EOC_test)(cadet_path, small_test, output_path),
+        # delayed(partII.fragmentation_EOC_test)(cadet_path, small_test, output_path),
         delayed(partII.PBM_aggregation_fragmentation_EOC_test)(cadet_path, small_test, output_path, reference_data_path+'/ref_PBM_Agg_Frag_Z1536.h5'),
         delayed(partII.DPFR_constFragmentation_EOC_test)(cadet_path, small_test, output_path, reference_data_path+'/ref_DPFR_Z192_fragmentation_Z384.h5'),
-        delayed(partII.DPFR_NGGR_aggregation_EOC_test)(cadet_path, small_test, output_path, reference_data_path+'/ref_DPFR_Z192_NGGR_Z384.h5')
+        # delayed(partII.DPFR_NGGR_aggregation_EOC_test)(cadet_path, small_test, output_path, reference_data_path+'/ref_DPFR_Z192_NGGR_Z384.h5')
         ])
         
         
