@@ -25,7 +25,6 @@ import re
 import json
 
 from cadet import Cadet
-from cadetrdm import ProjectRepo
 
 import src.utility.convergence as convergence
 from src.benchmark_models import settings_crystallization
@@ -132,16 +131,18 @@ def aggregation_EOC_test(cadet_path, small_test, output_path):
     EOC = []
     for i in range(0, len(normalized_l1)-1):
         EOC.append(log(normalized_l1[i] / normalized_l1[i+1], mp.e) / log(2.0))
-    print(EOC)
+    print("Convergence CSTR_aggregation:\n", EOC)
 
     data = {
-        'convergence': {
-            "Nx": Nx_grid.tolist(),
-            "L^1 error": [float(x) for x in normalized_l1],
-            "L^1 EOC": [float(x) for x in EOC],
-            "time_sim": sim_times
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx": Nx_grid.tolist(),
+                "L^1 error": [float(x) for x in normalized_l1],
+                "L^1 EOC": [float(x) for x in EOC],
+                "Sim. time": sim_times
+                }
+            }
         }
-    }
 
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_aggregation.json', 'w') as json_file:
@@ -210,16 +211,18 @@ def fragmentation_EOC_test(cadet_path, small_test, output_path):
     EOC = []
     for i in range(0, len(normalized_l1)-1):
         EOC.append(np.log(normalized_l1[i] / normalized_l1[i+1]) / np.log(2.0))
-    print(EOC)
+    print("Convergence CSTR_fragmentation:\n", EOC)
 
     data = {
-        'convergence': {
-            "Nx": Nx_grid.tolist(),
-            "L^1 error": [float(x) for x in normalized_l1],
-            "L^1 EOC": [float(x) for x in EOC],
-            "time_sim": sim_times
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx": Nx_grid.tolist(),
+                "L^1 error": [float(x) for x in normalized_l1],
+                "L^1 EOC": [float(x) for x in EOC],
+                "Sim. time": sim_times
+                }
+            }
         }
-    }
 
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_fragmentation.json', 'w') as json_file:
@@ -315,16 +318,18 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
     EOC = []
     for i in range(0, len(normalized_l1)-1):
         EOC.append(np.log(normalized_l1[i] / normalized_l1[i+1]) / np.log(2.0))
-    print(EOC)
+    print("Convergence CSTR_aggregation_fragmentation:\n", EOC)
 
     data = {
-        'convergence': {
-            "Nx": Nx_grid.tolist(),
-            "L^1 error": [float(x) for x in normalized_l1],
-            "L^1 EOC": [float(x) for x in EOC],
-            "time_sim": sim_times
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx": Nx_grid.tolist(),
+                "L^1 error": [float(x) for x in normalized_l1],
+                "L^1 EOC": [float(x) for x in EOC],
+                "Sim. time": sim_times
+                }
+            }
         }
-    }
 
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_aggregation_fragmentation.json', 'w') as json_file:
@@ -386,16 +391,18 @@ def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path, 
     EOC = []
     for i in range(0, len(normalized_l1)-1):
         EOC.append(np.log(normalized_l1[i] / normalized_l1[i+1]) / np.log(2.0))
-    print(EOC)
+    print("Convergence CSTR_PBM_aggregation_fragmentation:\n", EOC)
 
     data = {
-        'convergence': {
-            "Nx": Nx_grid.tolist(),
-            "L^1 error": [float(x) for x in normalized_l1],
-            "L^1 EOC": [float(x) for x in EOC],
-            "time_sim": sim_times
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx": Nx_grid.tolist(),
+                "L^1 error": [float(x) for x in normalized_l1],
+                "L^1 EOC": [float(x) for x in EOC],
+                "Sim. time": sim_times
+                }
+            }
         }
-    }
 
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_aggregation_fragmentation.json', 'w') as json_file:
@@ -508,15 +515,16 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, referenc
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Nx)
+    print("Convergence internal coordinate DPFR_constAggregation:\n", slopes_Nx)
 
     data = {
-        'convergence': {
-            'internal_coordinate'
-            "Nx": N_x_test.tolist(),
-            "L^1 error": [float(x) for x in relative_L1_norms],
-            "L^1 EOC": [float(x) for x in slopes_Nx],
-            "time_sim": sim_times_int
+        "convergence" : {
+            "internal_coordinate": {
+                "Nx": N_x_test.tolist(),
+                "L^1 error": [float(x) for x in relative_L1_norms],
+                "L^1 EOC": [float(x) for x in slopes_Nx],
+                "Sim. time": sim_times_int
+            }
         }
     }
 
@@ -551,13 +559,13 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, referenc
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Ncol)
+    print("Convergence axial coordinate DPFR_constAggregation:\n", slopes_Ncol)
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
         "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
-        "time_sim": sim_times_ax
+        "Sim. time": sim_times_ax
     }
 
     # Write the dictionary to a JSON file
@@ -610,8 +618,8 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
 
     # get ref solution
     if reference_solution_file is None:
-        N_x_ref = 48 if small_test else 384
-        N_col_ref = 48 if small_test else 192
+        N_x_ref = 48 if small_test else 96
+        N_col_ref = 48 if small_test else 96
     
         model, x_grid, x_ct = settings_crystallization.Frag_DPFR(
             N_x_ref, N_col_ref, x_c, x_max, 3, t, cadet_path, output_path)
@@ -639,7 +647,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
 
     # EOC for refinement in internal coordinate
     N_x_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, ])
+        [12, 24, 48 ])
 
     n_xs = []
     sim_times_int = []
@@ -668,7 +676,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Nx)
+    print("Convergence internal coordinate DPFR_constFragmentation:\n", slopes_Nx)
 
     data = {
         'convergence': {
@@ -676,13 +684,13 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
             "Nx": N_x_test.tolist(),
             "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
-            "time_sim": sim_times_int
+            "Sim. time": sim_times_int
         }
     }
 
     # EOC for refinement in axial coordinate
     N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, ])
+        [12, 24, 48 ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
@@ -711,13 +719,13 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Ncol)
+    print("Convergence axial coordinate DPFR_constFragmentation:\n", slopes_Ncol)
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
         "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
-        "time_sim": sim_times_ax
+        "Sim. time": sim_times_ax
     }
 
     # Write the dictionary to a JSON file
@@ -769,8 +777,8 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
 
     # get ref solution
     if reference_solution_file is None:
-        N_x_ref = 48 if small_test else 384
-        N_col_ref = 48 if small_test else 192
+        N_x_ref = 48 if small_test else 96
+        N_col_ref = 48 if small_test else 96
         
         model, x_grid, x_ct = settings_crystallization.DPFR_PBM_NGGR_aggregation(
             N_x_ref, N_col_ref, x_c, x_max, 3, 3, t, cadet_path, output_path)
@@ -797,7 +805,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
 
     # EOC for refinement in internal coordinate
     N_x_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192 ])
+        [12, 24, 48 ])
 
     n_xs = []
     sim_times_int = []
@@ -827,7 +835,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Nx)
+    print("Convergence internal coordinate DPFR_NGGR_aggregation:\n", slopes_Nx)
 
     data = {
         'convergence': {
@@ -835,13 +843,13 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
             "Nx": N_x_test.tolist(),
             "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
-            "time_sim": sim_times_int
+            "Sim. time": sim_times_int
         }
     }
 
     # EOC for refinement in axial coordinate
     N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, ])
+        [12, 24, 48, ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
@@ -871,13 +879,13 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Ncol)
+    print("Convergence axial coordinate DPFR_NGGR_aggregation:\n", slopes_Ncol)
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
         "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
-        "time_sim": sim_times_ax
+        "Sim. time": sim_times_ax
     }
 
     # Write the dictionary to a JSON file
@@ -958,7 +966,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
 
     # EOC for refinement in internal coordinate
     N_x_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, 192, ])
+        [12, 24, 48, 96, ])
 
     n_xs = []
     sim_times_int = []
@@ -987,7 +995,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Nx = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Nx)
+    print("Convergence internal coordinate DPFR_aggregation_fragmentation:\n", slopes_Nx)
 
     data = {
         'convergence': {
@@ -995,13 +1003,13 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
             "Nx": N_x_test.tolist(),
             "L^1 error": [float(x) for x in relative_L1_norms],
             "L^1 EOC": [float(x) for x in slopes_Nx],
-            "time_sim": sim_times_int
+            "Sim. time": sim_times_int
         }
     }
 
     # EOC for refinement in axial coordinate
     N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48, 96, ])
+        [12, 24, 48, ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
@@ -1030,13 +1038,13 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
             calculate_normalized_error(spl(x_ct), nx, x_ct, x_grid))
 
     slopes_Ncol = get_slope(relative_L1_norms)  # calculate slopes
-    print(slopes_Ncol)
+    print("Convergence axial coordinate DPFR_aggregation_fragmentation:\n", slopes_Ncol)
 
     data['convergence']['axial_coordinate'] = {
         "Ncol": N_col_test.tolist(),
         "L^1 error": [float(x) for x in relative_L1_norms],
         "L^1 EOC": [float(x) for x in slopes_Ncol],
-        "time_sim": sim_times_ax
+        "Sim. time": sim_times_ax
     }
 
     # Write the dictionary to a JSON file
