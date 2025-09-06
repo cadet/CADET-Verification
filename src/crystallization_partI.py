@@ -18,7 +18,6 @@ from scipy.interpolate import UnivariateSpline
 import json
 
 from cadet import Cadet
-from cadetrdm import ProjectRepo
 
 import src.bench_func as bench_func
 from src.benchmark_models import settings_crystallization
@@ -125,10 +124,14 @@ def CSTR_PBM_growth_EOC_test(small_test, output_path, cadet_path):
     print("CSTR_PBM_growth EOC:\n", EOC_c1)
     
     data = {
-        "Nx" : N_x_test_c1.tolist(),
-        "EOC" : EOC_c1.tolist(),
-        "time_sim" : simTimes
-    }
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx" : N_x_test_c1.tolist(),
+                "EOC" : EOC_c1.tolist(),
+                "Sim. time" : simTimes
+                }
+            }
+        }
     
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_growth.json', 'w') as json_file:
@@ -149,10 +152,14 @@ def CSTR_PBM_growthSizeDep_EOC_test(small_test, output_path, cadet_path):
     print("CSTR_PBM_growthSizeDep EOC:\n", EOC_c2)
     
     data = {
-        "Nx" : N_x_test_c2.tolist(),
-        "EOC" : EOC_c2.tolist(),
-        "time_sim" : simTimes
-    }
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx" : N_x_test_c2.tolist(),
+                "EOC" : EOC_c2.tolist(),
+                "Sim. time" : simTimes
+                }
+            }
+        }
     
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_growthSizeDep.json', 'w') as json_file:
@@ -175,10 +182,14 @@ def CSTR_PBM_primaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_
     print("CSTR_PBM_primaryNucleationAndGrowth EOC:\n", EOC_c3)
     
     data = {
-        "Nx" : N_x_test_c3.tolist(),
-        "EOC" : EOC_c3.tolist(),
-        "time_sim" : simTimes
-    }
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx" : N_x_test_c3.tolist(),
+                "EOC" : EOC_c3.tolist(),
+                "Sim. time" : simTimes
+                }
+            }
+        }
     
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_primaryNucleationAndGrowth.json', 'w') as json_file:
@@ -198,13 +209,17 @@ def CSTR_PBM_primarySecondaryNucleationAndGrowth_EOC_test(small_test, output_pat
         1000e-6, cadet_path, output_path
         )
     
-    print("CSTR_PBM_primaryNucleationAndGrowth EOC:\n", EOC_c4)
+    print("CSTR_PBM_primarySecondaryNucleationAndGrowth EOC:\n", EOC_c4)
     
     data = {
-        "Nx" : N_x_test_c4.tolist(),
-        "EOC" : EOC_c4.tolist(),
-        "time_sim" : simTimes
-    }
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx" : N_x_test_c4.tolist(),
+                "EOC" : EOC_c4.tolist(),
+                "Sim. time" : simTimes
+                }
+            }
+        }
     
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_primarySecondaryNucleationAndGrowth.json', 'w') as json_file:
@@ -228,10 +243,14 @@ def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_EOC_test(
     print("CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion EOC:\n", EOC_c5)
     
     data = {
-        "Nx" : N_x_test_c5.tolist(),
-        "EOC" : EOC_c5.tolist(),
-        "time_sim" : simTimes
-    }
+        "convergence" : {
+            "Convergence in internal coordinate": {
+                "Nx" : N_x_test_c5.tolist(),
+                "EOC" : EOC_c5.tolist(),
+                "Sim. time" : simTimes
+                }
+            }
+        }
     
     # Write the dictionary to a JSON file
     with open(str(output_path) + '/CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion.json', 'w') as json_file:
@@ -357,17 +376,20 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     print("DPFR_PBM_primarySecondaryNucleationGrowth L1 normalized error in axial coordinate:\n", relative_L1_norms_Ncol)
     print("DPFR_PBM_primarySecondaryNucleationGrowth EOC in axial direction:\n", slopes_Ncol)
     data = {
-        "Convergence in axial direction" : {
-        "Ncol" : N_col_test_c6.tolist(),
-        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Ncol,
-        "EOC" : slopes_Ncol.tolist(),
-        "time_sim" : simTimesAxRefinement
-        },
+        "convergence" : {
+        "Convergence in axial direction":
+            {
+            "Ncol" : N_col_test_c6.tolist(),
+            "L1 error normalized by L1 norm of reference" : relative_L1_norms_Ncol,
+            "EOC" : slopes_Ncol.tolist(),
+            "Sim. time" : simTimesAxRefinement
+            },
         "Convergence in internal coordinate" : {
-        "Nx" : N_x_test_c6.tolist(),
-        "L1 error normalized by L1 norm of reference" : relative_L1_norms_Nx,
-        "EOC" : slopes_Nx.tolist(),
-        "time_sim" : simTimesIntRefinement
+            "Nx" : N_x_test_c6.tolist(),
+            "L1 error normalized by L1 norm of reference" : relative_L1_norms_Nx,
+            "EOC" : slopes_Nx.tolist(),
+            "Sim. time" : simTimesIntRefinement
+            }
         }
     }
     
