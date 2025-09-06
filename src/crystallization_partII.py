@@ -690,7 +690,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
 
     # EOC for refinement in axial coordinate
     N_col_test = np.asarray([12, 24, ]) if small_test else np.asarray(
-        [12, 24, 48 ])
+        [12, 24, 48, 96 ])
 
     n_xs = []  # store the result nx here
     sim_times_ax = []
