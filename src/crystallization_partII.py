@@ -767,7 +767,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
     plt.plot(x_ct, c_x, label="Numerical approximation")
     plt.xlabel(r'$Size/\mu m$')
     plt.ylabel(r'$n/(1/m / m)$')
-    plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_PBM_aggregation"), dpi=100, bbox_inches='tight')
+    plt.savefig(re.sub(".h5", ".png", str(output_path) + "/fig_DPFR_NGGR_aggregation"), dpi=100, bbox_inches='tight')
     plt.close()
 
     '''
