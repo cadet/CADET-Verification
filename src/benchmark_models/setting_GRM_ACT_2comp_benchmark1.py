@@ -172,12 +172,11 @@ def ACT_benchmark1(cadet_path, output_path,
     model.save()
     
     if run_simulation:
-        data = model.run()
+        data = model.run_simulation()
         if not data.return_code == 0:
-            print(data.error_message)
-            raise Exception(f"simulation failed")
+            raise Exception(f"simulation failed with {data.error_message}")
     
-        model.load()  
+        model.load_from_file()  
         
         time = model.root.output.solution.solution_times
         c = model.root.output.solution.unit_001.solution_outlet_comp_001
