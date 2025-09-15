@@ -37,3 +37,5 @@ This ensures that your contribution meets the quality standards and helps mainta
 
 Furthermore, contributions aimed at improving or extending the evaluation functions are highly encouraged.The output repo can be found at:
 [output_repo](https://github.com/cadet/CADET-Verification-Output)
+The output repository can be found at:
+[Link to Output Repository](https://github.com/cadet/CADET-Verification-Output)
