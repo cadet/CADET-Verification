@@ -28,6 +28,9 @@ Once the workflow completes, the generated verification data will be published t
 
 > ⚠️ **Note:** There is currently no automated validation of the verification results. Final evaluation must be performed manually by comparing the new output with results from the previous run.
 
+There are some utility functions under `src/utility/compareConvergenceData.py` to facilitate the comparison, which automatically compare convergence and performance data.
+Additionally, a comparison log `.txt` file should be generated using this functionality.
+
 ## Contributing
 
 We welcome and appreciate all contributions!
