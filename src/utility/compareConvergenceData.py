@@ -1,14 +1,39 @@
 import os
 import json
 import requests
-from urllib.parse import urljoin, urlparse
+import sys
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 from typing import Dict, List, Tuple, Set, Union
 import re
 
 
 # Read token from environment variable (recommended) or set it directly here
 GITHUB_TOKEN = r"github_token" # os.getenv("GITHUB_TOKEN")
+
+
+log_file_path = Path.cwd() / "convergence_comparison_log.txt"
+
+def log_print(*args, file: Path = log_file_path, **kwargs):
+    """
+    Prints to console and appends to a file.
+    
+    Usage:
+        log_print("Hello world!")
+        log_print("Value:", value)
+    """
+    # Print to console
+    print(*args, **kwargs)
+
+    # Prepare text to write to file
+    sep = kwargs.get("sep", " ")
+    end = kwargs.get("end", "\n")
+    text = sep.join(str(a) for a in args) + end
+
+    # Append to file
+    with file.open("a", encoding="utf-8") as f:
+        f.write(text)
+
 
 def github_request(url: str, params: dict = None) -> requests.Response:
     """
@@ -53,12 +78,12 @@ def get_github_files_recursive(api_url: str, branch: str) -> List[str]:
             elif item["type"] == "dir":
                 files.extend(get_github_files_recursive(item["url"], branch))
     except requests.exceptions.HTTPError as e:
-        print(f"Error accessing GitHub API: {e}")
+        log_print(f"Error accessing GitHub API: {e}")
         # optionally: print rate limit info
         if e.response is not None:
-            print(f"Response: {e.response.text}")
+            log_print(f"Response: {e.response.text}")
     except Exception as e:
-        print(f"Error accessing GitHub API: {e}")
+        log_print(f"Error accessing GitHub API: {e}")
     return files
 
 
@@ -70,7 +95,7 @@ def get_local_files(directory: str) -> List[str]:
             for filename in filenames:
                 files.append(os.path.join(root, filename))
     except Exception as e:
-        print(f"Error accessing local directory {directory}: {e}")
+        log_print(f"Error accessing local directory {directory}: {e}")
     
     return files
 
@@ -111,14 +136,14 @@ def get_file_content(file_path: str) -> Dict:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
     except Exception as e:
-        print(f"Error reading file {file_path}: {e}")
+        log_print(f"Error reading file {file_path}: {e}")
         return {}
 
 
 def compare_values(val1, val2, key_path: str, print_only_convergence_differences: bool) -> bool:
     """Compare two values recursively, return True if equal"""
     if type(val1) != type(val2):
-        print(f"ERROR: Type mismatch at '{key_path}': {type(val1).__name__} vs {type(val2).__name__}")
+        log_print(f"ERROR: Type mismatch at '{key_path}': {type(val1).__name__} vs {type(val2).__name__}")
         return False
     
     if isinstance(val1, dict):
@@ -126,9 +151,9 @@ def compare_values(val1, val2, key_path: str, print_only_convergence_differences
             missing_in_1 = set(val2.keys()) - set(val1.keys())
             missing_in_2 = set(val1.keys()) - set(val2.keys())
             if missing_in_1:
-                print(f"ERROR: Keys missing in first file at '{key_path}': {missing_in_1}")
+                log_print(f"ERROR: Keys missing in first file at '{key_path}': {missing_in_1}")
             if missing_in_2:
-                print(f"ERROR: Keys missing in second file at '{key_path}': {missing_in_2}")
+                log_print(f"ERROR: Keys missing in second file at '{key_path}': {missing_in_2}")
             return False
         
         for key in val1:
@@ -141,13 +166,13 @@ def compare_values(val1, val2, key_path: str, print_only_convergence_differences
                     if len(time_list_1) == len(time_list_2):
                         differences = calculate_percentage_difference(time_list_1, time_list_2)
                         if not all(x == 0.0 for x in differences) and not print_only_convergence_differences:
-                            print(f"Sim. time percentage differences: {differences}")
+                            log_print(f"Sim. time percentage differences: {differences}")
                         elif not print_only_convergence_differences:
-                            print(f"Sim. time is similar")
+                            log_print(f"Sim. time is similar")
                     else:
-                        print(f"ERROR: Sim. time lists have different lengths: {len(time_list_1)} vs {len(time_list_2)}")
+                        log_print(f"ERROR: Sim. time lists have different lengths: {len(time_list_1)} vs {len(time_list_2)}")
                 except (ValueError, TypeError) as e:
-                    print(f"ERROR: Could not convert Sim. time values to numbers: {e}")
+                    log_print(f"ERROR: Could not convert Sim. time values to numbers: {e}")
                 return True
             else:
                 if not compare_values(val1[key], val2[key], f"{key_path}.{key}", print_only_convergence_differences):
@@ -156,7 +181,7 @@ def compare_values(val1, val2, key_path: str, print_only_convergence_differences
     
     elif isinstance(val1, list):
         if len(val1) != len(val2):
-            print(f"ERROR: List length mismatch at '{key_path}': {len(val1)} vs {len(val2)}")
+            log_print(f"ERROR: List length mismatch at '{key_path}': {len(val1)} vs {len(val2)}")
             return False
         
         for i, (item1, item2) in enumerate(zip(val1, val2)):
@@ -166,7 +191,7 @@ def compare_values(val1, val2, key_path: str, print_only_convergence_differences
     
     else:
         if val1 != val2:
-            print(f"ERROR: Value mismatch at '{key_path}': {val1} vs {val2}")
+            log_print(f"ERROR: Value mismatch at '{key_path}': {val1} vs {val2}")
             return False
         return True
 
@@ -195,10 +220,10 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
     """
     Compare JSON files between two directories or GitHub repo paths.
     """
-    print(f"Comparing directories:")
-    print(f"  Directory 1: {dir1}")
-    print(f"  Directory 2: {dir2}")
-    print("=" * 60)
+    log_print(f"Comparing directories:")
+    log_print(f"  Directory 1: {dir1}")
+    log_print(f"  Directory 2: {dir2}")
+    log_print("=" * 60)
 
     # Get all files
     files1 = get_files_from_path(dir1)
@@ -208,8 +233,8 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
     json_files1 = filter_convergence_json(files1)
     json_files2 = filter_convergence_json(files2)
 
-    print(f"Found {len(json_files1)} convergence JSON files in directory 1")
-    print(f"Found {len(json_files2)} convergence JSON files in directory 2")
+    log_print(f"Found {len(json_files1)} convergence JSON files in directory 1")
+    log_print(f"Found {len(json_files2)} convergence JSON files in directory 2")
     
     # Extract just the filenames for comparison
     names1 = {os.path.basename(f) for f in json_files1}
@@ -220,41 +245,41 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
     only_in_dir2 = names2 - names1
     common_files = names1 & names2
     
-    print("\n" + "=" * 60)
-    print("CONVERGENCE FILES EXISTING IN ONLY ONE DIRECTORY:")
-    print("=" * 60)
+    log_print("\n" + "=" * 60)
+    log_print("CONVERGENCE FILES EXISTING IN ONLY ONE DIRECTORY:")
+    log_print("=" * 60)
     
     if only_in_dir1:
-        print(f"\nFiles only in directory 1 ({len(only_in_dir1)} files):")
+        log_print(f"\nFiles only in directory 1 ({len(only_in_dir1)} files):")
         for filename in sorted(only_in_dir1):
-            print(f"  - {filename}")
+            log_print(f"  - {filename}")
     
     if only_in_dir2:
-        print(f"\nFiles only in directory 2 ({len(only_in_dir2)} files):")
+        log_print(f"\nFiles only in directory 2 ({len(only_in_dir2)} files):")
         for filename in sorted(only_in_dir2):
-            print(f"  - {filename}")
+            log_print(f"  - {filename}")
     
     if not only_in_dir1 and not only_in_dir2:
-        print("  No files exist in only one directory.")
+        log_print("  No files exist in only one directory.")
     
-    print("\n" + "=" * 60)
-    print("COMPARING COMMON FILES:")
+    log_print("\n" + "=" * 60)
+    log_print("COMPARING COMMON FILES:")
     if print_only_convergence_differences:
-        print(r"(Only convergence differences are printed)")
-    print("=" * 60)
+        log_print(r"(Only convergence differences are printed)")
+    log_print("=" * 60)
     
     # Compare common files
     for filename in sorted(common_files):   
         
-        print(f"\nComparing: {filename}")
-        print("-" * 40)
+        log_print(f"\nComparing: {filename}")
+        log_print("-" * 40)
         
         # Find full paths for the files
         file1_path = next((f for f in json_files1 if os.path.basename(f) == filename), None)
         file2_path = next((f for f in json_files2 if os.path.basename(f) == filename), None)
         
         if not file1_path or not file2_path:
-            print(f"ERROR: Could not find full path for {filename}")
+            log_print(f"ERROR: Could not find full path for {filename}")
             continue
         
         # Load JSON content
@@ -262,14 +287,14 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
         content2 = get_file_content(file2_path)
         
         if not content1 or not content2:
-            print(f"ERROR: Could not load content from one or both files")
+            log_print(f"ERROR: Could not load content from one or both files")
             continue
         
         content1 = content1.get('convergence', None)
         content2 = content2.get('convergence', None)
         
         if content1 is None or content2 is None:
-            print(f"ERROR: one of the two files has no key 'convergence'")
+            log_print(f"ERROR: one of the two files has no key 'convergence'")
             continue
         
         content2Keys = list(content2.keys())
@@ -278,7 +303,7 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
             
             key2 = content2.get(key1, None)
             if key2 is None:
-                print(f"ERROR: {key1} does not exist in {file2_path}")
+                log_print(f"ERROR: {key1} does not exist in {file2_path}")
                 continue
             
             content2Keys.remove(key1)
@@ -286,13 +311,13 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
             files_match = compare_values(content1, content2, key1, print_only_convergence_differences)
         
         if len(content2Keys):
-            print(f"ERROR: {content2Keys} do not exist in {file1_path}")
+            log_print(f"ERROR: {content2Keys} do not exist in {file1_path}")
             continue
         
         if not files_match:
-            print("✗ Files have differences")
+            log_print("✗ Files have differences")
         elif not print_only_convergence_differences:
-            print("✓ Files match (excluding Sim. time)")
+            log_print("✓ Files match (excluding Sim. time)")
 
 
 #%% Example usage:
