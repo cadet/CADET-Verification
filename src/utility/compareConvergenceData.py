@@ -3,52 +3,62 @@ import json
 import requests
 from urllib.parse import urljoin, urlparse
 from pathlib import Path
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Union
 import re
 
 
-def get_github_files(url: str) -> List[str]:
-    """
-    Get list of files from a GitHub repository URL.
-    Converts GitHub URLs to API format and recursively gets all files.
-    """
-    # Convert GitHub URL to API URL
-    if 'github.com' in url:
-        # Parse GitHub URL: https://github.com/user/repo/tree/branch/path
-        parts = url.split('github.com/')[-1].split('/')
-        if len(parts) >= 2:
-            user, repo = parts[0], parts[1]
-            branch = 'main'  # default branch
-            path = ''
-            
-            if len(parts) > 2 and parts[2] == 'tree':
-                if len(parts) > 3:
-                    branch = parts[3]
-                if len(parts) > 4:
-                    path = '/'.join(parts[4:])
-            
-            api_url = f"https://api.github.com/repos/{user}/{repo}/contents/{path}"
-            return get_github_files_recursive(api_url, branch)
-    
-    return []
+# Read token from environment variable (recommended) or set it directly here
+GITHUB_TOKEN = r"github_token" # os.getenv("GITHUB_TOKEN")
 
+def github_request(url: str, params: dict = None) -> requests.Response:
+    """
+    Wrapper for requests.get with optional GitHub token authentication.
+    """
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "compare-json-script/1.0"
+    }
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
 
-def get_github_files_recursive(api_url: str, branch: str = 'main') -> List[str]:
-    """Recursively get all files from GitHub API"""
+    resp = requests.get(url, headers=headers, params=params)
+    resp.raise_for_status()  # raise HTTPError for 4xx/5xx
+    return resp
+
+def get_github_files(owner: str, repo: str, branch: str, path: str = "") -> List[str]:
+    """
+    Get all file download URLs from a GitHub repo, branch, and path.
+    Uses authentication if GITHUB_TOKEN is set to increase rate limits.
+    """
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+    return get_github_files_recursive(api_url, branch)
+
+def get_github_files_recursive(api_url: str, branch: str) -> List[str]:
+    """
+    Recursively fetch all files from a GitHub API URL using optional token.
+    """
     files = []
     try:
-        response = requests.get(api_url, params={'ref': branch})
-        response.raise_for_status()
-        
-        for item in response.json():
-            if item['type'] == 'file':
-                files.append(item['download_url'])
-            elif item['type'] == 'dir':
-                # Recursively get files from subdirectories
-                files.extend(get_github_files_recursive(item['url'], branch))
+        response = github_request(api_url, params={'ref': branch})
+        items = response.json()
+
+        # single file case
+        if isinstance(items, dict) and items.get("type") == "file":
+            return [items["download_url"]]
+
+        # directory listing
+        for item in items:
+            if item["type"] == "file":
+                files.append(item["download_url"])
+            elif item["type"] == "dir":
+                files.extend(get_github_files_recursive(item["url"], branch))
+    except requests.exceptions.HTTPError as e:
+        print(f"Error accessing GitHub API: {e}")
+        # optionally: print rate limit info
+        if e.response is not None:
+            print(f"Response: {e.response.text}")
     except Exception as e:
         print(f"Error accessing GitHub API: {e}")
-    
     return files
 
 
@@ -65,12 +75,19 @@ def get_local_files(directory: str) -> List[str]:
     return files
 
 
-def get_files_from_path(path: str) -> List[str]:
-    """Get files from either local directory or remote URL"""
-    if path.startswith(('http://', 'https://')):
-        return get_github_files(path)
-    else:
+def get_files_from_path(path: Union[str, Tuple[str, str, str, str]]) -> List[str]:
+    """
+    Get files from either a local directory or a GitHub repo spec.
+    GitHub repo spec is a tuple: (owner, repo, branch, path)
+    """
+    if isinstance(path, tuple) and len(path) == 4:
+        owner, repo, branch, repo_path = path
+        return get_github_files(owner, repo, branch, repo_path)
+    elif isinstance(path, str):
         return get_local_files(path)
+    else:
+        raise ValueError("Path must be a string (local dir) or a tuple (owner, repo, branch, path)")
+
 
 
 def filter_convergence_json(files: List[str]) -> List[str]:
@@ -98,7 +115,7 @@ def get_file_content(file_path: str) -> Dict:
         return {}
 
 
-def compare_values(val1, val2, key_path: str) -> bool:
+def compare_values(val1, val2, key_path: str, print_only_convergence_differences: bool) -> bool:
     """Compare two values recursively, return True if equal"""
     if type(val1) != type(val2):
         print(f"ERROR: Type mismatch at '{key_path}': {type(val1).__name__} vs {type(val2).__name__}")
@@ -123,15 +140,17 @@ def compare_values(val1, val2, key_path: str) -> bool:
                     
                     if len(time_list_1) == len(time_list_2):
                         differences = calculate_percentage_difference(time_list_1, time_list_2)
-                        if not all(x == 0.0 for x in differences):
+                        if not all(x == 0.0 for x in differences) and not print_only_convergence_differences:
                             print(f"Sim. time percentage differences: {differences}")
+                        elif not print_only_convergence_differences:
+                            print(f"Sim. time is similar")
                     else:
                         print(f"ERROR: Sim. time lists have different lengths: {len(time_list_1)} vs {len(time_list_2)}")
                 except (ValueError, TypeError) as e:
                     print(f"ERROR: Could not convert Sim. time values to numbers: {e}")
                 return True
             else:
-                if not compare_values(val1[key], val2[key], f"{key_path}.{key}"):
+                if not compare_values(val1[key], val2[key], f"{key_path}.{key}", print_only_convergence_differences):
                     return False
         return True
     
@@ -141,7 +160,7 @@ def compare_values(val1, val2, key_path: str) -> bool:
             return False
         
         for i, (item1, item2) in enumerate(zip(val1, val2)):
-            if not compare_values(item1, item2, f"{key_path}[{i}]"):
+            if not compare_values(item1, item2, f"{key_path}[{i}]", print_only_convergence_differences):
                 return False
         return True
     
@@ -170,27 +189,25 @@ def calculate_percentage_difference(list1: List[float], list2: List[float]) -> L
     return differences
 
 
-def compare_json_directories(dir1: str, dir2: str):
+def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]], 
+                             dir2: Union[str, Tuple[str,str,str,str]],
+                             print_only_convergence_differences: bool):
     """
-    Main function to compare JSON files between two directories.
-    
-    Args:
-        dir1: First directory path (local or URL)
-        dir2: Second directory path (local or URL)
+    Compare JSON files between two directories or GitHub repo paths.
     """
     print(f"Comparing directories:")
     print(f"  Directory 1: {dir1}")
     print(f"  Directory 2: {dir2}")
     print("=" * 60)
-    
-    # Get all files from both directories
+
+    # Get all files
     files1 = get_files_from_path(dir1)
     files2 = get_files_from_path(dir2)
-    
-    # Filter for convergence JSON files
+
+    # Filter JSON
     json_files1 = filter_convergence_json(files1)
     json_files2 = filter_convergence_json(files2)
-    
+
     print(f"Found {len(json_files1)} convergence JSON files in directory 1")
     print(f"Found {len(json_files2)} convergence JSON files in directory 2")
     
@@ -204,7 +221,7 @@ def compare_json_directories(dir1: str, dir2: str):
     common_files = names1 & names2
     
     print("\n" + "=" * 60)
-    print("FILES EXISTING IN ONLY ONE DIRECTORY:")
+    print("CONVERGENCE FILES EXISTING IN ONLY ONE DIRECTORY:")
     print("=" * 60)
     
     if only_in_dir1:
@@ -222,6 +239,8 @@ def compare_json_directories(dir1: str, dir2: str):
     
     print("\n" + "=" * 60)
     print("COMPARING COMMON FILES:")
+    if print_only_convergence_differences:
+        print(r"(Only convergence differences are printed)")
     print("=" * 60)
     
     # Compare common files
@@ -264,7 +283,7 @@ def compare_json_directories(dir1: str, dir2: str):
             
             content2Keys.remove(key1)
             
-            files_match = compare_values(content1, content2, key1)
+            files_match = compare_values(content1, content2, key1, print_only_convergence_differences)
         
         if len(content2Keys):
             print(f"ERROR: {content2Keys} do not exist in {file1_path}")
@@ -272,20 +291,24 @@ def compare_json_directories(dir1: str, dir2: str):
         
         if not files_match:
             print("✗ Files have differences")
-        else:
+        elif not print_only_convergence_differences:
             print("✓ Files match (excluding Sim. time)")
 
 
-# # Example usage:
+#%% Example usage:
 
+# # local directory
 # compare_json_directories(
-#     r"C:\Users\jmbr\software\CADET-Verification\output\test_cadet-core\2Dchromatography",
-#     r"C:\Users\jmbr\software\CADET-Verification\output\test_cadet-core\test_2Dchromatography")
+#     r"C:\Users\jmbr\software\CADET-Verification\output\test_cadet-core\chromatography_test",
+#     r"C:\Users\jmbr\software\CADET-Verification\output\test_cadet-core\chromatography",
+#     print_only_convergence_differences=True
+#     )
 
 
-# compare_json_directories(  
-# r"https://github.com/cadet/CADET-Verification-Output/tree/2024-10-25_09-25-00_main_5030418/test_cadet-core",
-# r"https://github.com/cadet/CADET-Verification-Output/tree/2024-12-12_15-38-58_main_6ed1238/test_cadet-core"
+# # github repo
+# # A github TOKEN with acces to the repo cadet-verification-output must be set at the top of this file!
+# compare_json_directories(
+#     ("cadet", "CADET-Verification-Output", "2025-08-13_22-00-53_release/cadet-core_v504_329536f", "test_cadet-core"),
+#     ("cadet", "CADET-Verification-Output", "2025-09-15_12-48-47_release/cadet-core_v5.1.0_c4c48ec", "test_cadet-core"),
+#     print_only_convergence_differences=True
 # )
-  
-  
