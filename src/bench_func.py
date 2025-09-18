@@ -1,9 +1,7 @@
 """
-Created April 2024
 
 This script implement helper functions to create benchmarks.
 
-@author: jmbr
 """
 
 import urllib.request
@@ -222,14 +220,21 @@ def create_object_from_config(
                                                   tmpID]['discretization']['AX_NELEM'] = ax_cells
 
             if par_method is not None:
-                if par_method == 0:
+            
+                if par_method > 0:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['NPAR'] = par_cells
+                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'DG'
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['PAR_POLYDEG'] = par_method
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['PAR_NELEM'] = par_cells
                 else:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['PAR_POLYDEG'] = par_method
+                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'FV'
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['PAR_NELEM'] = par_cells
+                                                  tmpID]['particle_type_000']['discretization']['NCELLS'] = par_cells
+                    config_data['input']['model']['unit_' +
+                                                  tmpID]['particle_type_000']['discretization']['FV_BOUNDARY_ORDER'] = 2
             if rad_method is not None:
             
                 config_data['input']['model']['unit_'+tmpID].PORTS = (rad_method + 1 ) * rad_cells

@@ -1,9 +1,17 @@
+"""
+
+This script defines linear adsorption case studies with total porosity
+assumption used for numerical benchmarks in
+https://doi.org/10.1016/j.compchemeng.2023.108340
+
+"""
+
 from addict import Dict
 import numpy as np
 
 def get_model(
-        particle_type='GENERAL_RATE_PARTICLE',
-        refinement=1, polyDeg=3,
+        spatial_method_bulk,
+        refinement=1,
         **kwargs):
     
     axNElem = 8 * kwargs.get('axRefinement', refinement)
@@ -26,38 +34,42 @@ def get_model(
     
     column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.ncomp = 1
-    column.col_dispersion = 5.75e-08
-    column.col_length = 0.014
-    column.col_porosity = 0.37
-    column.velocity = 0.000575
+    column.col_dispersion = 0.0001
+    column.col_length = 1.0
+    column.total_porosity = 0.6
+    column.velocity = 0.03333333333333333
     column.npartype = 1
-    column.par_type_volfrac = 1
     
-    column.discretization.SPATIAL_METHOD = 'DG'
-    # column.discretization.EXACT_INTEGRATION = 1
-    column.discretization.POLYDEG = kwargs.get('axP', polyDeg)
-    column.discretization.NELEM = axNElem
+    if spatial_method_bulk > 0:
+        column.discretization.SPATIAL_METHOD = "DG"
+        column.discretization.EXACT_INTEGRATION = kwargs.get('exact_integration', 0)
+        column.discretization.POLYDEG = spatial_method_bulk
+        column.discretization.NELEM = axNElem
+    else:
+        column.discretization.SPATIAL_METHOD = "FV"
+        column.discretization.NCOL = axNElem
+        column.discretization.RECONSTRUCTION = 'WENO'
+        column.discretization.weno.BOUNDARY_MODEL = 0
+        column.discretization.weno.WENO_EPS = 1e-10
+        column.discretization.weno.WENO_ORDER = 2
+        column.discretization.GS_TYPE = 1
+        column.discretization.MAX_KRYLOV = 0
+        column.discretization.MAX_RESTARTS = 10
+        column.discretization.SCHUR_SAFETY = 1.0e-8
     column.discretization.USE_ANALYTIC_JACOBIAN = 1
     column.init_c = [ 0.0 ]
-    
-    column.particle_type_000.particle_type = particle_type
-    column.particle_type_000.par_geom = 'SPHERE'
-    column.particle_type_000.par_radius = 4.5e-05
-    column.particle_type_000.par_coreradius = 0.0
-    column.particle_type_000.par_porosity = 0.75
-    column.particle_type_000.par_diffusion = 6.07e-11
-    column.particle_type_000.par_surfdiffusion = 0.0
-    column.particle_type_000.film_diffusion = 6.9e-06
+
+    column.particle_type_000.has_film_diffusion = 0
+    column.particle_type_000.has_pore_diffusion = 0
+    column.particle_type_000.has_surface_diffusion = 0
+
     column.particle_type_000.nbound = [ 1 ]
-    column.particle_type_000.adsorption.is_kinetic = True
-    column.particle_type_000.adsorption.lin_ka = [ 3.55 ]
-    column.particle_type_000.adsorption.lin_kd = [ 0.1 ]
+    column.particle_type_000.adsorption.is_kinetic = kwargs.get('is_kinetic', 1)
+    column.particle_type_000.adsorption.lin_ka = [ 1.0 ]
+    column.particle_type_000.adsorption.lin_kd = [ 1.0 ]
     column.particle_type_000.adsorption_model = 'LINEAR'
-    column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
-    column.particle_type_000.discretization.PAR_POLYDEG = kwargs.get('parP', polyDeg)
-    column.particle_type_000.discretization.PAR_NELEM = parNElem
-    column.init_cp = [ 0.0 ]
-    column.init_cs = [ 0.0 ]
+    column.particle_type_000.init_cp = [ 0.0 ]
+    column.particle_type_000.init_cs = [ 0.0 ]
     
     model.input.model.unit_001 = column
     
@@ -115,5 +127,52 @@ def get_model(
     model.input['return'].unit_002.write_solution_bulk = 0
     model.input['return'].unit_002.write_solution_inlet = 0
     model.input['return'].unit_002.write_solution_outlet = 0
+    
+    return model
+
+
+def add_sensitivity_LRM_dynLin_1comp_benchmark1(model, sensName):
+
+    sensDepIdx = {
+        'COL_DISPERSION': {'sens_comp': np.int64(0)},
+        'TOTAL_POROSITY': { },
+        'LIN_KA': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)}
+    }
+
+    if sensName not in sensDepIdx:
+        raise Exception(f'Sensitivity dependencies for {sensName} unknown, please implement!')
+
+    if 'sensitivity' in model['input']:
+        model['input']['sensitivity']['NSENS'] += 1
+    else:
+        model['input']['sensitivity'] = {'NSENS': np.int64(1)}
+        model['input']['sensitivity']['sens_method'] = np.bytes_(b'ad1')
+
+    sensIdx = str(model['input']['sensitivity']['NSENS'] - 1).zfill(3)
+    
+    model['input']['sensitivity'][f'param_{sensIdx}'] = {}
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_name'] = str(sensName)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_unit'] = np.int64(1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_partype'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_reaction'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_section'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_boundphase'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_comp'] = np.int64(-1)
+    
+    if sensName in sensDepIdx:
+        param = model['input']['sensitivity'][f'param_{sensIdx}']
+        for key, value in {**sensDepIdx[sensName]}.items():
+            model['input']['sensitivity'][f'param_{sensIdx}'][key] = value
+
+    return model
+
+
+def get_sensbenchmark1(spatial_method_bulk):
+    
+    model = get_model(spatial_method_bulk)
+    model['input'].pop('sensitivity', None)
+    model = add_sensitivity_LRM_dynLin_1comp_benchmark1(model, 'COL_DISPERSION')
+    model = add_sensitivity_LRM_dynLin_1comp_benchmark1(model, 'TOTAL_POROSITY')
+    model = add_sensitivity_LRM_dynLin_1comp_benchmark1(model, 'LIN_KA')
     
     return model
