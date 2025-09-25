@@ -41,31 +41,17 @@ def GRM2D_linBnd_tests(
     os.makedirs(output_path, exist_ok=True)
 
     nRadialZones = 3
-    n_settings = 6
 
-    references = [None] * n_settings
-
-    if use_CASEMA_reference:
-
-        references = []
-        ref_file_names = ['CASEMA_reference/ref_2DGRM3Zone_noBnd_1Comp_radZ3.h5',
-                          'CASEMA_reference/ref_2DGRM3Zone_dynLin_1Comp_radZ3.h5',
-                          'CASEMA_reference/ref_2DGRMsd3Zone_dynLin_1Comp_radZ3.h5',
-                          'CASEMA_reference/ref_2DGRM3Zone_reqLin_1Comp_radZ3.h5',
-                          'CASEMA_reference/ref_2DGRMsd3Zone_reqLin_1Comp_radZ3.h5',
-                          'CASEMA_reference/ref_2DGRM2parType3Zone_1Comp_radZ3.h5' if small_test else 'CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5'
-                          ]
-
-        # Note: All zones will be considered when use_CASEMA_reference is true.
-        # We start with the first and compute the other two in a second step.
-        # Finally, we compute a discrete norm of the zonal errors to compute the EOC.
-        for idx in range(n_settings):
-            # note that we consider radial zone 0
-            references.extend(
-                [convergence.get_solution(
-                    reference_data_path + '/' + ref_file_names[idx], unit='unit_000', which='outlet_port_' + str(0).zfill(3)
-                )]
-            )
+    # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
+    
+    ref_file_names = [
+        'CASEMA_reference/ref_2DGRM3Zone_noBnd_1Comp_radZ3.h5',
+        'CASEMA_reference/ref_2DGRM3Zone_dynLin_1Comp_radZ3.h5',
+        'CASEMA_reference/ref_2DGRMsd3Zone_dynLin_1Comp_radZ3.h5',
+        'CASEMA_reference/ref_2DGRM3Zone_reqLin_1Comp_radZ3.h5',
+        'CASEMA_reference/ref_2DGRMsd3Zone_reqLin_1Comp_radZ3.h5',
+        'CASEMA_reference/ref_2DGRM2parType3Zone_1Comp_radZ3.h5' if small_test else 'CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5'
+        ]
 
     def get_settings():
         return [
@@ -78,7 +64,9 @@ def GRM2D_linBnd_tests(
                 'name': '2DGRM3Zone_noBnd_1Comp',
                 'adsorption_model': 'NONE',
                 'par_surfdiffusion': 0.0,
-                'reference': references[0]
+                'reference': convergence.get_solution(
+                    reference_data_path + '/CASEMA_reference/ref_2DGRM3Zone_noBnd_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                )
             },
             {  # 1parType, dynamic binding, no surface diffusion
                 'analytical_reference': use_CASEMA_reference,
@@ -87,7 +75,9 @@ def GRM2D_linBnd_tests(
                 'adsorption_model': 'LINEAR',
                 'adsorption.is_kinetic': 1,
                 'par_surfdiffusion': 0.0,
-                'reference': references[1]
+                'reference': convergence.get_solution(
+                    reference_data_path + '/' + 'CASEMA_reference/ref_2DGRM3Zone_dynLin_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                )
             },
             {  # 1parType, dynamic binding, with surface diffusion
                 'analytical_reference': use_CASEMA_reference,
@@ -96,7 +86,9 @@ def GRM2D_linBnd_tests(
                 'adsorption_model': 'LINEAR',
                 'adsorption.is_kinetic': 1,
                 'par_surfdiffusion': 1e-11,
-                'reference': references[2]
+                'reference': convergence.get_solution(
+                    reference_data_path + '/CASEMA_reference/ref_2DGRMsd3Zone_dynLin_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                )
             },
             {  # 1parType, req binding, no surface diffusion
                 'analytical_reference': use_CASEMA_reference,
@@ -107,7 +99,9 @@ def GRM2D_linBnd_tests(
                 'par_surfdiffusion': 0.0,
                 'init_cp': [0.0],
                 'init_cs': [0.0],
-                'reference': references[3]
+                'reference': convergence.get_solution(
+                    reference_data_path + '/CASEMA_reference/ref_2DGRM3Zone_reqLin_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                )
             },
             {  # 1parType, req binding, with surface diffusion
                 'analytical_reference': use_CASEMA_reference,
@@ -118,7 +112,9 @@ def GRM2D_linBnd_tests(
                 'par_surfdiffusion': 1e-11,
                 'init_cp': [0.0],
                 'init_cs': [0.0],
-                'reference': references[4]
+                'reference': convergence.get_solution(
+                    reference_data_path + '/CASEMA_reference/ref_2DGRMsd3Zone_reqLin_1Comp_radZ3.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                )
             },
             {  # 4parType:
                 'analytical_reference': use_CASEMA_reference,
@@ -140,13 +136,18 @@ def GRM2D_linBnd_tests(
                 'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
                 'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
                 'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-                'reference': references[5]
+                'reference': convergence.get_solution(
+                    reference_data_path + '/CASEMA_reference/ref_2DGRM2parType3Zone_1Comp_radZ3.h5',# if small_test else reference_data_path + '/CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5',
+                    unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                )
             }
         ]
 
     # %% Define benchmarks
 
     settings = get_settings()
+
+    n_settings = len(settings)
 
     cadet_configs = []
     config_names = []
@@ -259,20 +260,15 @@ def GRM2D_linBnd_tests(
 
         def copy_json_file(source_file, destination_file):
             try:
-                # Copy the file
                 shutil.copy(source_file, destination_file)
-            #     print(f"Copied {source_file} to {destination_file}")
             except FileNotFoundError:
                 print(f"File {source_file} not found!")
             except Exception as e:
                 print(f"An error occurred: {e}")
 
         def rename_json_file(original_file, new_file):
-
-            # Rename the file
             try:
-                os.rename(original_file, new_file)
-            #     print(f"Renamed {original_file} to {new_file}")
+                os.replace(original_file, new_file)
             except FileNotFoundError:
                 print(f"File {original_file} not found!")
             except Exception as e:
@@ -291,7 +287,7 @@ def GRM2D_linBnd_tests(
 
             references = []
 
-            for idx in range(n_settings):
+            for idx in range(len(ref_file_names)):
 
                 # get the references at the other ports
                 references.extend(
@@ -305,8 +301,7 @@ def GRM2D_linBnd_tests(
 
             # calculate results for next port
 
-            ref_files = [[references[0]], [references[1]], [references[2]],
-                         [references[3]], [references[4]], [references[5]]]
+            ref_files = [[references[i]] for i in range(len(references))]
 
             bench_func.run_convergence_analysis(
                 database_path=database_path, output_path=output_path,
