@@ -11,6 +11,10 @@ on:
         description: "Docker image to use for the verification job"
         required: false
         default: "ghcr.io/cadet/cadet-suite:master"
+      branch:
+        description: "Branch or commit SHA to test (only used in manual dispatch)"
+        required: false
+        default: "main"
 
 permissions:
   contents: read
@@ -20,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DOCKER_IMAGE: ${{ github.event.inputs.docker_image || 'ghcr.io/cadet/cadet-suite:master' }}
+      COMMIT_SHA: ${{ github.event.inputs.branch || github.event.pull_request.head.sha || github.sha }}
       PYTEST_ARGS: ""
     steps:
       - name: Run test in Docker
@@ -27,7 +32,7 @@ jobs:
           docker pull "$DOCKER_IMAGE"
           docker run --rm \
             -e REPOSITORY="${{ github.repository }}" \
-            -e COMMIT_SHA="${{ github.event.pull_request.head.sha || github.sha }}" \
+            -e COMMIT_SHA="$COMMIT_SHA" \
             "$DOCKER_IMAGE" \
             bash -c "
               set -e
@@ -39,7 +44,7 @@ jobs:
 
               echo 'Cloning CADET-Verification'
               git clone https://github.com/cadet/CADET-Verification.git .
-              git fetch origin \$COMMIT_SHA
+              git fetch origin \$COMMIT_SHA || true
               git checkout \$COMMIT_SHA
 
               echo 'Installing Python dependencies'
