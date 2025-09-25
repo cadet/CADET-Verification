@@ -5,6 +5,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: "Docker image to use for the verification job"
+        required: false
+        default: "ghcr.io/cadet/cadet-suite:master"
 
 permissions:
   contents: read
@@ -13,7 +19,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      DOCKER_IMAGE: ghcr.io/cadet/cadet-suite:master
+      DOCKER_IMAGE: ${{ github.event.inputs.docker_image || 'ghcr.io/cadet/cadet-suite:master' }}
       PYTEST_ARGS: ""
     steps:
       - name: Run test in Docker
