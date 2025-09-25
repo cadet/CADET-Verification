@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created Juli 2024
 
 This script implements the EOC tests to verify the population balance model (PBM),
 which is implemented in CADET-Core. The tests encompass all combinations of the
 PBM terms such as nucleation, growth and growth rate dispersion. Further, the
 incorporation of the PBM into a DPFR transport model is tested.
 
-@author: wendi zhang (original draft) and jmbr (incorporation to CADET-Verification)
 """
 
 #%% Include packages
