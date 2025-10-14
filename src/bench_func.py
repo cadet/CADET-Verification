@@ -221,20 +221,31 @@ def create_object_from_config(
 
             if par_method is not None:
             
-                if par_method > 0:
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'DG'
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['particle_type_000']['discretization']['PAR_POLYDEG'] = par_method
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['particle_type_000']['discretization']['PAR_NELEM'] = par_cells
+                if 'NPARTYPE' in config_data['input']['model']['unit_' + tmpID].keys():
+                    nParType = config_data['input']['model']['unit_' + tmpID]['NPARTYPE']
+                elif 'npartype' in config_data['input']['model']['unit_' + tmpID].keys():
+                    nParType = config_data['input']['model']['unit_' + tmpID]['npartype']
                 else:
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['particle_type_000']['discretization']['SPATIAL_METHOD'] = 'FV'
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['particle_type_000']['discretization']['NCELLS'] = par_cells
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['particle_type_000']['discretization']['FV_BOUNDARY_ORDER'] = 2
+                    raise Exception(f"Refinement of particle discretization was asked, but NPARTYPE does not exist in model")
+            
+                for par_type in range(nParType):
+                    
+                    typeID = str(par_type).zfill(3)
+                    
+                    if par_method > 0:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['particle_type_'+typeID]['discretization']['SPATIAL_METHOD'] = 'DG'
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['particle_type_'+typeID]['discretization']['PAR_POLYDEG'] = par_method
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['particle_type_'+typeID]['discretization']['PAR_NELEM'] = par_cells
+                    else:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['particle_type_'+typeID]['discretization']['SPATIAL_METHOD'] = 'FV'
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['particle_type_'+typeID]['discretization']['NCELLS'] = par_cells
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['particle_type_'+typeID]['discretization']['FV_BOUNDARY_ORDER'] = 2
             if rad_method is not None:
             
                 config_data['input']['model']['unit_'+tmpID].PORTS = (rad_method + 1 ) * rad_cells
