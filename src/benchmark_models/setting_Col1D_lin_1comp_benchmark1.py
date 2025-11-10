@@ -36,6 +36,7 @@ def get_model(
     column.ncomp = 1
     column.col_dispersion = 5.75e-08
     column.col_length = 0.014
+    column.cross_section_area = (6.e-05 / 0.000575) / 0.37
     column.col_porosity = 0.37
     if particle_type == 'EQUILIBRIUM_PARTICLE':
         column.total_porosity = 0.37 + (1.0 - 0.37) * 0.75
@@ -54,7 +55,7 @@ def get_model(
         column.discretization.RECONSTRUCTION = 'WENO'
         column.discretization.weno.BOUNDARY_MODEL = 0
         column.discretization.weno.WENO_EPS = 1e-10
-        column.discretization.weno.WENO_ORDER = 2
+        column.discretization.weno.WENO_ORDER = kwargs.get('weno_order', 2)
         column.discretization.GS_TYPE = 1
         column.discretization.MAX_KRYLOV = 0
         column.discretization.MAX_RESTARTS = 10
@@ -259,11 +260,11 @@ def add_sensitivity_GRM_dynLin_1comp_benchmark1(model, sensName):
     return model
 
 
-def get_GRM_sensbenchmark1(spatial_method_bulk, spatial_method_particle):
+def get_GRM_sensbenchmark1(spatial_method_bulk, spatial_method_particle, **kwargs):
     
     model = get_model(spatial_method_bulk,
                       spatial_method_particle=spatial_method_particle,
-                      particle_type='GENERAL_RATE_PARTICLE')
+                      particle_type='GENERAL_RATE_PARTICLE', **kwargs)
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'COL_DISPERSION')
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PAR_DIFFUSION')
@@ -284,3 +285,22 @@ def get_GRM_sensbenchmark2(spatial_method_bulk, spatial_method_particle):
         model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PAR_RADIUS')
     
     return model
+
+# from cadet import Cadet
+
+# Cadet.cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET-Core\out\install\aRELEASE\bin\cadet-cli.exe"
+
+# model = Cadet()
+
+# model.root = get_model(0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0)
+
+# model.filename = "axialGRM.h5"
+
+# model.save()
+
+# return_data = model.run_simulation()
+
+# if not return_data.return_code == 0:
+#     print(return_data.error_message)
+#     raise Exception(f"simulation failed")
+# model.load_from_file()
