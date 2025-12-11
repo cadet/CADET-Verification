@@ -7,8 +7,145 @@ from cadet import Cadet
 import src.benchmark_models.setting_Col1D_lin_1comp_benchmark1 as axSetting
 import src.utility.convergence as convergence
 
-Cadet.cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET-Core\out\install\aRELEASE"
+Cadet.cadet_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master4_v6alpha1_11eef19\aRELEASE"
 
+
+#%% Comparison of frustum with radial and axial flow models
+# Frustum vs Radial flow for a single-comp. linear binding setting,
+# with similar bed height, column volume and inlet cross sectional area
+# (which is at the smaller radius cross-section area in both settings)
+# The devices MUST differ in volume, otherwise they approximate the radial flow device!
+
+# changeable parameters
+bedHeight = 0.014 # axial OG value: 0.014
+flowRate = 6.e-05 # axial OG value: 6.e-05
+inletVelocity = 0.000575 # axial OG value: 0.000575
+porosity = 0.37
+
+# derived values, based on the original setting for the axial flow model
+inletCrossSectionalArea = flowRate / inletVelocity / porosity
+axialColumnRadius = np.sqrt(inletCrossSectionalArea / np.pi)
+columnVolume = np.pi * axialColumnRadius**2 * bedHeight
+print("Axial column volume: ", columnVolume)
+
+frustModel = Cadet()
+
+frustModel.root = axSetting.get_model(
+    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
+    axRefinement=16, parZ=4, flowRate = flowRate, colLength = bedHeight
+    )
+
+frustModel.root.input.model.unit_001.UNIT_TYPE = "FRUSTUM_GENERAL_RATE_MODEL"
+
+frustum_inner_radius = np.sqrt(inletCrossSectionalArea / np.pi)
+frustum_outer_radius = np.sqrt(inletCrossSectionalArea / np.pi * 1.1)
+frustModel.root.input.model.unit_001.COL_RADIUS_INNER = frustum_inner_radius
+frustModel.root.input.model.unit_001.COL_RADIUS_OUTER = frustum_outer_radius
+
+# Note that for constant volume, we're just getting an axial flow model again:
+# the formula for the frustum volume is:
+# columnVolume = 1.0 / 3.0 * np.pi * (frustum_outer_radius**2 + frustum_outer_radius * frustum_inner_radius + frustum_inner_radius**2) * bedHeight
+# 0 = frustum_outer_radius**2 + frustum_outer_radius * (frustum_inner_radius) / (1.0 / 3.0 * np.pi * bedHeight) + (frustum_inner_radius**2 - columnVolume) / (1.0 / 3.0 * np.pi * bedHeight)
+# P = frustum_inner_radius
+# Q = frustum_inner_radius**2 - columnVolume / (1.0 / 3.0 * np.pi * bedHeight)
+# frustum_outer_radius1 = - P/2.0 + np.sqrt((P/2.0)**2 - Q)
+# frustum_outer_radius2 = - P/2.0 - np.sqrt((P/2.0)**2 - Q)
+# frustum_outer_radius = max(frustum_outer_radius1, frustum_outer_radius2)
+# print("frustum_inner_radius: ", frustum_inner_radius)
+# print("frustum_outer_radius: ", frustum_outer_radius)
+# frustModel.root.input.model.unit_001.COL_RADIUS_INNER = frustum_inner_radius
+# frustum_outer_radius = np.sqrt((inletCrossSectionalArea) / np.pi * 1.1)
+
+frustumVolume = 1.0 / 3.0 * np.pi * (frustum_outer_radius**2 + frustum_outer_radius * frustum_inner_radius + frustum_inner_radius**2) * bedHeight
+print("Frustum column volume: ", frustumVolume)
+
+frustModel.filename = "frustGRM.h5"
+
+frustModel.save()
+
+return_data = frustModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+frustModel.load_from_file()
+
+outlet = convergence.get_solution(frustModel, which='outlet')
+solution_time = convergence.get_solution_times(frustModel)
+
+plt.plot(solution_time, outlet, label='frustum')
+
+radModel = Cadet()
+
+radModel.root = axSetting.get_model(
+    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
+    axRefinement=16, parZ=4, weno_order=1, flowRate = flowRate, colLength = bedHeight
+    )
+
+radModel.root.input.model.unit_001.UNIT_TYPE = "RADIAL_GENERAL_RATE_MODEL"
+
+# cross sectional area is also specified
+cross_section_area_inner = inletCrossSectionalArea
+cross_section_area_outer = np.pi * frustum_outer_radius * frustum_outer_radius
+
+radialColumnHeight = 0.1 # frustumVolume / (np.pi * (cylinder_outer_shell_radius**2 - cylinder_inner_shell_radius**2))
+cylinder_inner_shell_radius = cross_section_area_inner / (2.0 * np.pi * radialColumnHeight) # r = A / (2 pi H)
+cylinder_outer_shell_radius = cylinder_inner_shell_radius + bedHeight
+# radialColumnHeight = columnVolume / (np.pi * (cylinder_outer_shell_radius**2 - cylinder_inner_shell_radius**2))
+
+radModel.root.input.model.unit_001.col_length = radialColumnHeight # COL_LENGTH is not the bed height here
+radModel.root.input.model.unit_001.COL_RADIUS_INNER = cylinder_inner_shell_radius
+radModel.root.input.model.unit_001.COL_RADIUS_OUTER = cylinder_outer_shell_radius
+
+print("Radial column volume: ", radialColumnHeight * (np.pi * (cylinder_outer_shell_radius**2 - cylinder_inner_shell_radius**2)))
+# print("Radial flow column inner radius: ", cylinder_inner_shell_radius)
+# print("Radial flow column outer radius: ", cylinder_outer_shell_radius)
+# print("radialColumnHeight: ", radialColumnHeight)
+
+radModel.filename = "radGRM.h5"
+radModel.save()
+return_data = radModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+radModel.load_from_file()
+
+outlet = convergence.get_solution(radModel, which='outlet')
+solution_time = convergence.get_solution_times(radModel)
+
+plt.plot(solution_time, outlet, label='radial')
+
+
+axModel = Cadet()
+
+axModel.root = axSetting.get_model(
+    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
+    axRefinement=16, parZ=4, weno_order=1, flowRate = flowRate, colLength = bedHeight
+    )
+
+axModel.root.input.model.unit_001.cross_section_area = cross_section_area_inner
+axModel.filename = "axGRM.h5"
+axModel.save()
+return_data = axModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+axModel.load_from_file()
+outlet = convergence.get_solution(axModel, which='outlet')
+solution_time = convergence.get_solution_times(axModel)
+
+plt.plot(solution_time, outlet, label='axial', linestyle='solid')
+
+plt.title('frustum vs. radial vs. axial flow for similar cross-section areas')
+plt.xlabel("time in s")
+plt.ylabel("concentration in mol / $m^3$")
+plt.legend()
+plt.show()
 
 #%% Radial flow EOC test with pure advection
 
@@ -173,7 +310,7 @@ print("errors:\n", errors)
 print("EOC:\n", EOC)
 
 
-#%% Comparison with pure advection
+#%% Frustum comparison with pure advection
 
 frustModel = Cadet()
 
@@ -238,82 +375,7 @@ print("outlet at t = ", int(0.014 / avg_velocity) + 1, ": ", outlet[int(0.014 / 
 print("outlet at t = ", int(0.014 / 5.57e-4), ": ", outlet[int(0.014 / 5.57e-4)])
 
 
-#%% Comparison with radial
-# Frustum vs Radial flow for a single-comp. linear binding setting,
-# with similar bed height and cross sectional area at the inlet
-# (which is at the smaller radius cross-section area in both settings)
-
-frustModel = Cadet()
-
-frustModel.root = axSetting.get_model(
-    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
-    axRefinement=16, parZ=4,
-    )
-
-frustModel.root.input.model.unit_001.UNIT_TYPE = "FRUSTUM_GENERAL_RATE_MODEL"
-
-frustum_inner_radius = np.sqrt((6.e-05 / 0.000575 / 0.37) / np.pi)
-frustum_outer_radius = np.sqrt((6.e-05 / 0.000575 / 0.37) / np.pi * 1.1)
-frustModel.root.input.model.unit_001.COL_RADIUS_INNER = frustum_inner_radius
-frustModel.root.input.model.unit_001.COL_RADIUS_OUTER = frustum_outer_radius
-
-frustModel.filename = "frustGRM.h5"
-
-frustModel.save()
-
-return_data = frustModel.run_simulation()
-
-if not return_data.return_code == 0:
-    print(return_data.error_message)
-    raise Exception(f"simulation failed")
-
-frustModel.load_from_file()
-
-outlet = convergence.get_solution(frustModel, which='outlet')
-solution_time = convergence.get_solution_times(frustModel)
-
-plt.plot(solution_time, outlet, label='frustum')
-
-radModel = Cadet()
-
-radModel.root = axSetting.get_model(
-    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
-    axRefinement=16, parZ=4, weno_order=1
-    )
-
-radModel.root.input.model.unit_001.UNIT_TYPE = "RADIAL_GENERAL_RATE_MODEL"
-
-# cross sectional area is also specified
-cross_section_area_inner = np.pi * frustum_inner_radius * frustum_inner_radius
-cross_section_area_outer = np.pi * frustum_outer_radius * frustum_outer_radius
-cylinder_inner_shell_radius = cross_section_area_inner / (2.0 * np.pi * 0.014) # r = A / (2 pi H)
-cylinder_outer_shell_radius = cross_section_area_outer / (2.0 * np.pi * 0.014) # r = A / (2 pi H)
-radModel.root.input.model.unit_001.COL_RADIUS_INNER = cylinder_inner_shell_radius
-radModel.root.input.model.unit_001.COL_RADIUS_OUTER = cylinder_inner_shell_radius + 0.014
-
-print("length of radial column: ", radModel.root.input.model.unit_001.COL_RADIUS_OUTER - radModel.root.input.model.unit_001.COL_RADIUS_INNER)
-
-radModel.filename = "radGRM.h5"
-
-radModel.save()
-
-return_data = radModel.run_simulation()
-
-if not return_data.return_code == 0:
-    print(return_data.error_message)
-    raise Exception(f"simulation failed")
-
-radModel.load_from_file()
-
-outlet = convergence.get_solution(radModel, which='outlet')
-solution_time = convergence.get_solution_times(radModel)
-
-plt.plot(solution_time, outlet, label='radial')
-plt.title('frustum vs. radial flow for similar cross-section areas')
-plt.legend()
-plt.show()
-
-#%% Comparison with axial
+#%% Comparison: Equivalence with axial
 
 frustModel = Cadet()
 
@@ -325,7 +387,7 @@ frustModel.root = axSetting.get_model(
 frustModel.root.input.model.unit_001.UNIT_TYPE = "FRUSTUM_GENERAL_RATE_MODEL"
 
 frustModel.root.input.model.unit_001.COL_RADIUS_INNER = np.sqrt((6.e-05 / 0.000575 / 0.37) / np.pi)
-frustModel.root.input.model.unit_001.COL_RADIUS_OUTER = np.sqrt((6.e-05 / 0.000575 / 0.37) / np.pi * 1.5)
+frustModel.root.input.model.unit_001.COL_RADIUS_OUTER = np.sqrt((6.e-05 / 0.000575 / 0.37) / np.pi)
 
 frustModel.filename = "frustGRM.h5"
 
@@ -342,9 +404,7 @@ frustModel.load_from_file()
 outlet = convergence.get_solution(frustModel, which='outlet')
 solution_time = convergence.get_solution_times(frustModel)
 
-plt.plot(solution_time, outlet)
-plt.title('frustum flow')
-plt.show()
+plt.plot(solution_time, outlet, label='frustum as axial')
 
 
 axModel = Cadet()
@@ -369,8 +429,9 @@ axModel.load_from_file()
 outlet = convergence.get_solution(axModel, which='outlet')
 solution_time = convergence.get_solution_times(axModel)
 
-plt.plot(solution_time, outlet)
-plt.title('axial flow')
+plt.plot(solution_time, outlet, label='axial', linestyle='dashed')
+plt.title('axial flow vs frustum with constant radii')
+plt.legend()
 plt.show()
 
 
