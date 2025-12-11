@@ -25,7 +25,7 @@ def get_model(
     model.input.model.connections.connections_include_ports = 0
     model.input.model.connections.nswitches = 1
     model.input.model.connections.switch_000.connections = [
-        0.e+00, 1.e+00,-1.e+00,-1.e+00, 6.e-05, 1.e+00, 2.e+00,-1.e+00,-1.e+00, 6.e-05
+        0.e+00, 1.e+00,-1.e+00,-1.e+00, kwargs.get('flowRate', 6.e-05), 1.e+00, 2.e+00,-1.e+00,-1.e+00, kwargs.get('flowRate', 6.e-05)
         ]
     model.input.model.connections.switch_000.section = 0
     
@@ -35,12 +35,12 @@ def get_model(
     column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.ncomp = 1
     column.col_dispersion = 5.75e-08
-    column.col_length = 0.014
-    column.cross_section_area = (6.e-05 / 0.000575) / 0.37
+    column.col_length = kwargs.get('colLength', 0.014)
+    column.cross_section_area = (kwargs.get('flowRate', 6.e-05) / 0.000575) / 0.37
+    column.velocity = 0.000575
     column.col_porosity = 0.37
     if particle_type == 'EQUILIBRIUM_PARTICLE':
         column.total_porosity = 0.37 + (1.0 - 0.37) * 0.75
-    column.velocity = 0.000575
     column.npartype = 1
     column.par_type_volfrac = 1
     
