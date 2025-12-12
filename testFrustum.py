@@ -9,6 +9,119 @@ import src.utility.convergence as convergence
 
 Cadet.cadet_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master4_v6alpha1_11eef19\aRELEASE"
 
+#%% Radial device and frustum device forwards vs. backwards flow
+
+
+# changeable parameters
+bedHeight = 0.014 # axial OG value: 0.014
+flowRate = 6.e-05 # axial OG value: 6.e-05
+inletVelocity = 0.000575 # axial OG value: 0.000575
+porosity = 0.37
+
+# derived values, based on the original setting for the axial flow model
+inletCrossSectionalArea = flowRate / inletVelocity / porosity
+axialColumnRadius = np.sqrt(inletCrossSectionalArea / np.pi)
+columnVolume = np.pi * axialColumnRadius**2 * bedHeight
+
+# Radial flow simulations
+
+radModel = Cadet()
+
+radModel.root = axSetting.get_model(
+    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
+    axRefinement=16, parZ=4, weno_order=1, flowRate = flowRate, colLength = bedHeight
+    )
+
+radModel.root.input.model.unit_001.UNIT_TYPE = "RADIAL_GENERAL_RATE_MODEL"
+
+
+radialColumnHeight = 0.014 # frustumVolume / (np.pi * (cylinder_outer_shell_radius**2 - cylinder_inner_shell_radius**2))
+cylinder_inner_shell_radius = inletCrossSectionalArea / (2.0 * np.pi * radialColumnHeight) # r = A / (2 pi H)
+cylinder_outer_shell_radius = cylinder_inner_shell_radius + bedHeight
+# radialColumnHeight = columnVolume / (np.pi * (cylinder_outer_shell_radius**2 - cylinder_inner_shell_radius**2))
+
+radModel.root.input.model.unit_001.col_length = radialColumnHeight # COL_LENGTH is not the bed height here
+radModel.root.input.model.unit_001.COL_RADIUS_INNER = cylinder_inner_shell_radius
+radModel.root.input.model.unit_001.COL_RADIUS_OUTER = cylinder_outer_shell_radius
+
+radModel.filename = "radGRM.h5"
+radModel.save()
+return_data = radModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+radModel.load_from_file()
+
+outlet = convergence.get_solution(radModel, which='outlet')
+solution_time = convergence.get_solution_times(radModel)
+
+plt.plot(solution_time, outlet, label='radial fwd flow')
+
+# reverse flow
+radModel.root.input.model.unit_001.velocity_coeff = -1.0
+radModel.save()
+return_data = radModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+radModel.load_from_file()
+outlet = convergence.get_solution(radModel, which='outlet')
+plt.plot(solution_time, outlet, label='radial bwd flow')
+
+
+# Frustum simulations
+
+frustModel = Cadet()
+
+frustModel.root = axSetting.get_model(
+    0, particle_type="GENERAL_RATE_PARTICLE", spatial_method_particle=0,
+    axRefinement=16, parZ=4, flowRate = flowRate, colLength = bedHeight
+    )
+
+frustModel.root.input.model.unit_001.UNIT_TYPE = "FRUSTUM_GENERAL_RATE_MODEL"
+
+frustum_inner_radius = np.sqrt(inletCrossSectionalArea / np.pi)
+frustum_outer_radius = np.sqrt(inletCrossSectionalArea / np.pi * 1.1)
+frustModel.root.input.model.unit_001.COL_RADIUS_INNER = frustum_inner_radius
+frustModel.root.input.model.unit_001.COL_RADIUS_OUTER = frustum_outer_radius
+
+frustModel.filename = "frustGRM.h5"
+
+frustModel.save()
+
+return_data = frustModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+frustModel.load_from_file()
+
+outlet = convergence.get_solution(frustModel, which='outlet')
+solution_time = convergence.get_solution_times(frustModel)
+
+plt.plot(solution_time, outlet, label='frustum fwd flow', linestyle='dashed')
+
+# reverse flow
+frustModel.root.input.model.unit_001.velocity_coeff = -1.0
+frustModel.save()
+return_data = frustModel.run_simulation()
+
+if not return_data.return_code == 0:
+    print(return_data.error_message)
+    raise Exception(f"simulation failed")
+
+frustModel.load_from_file()
+outlet = convergence.get_solution(frustModel, which='outlet')
+plt.plot(solution_time, outlet, label='frustum bwd flow', linestyle='dashed')
+
+plt.legend()
+plt.show()
+
 
 #%% Comparison of frustum with radial and axial flow models
 # Frustum vs Radial flow for a single-comp. linear binding setting,
