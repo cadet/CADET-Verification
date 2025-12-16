@@ -550,7 +550,7 @@ def radial_flow_benchmark(small_test=False, sensitivities=False):
         'ax_discs': [
             [bench_func.disc_list(8, 11 if not small_test else 3)],
             [bench_func.disc_list(8, 7 if not small_test else 3)],
-            [bench_func.disc_list(8, 6 if not small_test else 3)]
+            [bench_func.disc_list(8, 5 if not small_test else 3)]
         ],
         'par_methods': [
             [None], [None], [0]
