@@ -22,6 +22,7 @@ from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
 from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
 from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
+from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
 
 # %% benchmark templates
 
@@ -221,7 +222,26 @@ def fv_benchmark(small_test=False, sensitivities=False):
            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
               spatial_method_bulk=0, spatial_method_particle=0,
               particle_type='GENERAL_RATE_PARTICLE'
-              )
+              ),
+           setting_Col1D_XparTypeGR_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+            **{ # 4parType:
+                'par_method': 0,
+                'npartype': 2 if small_test else 4,
+                'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+                'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+                'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+                'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+                'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+                'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+                'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+                'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+            })
         ],
         'cadet_config_names': [
             'LRM_dynLin_1comp_benchmark1',
@@ -230,23 +250,24 @@ def fv_benchmark(small_test=False, sensitivities=False):
             'GRMsd_dynLin_1comp_benchmark1',
             'LRM_reqSMA_4comp_benchmark1',
             'LRMP_reqSMA_4comp_benchmark1',
-            'GRM_reqSMA_4comp_benchmark1'
+            'GRM_reqSMA_4comp_benchmark1',
+            'GRM_4parTypeLin_4comp_benchmark1'
         ],
-        'include_sens': [True] * 7 if sensitivities else [False] * 7,
+        'include_sens': [True] * 8 if sensitivities else [False] * 8,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None]
+            [None], [None], [None], [None], [None], [None], [None], [None]
         ],
         'unit_IDs': [
-            '001', '001', '001', '001', '000', '000', '000'
+            '001', '001', '001', '001', '000', '000', '000', '001'
         ],
         'which': [
-            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
         ],
         'idas_abstol': [
-            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
+            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
         ],
         'ax_methods': [
-            [0], [0], [0], [0], [0], [0], [0]
+            [0], [0], [0], [0], [0], [0], [0], [0]
         ],
         'ax_discs': [
             [bench_func.disc_list(8, 8 if not small_test else 3)],
@@ -255,10 +276,11 @@ def fv_benchmark(small_test=False, sensitivities=False):
             [bench_func.disc_list(8, 8 if not small_test else 3)],
             [bench_func.disc_list(8, 6 if not small_test else 3)],
             [bench_func.disc_list(8, 6 if not small_test else 3)],
-            [bench_func.disc_list(8, 6 if not small_test else 3)]
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 4 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [None], [0], [0], [None], [None], [0]
+            [None], [None], [0], [0], [None], [None], [0], [0]
         ],
         'par_discs': [
             [None],
@@ -267,7 +289,8 @@ def fv_benchmark(small_test=False, sensitivities=False):
             [bench_func.disc_list(1, 8 if not small_test else 3)],
             [None],
             [None],
-            [bench_func.disc_list(1, 6 if not small_test else 3)]
+            [bench_func.disc_list(1, 6 if not small_test else 3)],
+            [bench_func.disc_list(1, 4 if not small_test else 3)]
         ]
     }
 
@@ -279,7 +302,7 @@ def fv_benchmark(small_test=False, sensitivities=False):
 
 def dg_benchmark(small_test=False, sensitivities=False):
 
-    n_settings = 7
+    n_settings = 8
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -306,7 +329,26 @@ def dg_benchmark(small_test=False, sensitivities=False):
             setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
                spatial_method_bulk=3, spatial_method_particle=3,
                particle_type='GENERAL_RATE_PARTICLE'
-               )
+               ),
+            setting_Col1D_XparTypeGR_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, spatial_method_particle=0,
+             **{ # 4parType:
+                 'par_method': 0,
+                 'npartype': 2 if small_test else 4,
+                 'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+                 'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+                 'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+                 'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+                 'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                 'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                 'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+                 'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                 'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+                 'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+                 'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                 'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                 'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+             })
         ],
         'cadet_config_names': [
             'COL1D_LRM_dynLin_1comp_benchmark1',
@@ -315,23 +357,24 @@ def dg_benchmark(small_test=False, sensitivities=False):
             'COL1D_GRMsd_dynLin_1comp_benchmark1',
             'COL1D_LRM_reqSMA_4comp_benchmark1',
             'COL1D_LRMP_reqSMA_4comp_benchmark1',
-            'COL1D_GRM_reqSMA_4comp_benchmark1'
+            'COL1D_GRM_reqSMA_4comp_benchmark1',
+            'GRM_4parTypeLin_4comp_benchmark1'
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None]
+            [None], [None], [None], [None], [None], [None], [None], [None]
         ],
         'unit_IDs': [
-            '001', '001', '001', '001', '000', '000', '000'
+            '001', '001', '001', '001', '000', '000', '000', '001'
         ],
         'which': [
             'outlet'
         ] * n_settings,
         'idas_abstol': [
-           [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8]
+           [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
         ],
         'ax_methods': [
-            [3], [3], [3], [3], [3], [3], [3]
+            [3], [3], [3], [3], [3], [3], [3], [2]
         ],
         'ax_discs': [
             [bench_func.disc_list(1, 8 if not small_test else 3)],
@@ -340,10 +383,11 @@ def dg_benchmark(small_test=False, sensitivities=False):
             [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(4, 4 if not small_test else 3)]
+            [bench_func.disc_list(4, 4 if not small_test else 3)],
+            [bench_func.disc_list(2, 4 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [None], [3], [3], [None], [None], [3]
+            [None], [None], [3], [3], [None], [None], [3], [2]
         ],
         'par_discs': [
             [None],
@@ -352,6 +396,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
             [bench_func.disc_list(1, 5 if not small_test else 3)],
             [None],
             [None],
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
             [bench_func.disc_list(1, 4 if not small_test else 3)]
         ]
     }
