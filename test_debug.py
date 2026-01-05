@@ -31,8 +31,8 @@ n_jobs = -1
 delete_h5_files = False
 
 run_binding_tests = False
-run_chromatography_tests = True
-run_MCT_tests = False
+run_chromatography_tests = False
+run_MCT_tests = True
 run_chromatography_sensitivity_tests = False
 run_chromatography_system_tests = False
 run_crystallization_tests = False
@@ -41,13 +41,13 @@ run_2Dmodels_tests = False
 commit_message = "testitest"
 rdm_debug_mode = True
 rdm_push = False
-branch_name = "feature/generalized_unit"
+branch_name = "feature/MCTsensitivity"
 
 
 sys.path.append(str(Path(".")))
 project_repo = ProjectRepo(branch=branch_name)
 output_path = project_repo.output_path / "test_cadet-core"
-cadet_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master4_v6alpha1_11eef19\aRELEASE"
+cadet_path = r"C:\Users\jmbr\Cadet_testBuild\CADET_master\out\install\aRELEASE"
 # convergence.get_cadet_path()
 
 with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
