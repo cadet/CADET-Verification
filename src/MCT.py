@@ -46,17 +46,28 @@ def MCT_tests(n_jobs, small_test,
     sol_name = model.filename
     time = convergence.get_solution_times(sol_name)
     channel1 = convergence.get_solution(sol_name, unit='unit_001', which='outlet_port_000')
+    sensChannel1 = convergence.get_solution(sol_name, unit='unit_001', which='sens_outlet_port_000')
    
     reference_solution_file = str(Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference' / 'mct' / 'ref_LRM_dynLin_1comp_benchmark2_FV_Z357.h5')
     model = Cadet()
     model.filename = reference_solution_file
     model.load_from_file()
     lrmLinBndRef = convergence.get_solution(model.filename, unit='unit_001', which='outlet_port_000')
+    lrmLinBndSensRef = convergence.get_solution(model.filename, unit='unit_001', which='sens_outlet_port_000', )
     
     plt.figure()
     plt.title("MCT with 2 channels and lin. exchange vs linear LRM")
     plt.plot(time, channel1, label='MCT channel 1')
     plt.plot(time, lrmLinBndRef, label='LRM reference', linestyle='dashed')
+    plt.legend(fontsize=20)
+    plt.show()
+    plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
+    plt.close()
+    
+    plt.figure()
+    plt.title("Sensitivity: MCT with 2 channels and lin. exchange vs linear LRM")
+    plt.plot(time, sensChannel1, label='MCT channel 1')
+    plt.plot(time, lrmLinBndSensRef, label='LRM reference', linestyle='dashed')
     plt.legend(fontsize=20)
     plt.show()
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
