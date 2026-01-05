@@ -4,6 +4,19 @@
     "name": "model_MCT1ch_noEx_noReac_benchmark1"
   },
   "input": {
+    "sensitivity": {
+      "NSENS": 1,
+      "SENS_METHOD": "ad1",
+      "param_000": {
+        "SENS_NAME": "EXCHANGE_MATRIX",
+        "SENS_COMP": 0,
+        "SENS_BOUNDPHASE": 0,
+        "SENS_PARTYPE": 1,
+        "SENS_SECTION": -1,
+        "SENS_UNIT": 1,
+        "SENS_REACTION": -1
+      }
+      },
     "model": {
       "NUNITS": 3,
       "connections": {
