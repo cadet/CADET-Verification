@@ -79,8 +79,6 @@ def get_model(
         column[particle_group].has_pore_diffusion = 1
         column[particle_group].pore_diffusion = 6.07e-11 if 'pore_diffusion' not in kwargs else kwargs['pore_diffusion'][parType]
         
-        column[particle_group].discretization.SPATIAL_METHOD = spatial_method_particle
-        
         column[particle_group].nbound = [ 1 ] if 'nbound' not in kwargs else [kwargs['nbound'][parType]]
         surfDiff = 0.0 if 'surface_diffusion' not in kwargs else kwargs['surface_diffusion'][parType]
         

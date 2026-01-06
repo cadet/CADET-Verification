@@ -238,9 +238,9 @@ def fv_benchmark(small_test=False, sensitivities=False):
                 'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
                 'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
                 'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
-                'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
-                'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
-                'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+                'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
             })
         ],
         'cadet_config_names': [
@@ -345,9 +345,9 @@ def dg_benchmark(small_test=False, sensitivities=False):
                  'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
                  'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
                  'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
-                 'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
-                 'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
-                 'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+                 'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                 'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                 'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
              })
         ],
         'cadet_config_names': [
