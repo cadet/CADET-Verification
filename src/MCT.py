@@ -64,9 +64,10 @@ def MCT_tests(n_jobs, small_test,
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
     plt.close()
     
+    sensChannel1 = sensChannel1 * 1/(0.333/(1-0.333))  # scale sensitivity to match LRM definition
     plt.figure()
     plt.title("Sensitivity: MCT with 2 channels and lin. exchange vs linear LRM")
-    plt.plot(time, sensChannel1, label='MCT channel 1')
+    plt.plot(time, sensChannel1, label='MCT channel 1 with scaling')
     plt.plot(time, lrmLinBndSensRef, label='LRM reference', linestyle='dashed')
     plt.legend(fontsize=20)
     plt.show()
