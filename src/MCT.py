@@ -64,6 +64,12 @@ def MCT_tests(n_jobs, small_test,
     plt.savefig(re.sub(".h5", ".png", sol_name), dpi=100, bbox_inches='tight')
     plt.close()
     
+    # To compare the sensitivities, we need to add the factor
+    # Ka = epsT / (1 - epsT) * exchange
+    epsT = model.root.input.model.unit_001.total_porosity
+    sensFactor = epsT / (1.0 - epsT)
+    sensChannel1 = sensFactor * sensChannel1
+    
     plt.figure()
     plt.title("Sensitivity: MCT with 2 channels and lin. exchange vs linear LRM")
     plt.plot(time, sensChannel1, label='MCT channel 1')
