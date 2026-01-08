@@ -213,8 +213,8 @@ def GRM2D_linBnd_tests(
             'par_methods': [
                 [0]
             ],
-            'par_discs': [  # same number of particle cells as radial cells
-                [bench_func.disc_list(nRadialZones, nDisc)]
+            'par_discs': [
+                [bench_func.disc_list(max(1, nRadialZones - 1), nDisc)]
             ]
         }
 
