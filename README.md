@@ -10,6 +10,7 @@ The results of the verification studies can be accessed in the [CADET-Verificati
 ## Usage
 
 CADET-Verification must be executed as part of the **CADET-Core release process** and **on demand**, particularly when critical changes are introduced to the simulator.
+For verification runs as part of the CADET-Core release pipeline, the creation of a dedicated release branch in CADET-Verification is recommended, since this eases handling the resulting data later.
 
 To trigger a verification run, manually dispatch the `verify.yml` GitHub Actions workflow. During this process, you must specify the appropriate `pytest` fixtures.
 For guidance on available parameters and their default values, refer to the `conftest.py` file.
