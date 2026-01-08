@@ -139,7 +139,7 @@ def GRM2D_linBnd_tests(
                 'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
                 'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
                 'reference': convergence.get_solution(
-                    reference_data_path + '/CASEMA_reference/ref_2DGRM2parType3Zone_1Comp_radZ3.h5',# if small_test else reference_data_path + '/CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5',
+                    reference_data_path + '/CASEMA_reference/ref_2DGRM2parType3Zone_1Comp_radZ3.h5' if small_test else reference_data_path + '/CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5',
                     unit='unit_000', which='outlet_port_' + str(0).zfill(3)
                 )
             }
