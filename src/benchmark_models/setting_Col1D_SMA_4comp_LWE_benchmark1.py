@@ -260,8 +260,8 @@ def add_sensitivity_GRM_SMA_4comp_benchmark1(model, sensName):
     sensDepIdx = {
         'COL_DISPERSION': {'sens_comp': np.int64(-1)},
         'FILM_DIFFUSION': {'sens_comp': np.int64(1)},
-        'PAR_DIFFUSION': {'sens_comp': np.int64(1)},
-        'PAR_SURFDIFFUSION': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)},
+        'PORE_DIFFUSION': {'sens_comp': np.int64(1)},
+        'SURFACE_DIFFUSION': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)},
         'PAR_RADIUS': {},
         'SMA_KA': {'sens_comp': np.int64(1), 'sens_boundphase': np.int64(0)}
     }    
@@ -301,7 +301,7 @@ def get_GRM_sensbenchmark1(spatial_method_bulk, spatial_method_particle):
                       spatial_method_particle=spatial_method_particle)
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'COL_DISPERSION')
-    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_DIFFUSION')
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PORE_DIFFUSION')
     model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'SMA_KA')
     
     return model
@@ -313,7 +313,7 @@ def get_GRM_sensbenchmark2(spatial_method_bulk, spatial_method_particle):
                       spatial_method_particle=spatial_method_particle)
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'FILM_DIFFUSION')
-    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_SURFDIFFUSION')
+    model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'SURFACE_DIFFUSION')
     model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_RADIUS')
     
     return model

@@ -226,8 +226,8 @@ def add_sensitivity_GRM_dynLin_1comp_benchmark1(model, sensName):
     sensDepIdx = {
         'COL_DISPERSION': {'sens_comp': np.int64(0)},
         'FILM_DIFFUSION': {'sens_comp': np.int64(0)},
-        'PAR_DIFFUSION': {'sens_comp': np.int64(0)},
-        'PAR_SURFDIFFUSION': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)},
+        'PORE_DIFFUSION': {'sens_comp': np.int64(0)},
+        'SURFACE_DIFFUSION': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)},
         'PAR_RADIUS': {},
         'LIN_KA': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)}
     }    
@@ -267,7 +267,7 @@ def get_GRM_sensbenchmark1(spatial_method_bulk, spatial_method_particle, **kwarg
                       particle_type='GENERAL_RATE_PARTICLE', **kwargs)
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'COL_DISPERSION')
-    model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PAR_DIFFUSION')
+    model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PORE_DIFFUSION')
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'LIN_KA')
     
     return model
@@ -277,10 +277,10 @@ def get_GRM_sensbenchmark2(spatial_method_bulk, spatial_method_particle):
     model = get_model(spatial_method_bulk,
                       spatial_method_particle=spatial_method_particle,
                       particle_type='GENERAL_RATE_PARTICLE')
-    model['input']['model']['unit_001']['PAR_SURFDIFFUSION'] = 5.0e-11
+    model['input']['model']['unit_001']['SURFACE_DIFFUSION'] = 5.0e-11
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'FILM_DIFFUSION')
-    model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PAR_SURFDIFFUSION')
+    model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'SURFACE_DIFFUSION')
     if spatial_method_particle == 0:
         model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'PAR_RADIUS')
     

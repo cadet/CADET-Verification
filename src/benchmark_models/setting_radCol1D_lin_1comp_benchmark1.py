@@ -87,7 +87,7 @@ def get_model(
             column.particle_type_000.has_surface_diffusion = 0
             column.particle_type_000.par_geom = 'SPHERE'
             column.particle_type_000.pore_diffusion = 6.07e-11
-            column.particle_type_000.par_surfdiffusion = 0.0
+            column.particle_type_000.surface_diffusion = 0.0
             
             if kwargs['spatial_method_par'] > 0:
                 column.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
@@ -196,8 +196,8 @@ def add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, sensName):
     sensDepIdx = {
         'COL_DISPERSION': {'sens_comp': np.int64(0)},
         'FILM_DIFFUSION': {'sens_comp': np.int64(0)},
-        'PAR_DIFFUSION': {'sens_comp': np.int64(0)},
-        'PAR_SURFDIFFUSION': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)},
+        'PORE_DIFFUSION': {'sens_comp': np.int64(0)},
+        'SURFACE_DIFFUSION': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)},
         'PAR_RADIUS': {},
         'LIN_KA': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)}
     }    
@@ -235,7 +235,7 @@ def get_GRM_sensbenchmark1(spatial_method_bulk, spatial_method_par):
     model = get_model(spatial_method_bulk, spatial_method_par=spatial_method_par, particle_type='GENERAL_RATE_PARTICLE')
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'COL_DISPERSION')
-    model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'PAR_DIFFUSION')
+    model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'PORE_DIFFUSION')
     model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'LIN_KA')
     
     return model
@@ -245,7 +245,7 @@ def get_GRM_sensbenchmark2(spatial_method_bulk, spatial_method_par):
     model = get_model(spatial_method_bulk, spatial_method_par=spatial_method_par, particle_type='GENERAL_RATE_PARTICLE')
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'FILM_DIFFUSION')
-    model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'PAR_SURFDIFFUSION')
+    model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'SURFACE_DIFFUSION')
     model = add_sensitivity_radGRM_dynLin_1comp_benchmark1(model, 'PAR_RADIUS')
     
     return model
