@@ -351,13 +351,13 @@ def dg_benchmark(small_test=False, sensitivities=False):
              })
         ],
         'cadet_config_names': [
-            'COL1D_LRM_dynLin_1comp_benchmark1',
-            'COL1D_LRMP_dynLin_1comp_benchmark1',
-            'COL1D_GRM_dynLin_1comp_benchmark1',
-            'COL1D_GRMsd_dynLin_1comp_benchmark1',
-            'COL1D_LRM_reqSMA_4comp_benchmark1',
-            'COL1D_LRMP_reqSMA_4comp_benchmark1',
-            'COL1D_GRM_reqSMA_4comp_benchmark1',
+            'LRM_dynLin_1comp_benchmark1',
+            'LRMP_dynLin_1comp_benchmark1',
+            'GRM_dynLin_1comp_benchmark1',
+            'GRMsd_dynLin_1comp_benchmark1',
+            'LRM_reqSMA_4comp_benchmark1',
+            'LRMP_reqSMA_4comp_benchmark1',
+            'GRM_reqSMA_4comp_benchmark1',
             'GRM_4parTypeLin_4comp_benchmark1'
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
