@@ -383,7 +383,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
             [bench_func.disc_list(8, 5 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
-            [bench_func.disc_list(4, 4 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(2, 4 if not small_test else 3)]
         ],
         'par_methods': [
