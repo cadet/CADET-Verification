@@ -65,9 +65,9 @@ def MCT_tests(n_jobs, small_test,
     plt.close()
     
     # To compare the sensitivities, we need to add the factor
-    # Ka = epsT / (1 - epsT) * exchange
+    # Ka = (1 - epsT) / epsT * exchange
     epsT = model.root.input.model.unit_001.total_porosity
-    sensFactor = epsT / (1.0 - epsT)
+    sensFactor = (1.0 - epsT) / epsT
     sensChannel1 = sensFactor * sensChannel1
     
     plt.figure()
