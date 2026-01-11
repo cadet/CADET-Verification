@@ -65,14 +65,10 @@ def get_model(
     column.particle_type_000.nbound = [1]
     column.particle_type_000.init_cp = [0.0]
     column.particle_type_000.init_cs = [0.0]
-    
-    
-    column.adsorption.is_kinetic = 1
-    column.adsorption.lin_ka = [12.3]
-    column.adsorption.lin_kd = [45.]
-    column.adsorption_model = 'LINEAR'
-    column.par_porosity = 0.2
-    column.par_radius = 0.0001
+    column.particle_type_000.adsorption_model = 'LINEAR'
+    column.particle_type_000.adsorption.is_kinetic = 1
+    column.particle_type_000.adsorption.lin_ka = [12.3]
+    column.particle_type_000.adsorption.lin_kd = [45.]
     
     model.input.model.unit_001 = column
     
