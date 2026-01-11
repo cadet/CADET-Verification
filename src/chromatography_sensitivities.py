@@ -198,7 +198,8 @@ def chromatography_sensitivity_tests(
             
             if sensitivity.ndim == 2: # multi component systems
                 for i in range(sensitivity.shape[1]):
-                    plt.plot(convergence.get_solution_times(name), sensitivity[:, i], label=f'comp {i}')
+                    if not (re.search('reqSMA_4comp_sensbenchmark1', name) and i == 0): # Do not plot salt for that setting
+                        plt.plot(convergence.get_solution_times(name), sensitivity[:, i], label=f'comp {i}')
             elif sensitivity.ndim == 1:
                 plt.plot(convergence.get_solution_times(name), sensitivity, label='comp 0')
             else:
