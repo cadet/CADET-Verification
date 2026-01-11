@@ -75,7 +75,9 @@ def get_model(
             column.particle_type_000.film_diffusion = [6.9e-06, 6.9e-06, 6.9e-06, 6.9e-06]
             
             if particle_type == "GENERAL_RATE_PARTICLE":
+                column.particle_type_000.has_pore_diffusion = 1
                 column.particle_type_000.pore_diffusion = [7.00e-10, 6.07e-11, 6.07e-11, 6.07e-11]
+                column.particle_type_000.has_surface_diffusion = 0
                 column.particle_type_000.surface_diffusion = [0.,0.,0.,0.]
                 column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
                 if kwargs['spatial_method_particle'] > 0:
