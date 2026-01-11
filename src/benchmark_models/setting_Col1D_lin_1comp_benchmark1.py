@@ -277,6 +277,7 @@ def get_GRM_sensbenchmark2(spatial_method_bulk, spatial_method_particle):
     model = get_model(spatial_method_bulk,
                       spatial_method_particle=spatial_method_particle,
                       particle_type='GENERAL_RATE_PARTICLE')
+    model['input']['model']['unit_001']['particle_type_000']['has_surface_diffusion'] = 1
     model['input']['model']['unit_001']['particle_type_000']['SURFACE_DIFFUSION'] = 5.0e-11
     model['input'].pop('sensitivity', None)
     model = add_sensitivity_GRM_dynLin_1comp_benchmark1(model, 'FILM_DIFFUSION')
