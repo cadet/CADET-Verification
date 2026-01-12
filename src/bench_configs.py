@@ -475,7 +475,7 @@ def sensitivity_benchmark1(spatial_method, small_test):
             [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
             [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
             [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)],
-            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 4 if not small_test else 3)]
+            [bench_func.disc_list(4 if spatial_method == "DG" else 8, 3 if not small_test else 3)]
         ],
         'par_methods':
             [[None], [None], [3], [3], [None], [None], [3]] if spatial_method == "DG" else [[None], [None], [0], [0], [None], [None], [0]],
@@ -486,7 +486,7 @@ def sensitivity_benchmark1(spatial_method, small_test):
             [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)],
             [None],
             [None],
-            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)]
+            [bench_func.disc_list(1 if spatial_method == "DG" else 2, 3 if not small_test else 3)]
         ]
     }
 
