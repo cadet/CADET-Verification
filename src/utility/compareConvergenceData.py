@@ -166,13 +166,13 @@ def compare_values(val1, val2, key_path: str, print_only_convergence_differences
                     if len(time_list_1) == len(time_list_2):
                         differences = calculate_percentage_difference(time_list_1, time_list_2)
                         if not all(x == 0.0 for x in differences) and not print_only_convergence_differences:
-                            log_print(f"Sim. time percentage differences: {differences}")
+                            log_print(f"Sim. time percentage differences for {key_path}: {differences}")
                         elif not print_only_convergence_differences:
-                            log_print(f"Sim. time is similar")
+                            log_print(f"Sim. time is similar for {key_path}")
                     else:
-                        log_print(f"ERROR: Sim. time lists have different lengths: {len(time_list_1)} vs {len(time_list_2)}")
+                        log_print(f"ERROR: Sim. time lists  for {key_path} have different lengths: {len(time_list_1)} vs {len(time_list_2)}")
                 except (ValueError, TypeError) as e:
-                    log_print(f"ERROR: Could not convert Sim. time values to numbers: {e}")
+                    log_print(f"ERROR: Could not convert Sim. time values to numbers for {key_path}: {e}")
                 return True
             else:
                 if not compare_values(val1[key], val2[key], f"{key_path}.{key}", print_only_convergence_differences):
@@ -203,10 +203,10 @@ def calculate_percentage_difference(list1: List[float], list2: List[float]) -> L
     
     differences = []
     for val1, val2 in zip(list1, list2):
-        if val2 != 0:
-            diff_percent = ((val1 - val2) / val2) * 100
-        elif val1 != 0:
-            diff_percent = float('inf')  # or handle as needed
+        if val1 != 0:
+            diff_percent = ((val2 - val1) / val1) * 100
+        elif val2 != 0:
+            diff_percent = float('inf')
         else:
             diff_percent = 0.0
         differences.append(diff_percent)
@@ -286,6 +286,8 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
         content1 = get_file_content(file1_path)
         content2 = get_file_content(file2_path)
         
+        print(file1_path)
+        
         if not content1 or not content2:
             log_print(f"ERROR: Could not load content from one or both files")
             continue
@@ -308,7 +310,7 @@ def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]],
             
             content2Keys.remove(key1)
             
-            files_match = compare_values(content1, content2, key1, print_only_convergence_differences)
+            files_match = compare_values(content1[f'{key1}'], content2[f'{key1}'], key1, print_only_convergence_differences)
         
         if len(content2Keys):
             log_print(f"ERROR: {content2Keys} do not exist in {file1_path}")
