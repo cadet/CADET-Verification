@@ -32,6 +32,8 @@ Once the workflow completes, the generated verification data will be published t
 There are some utility functions under `src/utility/compareConvergenceData.py` to facilitate the comparison, which automatically compare convergence and performance data.
 Additionally, a comparison log `.txt` file should be generated using this functionality.
 
+To conduct a performance benchmark between two versions of CADET-Core, please refer to the file `src/performance_benchmark.py`.
+
 ## Contributing
 
 We welcome and appreciate all contributions!
