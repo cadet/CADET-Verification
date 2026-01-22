@@ -38,13 +38,13 @@ project_repo = ProjectRepo()
 output_path2 = project_repo.output_path / "test_cadet-core" / "masterPerformance"
 output_path1 = project_repo.output_path / "test_cadet-core" / "featurePerformance"
 
-n_reruns = 2
+n_reruns = 10
 
 n_jobs = -1
 
-rdm_debug_mode = 1
+rdm_debug_mode = 0
 
-small_test = 1
+small_test = 0
 
 delete_h5_files = 1
 
