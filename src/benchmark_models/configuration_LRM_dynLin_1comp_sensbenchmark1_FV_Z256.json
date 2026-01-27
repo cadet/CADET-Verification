@@ -1,0 +1,321 @@
+{
+  "meta": {
+    "source": "https://doi.org/10.1016/j.compchemeng.2023.108340",
+    "info": "Numerical benchmark case used in https://doi.org/10.1016/j.compchemeng.2023.108340",
+    "name": "configuration_LRM_dynLin_1comp_sensbenchmark1_FV_Z256"
+  },
+  "input": {
+    "model": {
+      "NUNITS": 3,
+      "connections": {
+        "NSWITCHES": 1,
+        "switch_000": {
+          "CONNECTIONS": [
+            0.0,
+            1.0,
+            -1.0,
+            -1.0,
+            6e-05,
+            1.0,
+            2.0,
+            -1.0,
+            -1.0,
+            6e-05
+          ],
+          "SECTION": 0
+        }
+      },
+      "solver": {
+        "GS_TYPE": 1,
+        "MAX_KRYLOV": 0,
+        "MAX_RESTARTS": 10,
+        "SCHUR_SAFETY": 1e-08
+      },
+      "unit_000": {
+        "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+        "NCOMP": 1,
+        "UNIT_TYPE": "INLET",
+        "sec_000": {
+          "CONST_COEFF": [
+            1.0
+          ],
+          "CUBE_COEFF": [
+            0.0
+          ],
+          "LIN_COEFF": [
+            0.0
+          ],
+          "QUAD_COEFF": [
+            0.0
+          ]
+        },
+        "sec_001": {
+          "CONST_COEFF": [
+            0.0
+          ],
+          "CUBE_COEFF": [
+            0.0
+          ],
+          "LIN_COEFF": [
+            0.0
+          ],
+          "QUAD_COEFF": [
+            0.0
+          ]
+        }
+      },
+      "unit_001": {
+        "ADSORPTION_MODEL": "LINEAR",
+        "COL_DISPERSION": 0.0001,
+        "COL_LENGTH": 1.0,
+        "INIT_C": [
+          0.0
+        ],
+        "INIT_Q": [
+          0.0
+        ],
+        "NCOMP": 1,
+        "TOTAL_POROSITY": 0.6,
+        "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
+        "VELOCITY": 0.03333333333333333,
+        "adsorption": {
+          "IS_KINETIC": 1,
+          "LIN_KA": [
+            1.0
+          ],
+          "LIN_KD": [
+            1.0
+          ]
+        },
+        "discretization": {
+          "NBOUND": [
+            1
+          ],
+          "NCOL": 256,
+          "RECONSTRUCTION": "WENO",
+          "SPATIAL_METHOD": "FV",
+          "USE_ANALYTIC_JACOBIAN": 1,
+          "weno": {
+            "BOUNDARY_MODEL": 0,
+            "WENO_EPS": 1e-10,
+            "WENO_ORDER": 3
+          }
+        }
+      },
+      "unit_002": {
+        "NCOMP": 1,
+        "UNIT_TYPE": "OUTLET"
+      }
+    },
+    "return": {
+      "SPLIT_COMPONENTS_DATA": 0,
+      "SPLIT_PORTS_DATA": 0,
+      "unit_000": {
+        "WRITE_SOLUTION_BULK": 0,
+        "WRITE_SOLUTION_INLET": 0,
+        "WRITE_SOLUTION_OUTLET": 0
+      },
+      "unit_001": {
+        "WRITE_COORDINATES": 0,
+        "WRITE_SENS_BULK": 0,
+        "WRITE_SENS_LAST": 0,
+        "WRITE_SENS_OUTLET": 1,
+        "WRITE_SOLUTION_BULK": 0,
+        "WRITE_SOLUTION_INLET": 0,
+        "WRITE_SOLUTION_OUTLET": 1
+      },
+      "unit_002": {
+        "WRITE_SOLUTION_BULK": 0,
+        "WRITE_SOLUTION_INLET": 0,
+        "WRITE_SOLUTION_OUTLET": 0
+      }
+    },
+    "sensitivity": {
+      "NSENS": 3,
+      "SENS_METHOD": "ad1",
+      "param_000": {
+        "SENS_BOUNDPHASE": -1,
+        "SENS_COMP": 0,
+        "SENS_NAME": "COL_DISPERSION",
+        "SENS_PARTYPE": -1,
+        "SENS_REACTION": -1,
+        "SENS_SECTION": -1,
+        "SENS_UNIT": 1
+      },
+      "param_001": {
+        "SENS_BOUNDPHASE": -1,
+        "SENS_COMP": -1,
+        "SENS_NAME": "TOTAL_POROSITY",
+        "SENS_PARTYPE": -1,
+        "SENS_REACTION": -1,
+        "SENS_SECTION": -1,
+        "SENS_UNIT": 1
+      },
+      "param_002": {
+        "SENS_BOUNDPHASE": 0,
+        "SENS_COMP": 0,
+        "SENS_NAME": "LIN_KA",
+        "SENS_PARTYPE": -1,
+        "SENS_REACTION": -1,
+        "SENS_SECTION": -1,
+        "SENS_UNIT": 1
+      }
+    },
+    "solver": {
+      "CONSISTENT_INIT_MODE": 1,
+      "CONSISTENT_INIT_MODE_SENS": 1,
+      "NTHREADS": 1,
+      "USER_SOLUTION_TIMES": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        5.0,
+        6.0,
+        7.0,
+        8.0,
+        9.0,
+        10.0,
+        11.0,
+        12.0,
+        13.0,
+        14.0,
+        15.0,
+        16.0,
+        17.0,
+        18.0,
+        19.0,
+        20.0,
+        21.0,
+        22.0,
+        23.0,
+        24.0,
+        25.0,
+        26.0,
+        27.0,
+        28.0,
+        29.0,
+        30.0,
+        31.0,
+        32.0,
+        33.0,
+        34.0,
+        35.0,
+        36.0,
+        37.0,
+        38.0,
+        39.0,
+        40.0,
+        41.0,
+        42.0,
+        43.0,
+        44.0,
+        45.0,
+        46.0,
+        47.0,
+        48.0,
+        49.0,
+        50.0,
+        51.0,
+        52.0,
+        53.0,
+        54.0,
+        55.0,
+        56.0,
+        57.0,
+        58.0,
+        59.0,
+        60.0,
+        61.0,
+        62.0,
+        63.0,
+        64.0,
+        65.0,
+        66.0,
+        67.0,
+        68.0,
+        69.0,
+        70.0,
+        71.0,
+        72.0,
+        73.0,
+        74.0,
+        75.0,
+        76.0,
+        77.0,
+        78.0,
+        79.0,
+        80.0,
+        81.0,
+        82.0,
+        83.0,
+        84.0,
+        85.0,
+        86.0,
+        87.0,
+        88.0,
+        89.0,
+        90.0,
+        91.0,
+        92.0,
+        93.0,
+        94.0,
+        95.0,
+        96.0,
+        97.0,
+        98.0,
+        99.0,
+        100.0,
+        101.0,
+        102.0,
+        103.0,
+        104.0,
+        105.0,
+        106.0,
+        107.0,
+        108.0,
+        109.0,
+        110.0,
+        111.0,
+        112.0,
+        113.0,
+        114.0,
+        115.0,
+        116.0,
+        117.0,
+        118.0,
+        119.0,
+        120.0,
+        121.0,
+        122.0,
+        123.0,
+        124.0,
+        125.0,
+        126.0,
+        127.0,
+        128.0,
+        129.0,
+        130.0
+      ],
+      "sections": {
+        "NSEC": 2,
+        "SECTION_CONTINUITY": [
+          0
+        ],
+        "SECTION_TIMES": [
+          0.0,
+          60.0,
+          130.0
+        ]
+      },
+      "time_integrator": {
+        "ABSTOL": 1e-12,
+        "ALGTOL": 1e-10,
+        "INIT_STEP_SIZE": 1e-10,
+        "MAX_STEPS": 1000000,
+        "RELTOL": 1e-10
+      }
+    }
+  }
+}

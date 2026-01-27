@@ -2,18 +2,15 @@ import urllib
 import json
 import re
 import numpy as np
+from pathlib import Path
+
+import src.bench_func as bf
 
 def get_model(database_url):
-
-    cadet_config_json_name = 'configuration_LRM_reqSMA_4comp_sensbenchmark1_FV_Z64.json'
         
-    with urllib.request.urlopen(
-            database_url + cadet_config_json_name) as url:
-
-        config_data = json.loads(url.read().decode())
-
-    setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
-                             cadet_config_json_name).group(1)
+    json_path = Path(__file__).resolve().parent / "configuration_LRM_reqSMA_4comp_sensbenchmark1_FV_Z64.json"
+    with open(json_path, "r", encoding="utf-8") as f:
+        config_data = json.load(f) 
     
     return config_data
 
