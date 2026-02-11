@@ -542,68 +542,41 @@ def sensitivity_benchmark2(spatial_method, small_test):
 # %% Radial flow (FV) benchmark configuration used in CADET-Core tests
 
 
-def radial_flow_benchmark(small_test=False, sensitivities=False):
+def reacASM3_benchmark(small_test=False, sensitivities=False):
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_radCol1D_LRM_lin_1comp_benchmark1.get_sensbenchmark1(
+            setting_Col1D_reacASM3_xcomp_benchmark1.get_benchmark(
                 spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_GRM_sensbenchmark1(
-                spatial_method_bulk=0, spatial_method_par=0
-                )
-        ] if sensitivities else [
-            setting_radCol1D_LRM_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, particle_type="HOMOGENEOUS_PARTICLE"
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, spatial_method_par=0,
-                particle_type="GENERAL_RATE_PARTICLE"
                 )
         ],
         'cadet_config_names': [
-            'radLRM_dynLin_1comp_sensbenchmark1',
-            'radLRMP_dynLin_1comp_sensbenchmark1',
-            'radGRM_dynLin_1comp_sensbenchmark1'
-        ] if sensitivities else [
-            'radLRM_dynLin_1comp_benchmark1',
-            'radLRMP_dynLin_1comp_benchmark1',
-            'radGRM_dynLin_1comp_benchmark1'
+            'Col1D_reacASM3_xcomp_benchmark1'
         ],
-        'include_sens': [True] * 3 if sensitivities else [False] * 3,
+        'include_sens': [False] * 3,
         'ref_files': [
-            [None], [None], [None]
+            [None]
         ],
         'unit_IDs': [
-            '001', '001', '001'
+            '001'
         ],
         'which': [
-            'outlet', 'outlet', 'outlet'
+            'outlet'
         ],
         'idas_abstol': [
-            [1e-10], [1e-10], [1e-10]
+            [1e-10]
         ],
         'ax_methods': [
-            [0], [0], [0]
+            [0]
         ],
         'ax_discs': [
-            [bench_func.disc_list(8, 11 if not small_test else 3)],
-            [bench_func.disc_list(8, 7 if not small_test else 3)],
-            [bench_func.disc_list(8, 5 if not small_test else 3)]
+            [bench_func.disc_list(4, 6)]
         ],
         'par_methods': [
-            [None], [None], [0]
+            [0]
         ],
         'par_discs': [
-            [None],
-            [None],
-            [bench_func.disc_list(1, 5 if not small_test else 3)]
+            [bench_func.disc_list(1, 6)]
         ]
     }
 

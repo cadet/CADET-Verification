@@ -22,8 +22,8 @@ import utility.convergence as convergence
 # Give the corresponding output_paths a meaningful name, add commit message
 
 
-cadet_path2 = r"C:\Users\jmbr\Desktop\CADET_compiled\master4_v600a1_518d41b\aRELEASE"
-cadet_path1 = r"C:\Users\jmbr\Desktop\CADET_compiled\NANerror\aRELEASE"
+cadet_path1 = r"C:\Users\jmbr\Desktop\CADET_compiled\eigen3v5_release_v6.0.0-alpha.1\aRELEASE"
+cadet_path2 = r"C:\Users\jmbr\Desktop\CADET_compiled\release_v6.0.0-alpha.1\aRELEASE"
 
 # cadet_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE" # r"C:\Users\jmbr\Desktop\CADET_compiled\master3_generalUnit_f1a1972\aRELEASE"
 
@@ -31,20 +31,20 @@ model = Cadet()
 
 model.cadet_path = cadet_path1
 
-commit_message = "Performance benchmark residual NAN check"
+commit_message = "Performance benchmark Eigen3 v5"
 
 
 project_repo = ProjectRepo()
-output_path2 = project_repo.output_path / "test_cadet-core" / "masterPerformance"
-output_path1 = project_repo.output_path / "test_cadet-core" / "featurePerformance"
+output_path1 = project_repo.output_path / "test_cadet-core" / "masterPerformance"
+output_path2 = project_repo.output_path / "test_cadet-core" / "featurePerformance"
 
-n_reruns = 2
+n_reruns = 8
 
 n_jobs = -1
 
 rdm_debug_mode = 1
 
-small_test = 1
+small_test = 0
 
 delete_h5_files = 1
 
