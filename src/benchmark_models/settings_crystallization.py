@@ -318,6 +318,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, cadet_path, output_pat
     model.root.input.model.unit_001.total_porosity = 0.21
     model.root.input.model.unit_001.col_dispersion = 4.2e-05     # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
+    model.root.input.model.unit_001.npartype = 1
     model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
     model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
     model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
