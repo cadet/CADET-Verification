@@ -36,7 +36,7 @@ run_2Dmodels_tests = False
 
 sys.path.append(str(Path(".")))
 output_path = Path.cwd() / "output" / "test_cadet-core"
-cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master8_5thmarch2026_33f88a4\aRELEASE"
+cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\CADET_v6.0.0-alpha.2\aRELEASE"
 # convergence.get_cadet_path()
 
 if run_transport_tests:
