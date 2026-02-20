@@ -911,13 +911,7 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.npartype = 1
-    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
-    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
+    model.root.input.model.unit_001.npartype = 0
 
     # column discretization
     model.root.input.model.unit_001.discretization.spatial_method = 'FV'
@@ -1031,13 +1025,7 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.npartype = 1
-    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
-    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
+    model.root.input.model.unit_001.npartype = 0
 
     # column discretization
     model.root.input.model.unit_001.discretization.spatial_method = 'FV'
@@ -1171,13 +1159,7 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.npartype = 1
-    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.particle_type_000.nbound = nComp*[0]
-    model.root.input.model.unit_001.particle_type_000.init_cs = nComp*[0.0]
+    model.root.input.model.unit_001.npartype = 0
 
     # column discretization
     model.root.input.model.unit_001.discretization.spatial_method = 'FV'
@@ -1310,13 +1292,7 @@ def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins'
     model.root.input.model.unit_001.total_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
     model.root.input.model.unit_001.init_c = initial_c
-    model.root.input.model.unit_001.npartype = 1
-    model.root.input.model.unit_001.particle_type_000.has_film_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_pore_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.has_surface_diffusion = 0
-    model.root.input.model.unit_001.particle_type_000.adsorption_model = 'NONE'
-    model.root.input.model.unit_001.particle_type_000.nbound = n_x*[0]
-    model.root.input.model.unit_001.particle_type_000.init_cs = n_x*[0.0]
+    model.root.input.model.unit_001.npartype = 0
 
     # column discretization
     model.root.input.model.unit_001.discretization.spatial_method = 'FV'
