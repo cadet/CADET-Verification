@@ -670,32 +670,44 @@ def run_convergence_analysis_from_configs(
 
                 for discIdx in range(0, len(ax_discs[modelIdx][methodIdx])):
 
-                    par_method = par_methods[modelIdx][methodIdx]
-                    par_cells = None
-                    if par_method is not None:
-                        par_cells = par_discs[modelIdx][methodIdx][discIdx]
-                    if rad_methods is not None:
-                        rad_method = rad_methods[modelIdx][methodIdx]
-                        rad_cells = rad_discs[modelIdx][methodIdx][discIdx]
+                    if 'config_update_function' in kwargs:
+                        
+                        sims.append(
+                            kwargs['config_update_function'](
+                                config_data=cadet_configs[modelIdx],
+                                setting_name=cadet_config_names[modelIdx],
+                                discIdx=discIdx
+                                )
+                            )
+                        
                     else:
-                        rad_method = None
-                        rad_cells = None
 
-                    sims.append(
-                        create_object_from_config(
-                            config_data=cadet_configs[modelIdx],
-                            setting_name=cadet_config_names[modelIdx],
-                            unit_id=refinement_IDs[modelIdx],
-                            ax_method=ax_methods[modelIdx][methodIdx],
-                            ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
-                            par_method=par_method, par_cells=par_cells,
-                            rad_method=rad_method, rad_cells=rad_cells,
-                            output_path=output_path,
-                            idas_abstol=idas_abstol[modelIdx][methodIdx],
-                            include_sens=include_sens[modelIdx],
-                            **kwargs
+                        par_method = par_methods[modelIdx][methodIdx]
+                        par_cells = None
+                        if par_method is not None:
+                            par_cells = par_discs[modelIdx][methodIdx][discIdx]
+                        if rad_methods is not None:
+                            rad_method = rad_methods[modelIdx][methodIdx]
+                            rad_cells = rad_discs[modelIdx][methodIdx][discIdx]
+                        else:
+                            rad_method = None
+                            rad_cells = None
+    
+                        sims.append(
+                            create_object_from_config(
+                                config_data=cadet_configs[modelIdx],
+                                setting_name=cadet_config_names[modelIdx],
+                                unit_id=refinement_IDs[modelIdx],
+                                ax_method=ax_methods[modelIdx][methodIdx],
+                                ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
+                                par_method=par_method, par_cells=par_cells,
+                                rad_method=rad_method, rad_cells=rad_cells,
+                                output_path=output_path,
+                                idas_abstol=idas_abstol[modelIdx][methodIdx],
+                                include_sens=include_sens[modelIdx],
+                                **kwargs
+                            )
                         )
-                    )
 
         # Run simulations in one global parallelization
         backend = Parallel(n_jobs=n_jobs, verbose=0)
