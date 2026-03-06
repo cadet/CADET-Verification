@@ -10,10 +10,6 @@ import numpy as np
 import h5py
 import json
 import re
-from cadetrdm import ProjectRepo
-
-project_repo = ProjectRepo()
-file_path = project_repo.output_path / "test_cadet-core"
 
 
 def dataset_to_json(dataset):
