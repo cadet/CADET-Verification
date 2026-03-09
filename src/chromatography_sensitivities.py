@@ -47,7 +47,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+         ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
 
     addition = bench_configs.sensitivity_benchmark1(
@@ -56,7 +56,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
     
     addition = bench_configs.sensitivity_benchmark1(
@@ -65,7 +65,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
 
     addition = bench_configs.sensitivity_benchmark2(
@@ -74,7 +74,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
     
     addition = bench_configs.sensitivity_benchmark2(
@@ -83,7 +83,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
     
     
@@ -126,7 +126,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
 
     addition = bench_configs.sensitivity_benchmark1(
@@ -135,7 +135,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
     
     addition = bench_configs.sensitivity_benchmark1(
@@ -144,7 +144,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
 
     addition = bench_configs.sensitivity_benchmark2(
@@ -153,7 +153,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
     
     addition = bench_configs.sensitivity_benchmark2(
@@ -162,7 +162,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
     
     for modelIdx in range(len(cadet_configs)):

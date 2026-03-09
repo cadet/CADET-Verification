@@ -129,7 +129,7 @@ def create_object_from_database(
                              cadet_config_json_name).group(1)
 
     return create_object_from_config(
-        config_data=config_data,
+        config_data=copy.deepcopy(config_data),
         setting_name=setting_name,
         unit_id=unit_id,
         ax_method=ax_method, ax_cells=ax_cells, par_method=par_method, par_cells=par_cells,
@@ -144,7 +144,9 @@ def create_object_from_config(
         ax_method=None, ax_cells=None, par_method=None, par_cells=None,
         rad_method=None, rad_cells=None,
         output_path=None,
-        idas_abstol=None, include_sens=True, **kwargs):
+        idas_abstol=None, include_sens=True,
+        only_return_name=False,
+        **kwargs):
     """ Takes a CADET-configuration as dictionary, adjusts it and returns the 
         Cadet-Object. Optionally saves the corresponding h5 config file.
 
@@ -180,7 +182,46 @@ def create_object_from_config(
         Cadet object.
     """
 
-    convergence_sim_names = []
+    # Create configuration name
+    if rad_method is not None:
+        if par_method is not None:
+            config_name = convergence.generate_2DGRM_name(
+                setting_name, ax_method, ax_cells, rad_method, rad_cells, par_method, par_cells
+            )
+        elif ax_method is not None:
+            config_name = convergence.generate_2D_name(
+                setting_name, ax_method, ax_cells, rad_method, rad_cells
+            )
+    elif par_method is not None:
+        config_name = convergence.generate_GRM_name(
+            setting_name, ax_method, ax_cells, par_method, par_cells
+        )
+    elif ax_method is not None:
+        config_name = convergence.generate_1D_name(
+            setting_name, ax_method, ax_cells
+        )
+    else:
+        config_name = re.sub('.json', '', setting_name) + '.h5'
+
+    # Optionally exclude sensitivities (which influence the approximation)
+    if 'sensitivity' in config_data['input']:
+        if include_sens:
+            sensitivity = config_data['input']['sensitivity']
+            # config_data['input']['solver']['time_integrator']['SENS_ABSTOL'] = idas_abstol * 1000
+        else:
+            config_data['input'].pop('sensitivity')
+            sensitivity = {'NSENS': 0}
+            config_name = re.sub('sens|sensitivity', '', config_name)
+    else:
+        sensitivity = {'NSENS': 0}
+        
+    if only_return_name: # return name, dont create object
+        if output_path is not None:
+            if 'filename_prefix' not in kwargs.keys():
+                return str(output_path) + '/' + config_name
+            else:
+                return str(output_path) + '/' + \
+                    kwargs['filename_prefix'] + config_name
 
     # Adjust configuration to desired numerical refinement
     if idas_abstol is not None:
@@ -227,7 +268,7 @@ def create_object_from_config(
                 elif 'npartype' in config_data['input']['model']['unit_' + tmpID].keys():
                     nParType = config_data['input']['model']['unit_' + tmpID]['npartype']
                 else:
-                    raise Exception(f"Refinement of particle discretization was asked, but NPARTYPE does not exist in model")
+                    raise Exception("Refinement of particle discretization was asked, but NPARTYPE does not exist in model")
             
                 for par_type in range(nParType):
                     
@@ -301,39 +342,6 @@ def create_object_from_config(
                 config_data['input']['model']['unit_' +
                                           tmpID]['discretization']['LINEAR_SOLVER'] = kwargs['LINEAR_SOLVER']
 
-    # Create configuration name
-    if rad_method is not None:
-        if par_method is not None:
-            config_name = convergence.generate_2DGRM_name(
-                setting_name, ax_method, ax_cells, rad_method, rad_cells, par_method, par_cells
-            )
-        elif ax_method is not None:
-            config_name = convergence.generate_2D_name(
-                setting_name, ax_method, ax_cells, rad_method, rad_cells
-            )
-    elif par_method is not None:
-        config_name = convergence.generate_GRM_name(
-            setting_name, ax_method, ax_cells, par_method, par_cells
-        )
-    elif ax_method is not None:
-        config_name = convergence.generate_1D_name(
-            setting_name, ax_method, ax_cells
-        )
-    else:
-        config_name = re.sub('.json', '', setting_name) + '.h5'
-
-    # Optionally exclude sensitivities (which influence the approximation)
-    if 'sensitivity' in config_data['input']:
-        if include_sens:
-            sensitivity = config_data['input']['sensitivity']
-            # config_data['input']['solver']['time_integrator']['SENS_ABSTOL'] = idas_abstol * 1000
-        else:
-            config_data['input'].pop('sensitivity')
-            sensitivity = {'NSENS': 0}
-            config_name = re.sub('sens|sensitivity', '', config_name)
-    else:
-        sensitivity = {'NSENS': 0}
-
     model = Cadet()
     model.root.input = copy.deepcopy(config_data['input'])
     if output_path is not None:
@@ -358,6 +366,7 @@ def generate_convergence_data(
         sens_included=True,
         write_sens=True,
         commit_hash=None,
+        sim_names=None,
         **kwargs
 ):
     """ Creates convergence data.
@@ -400,7 +409,6 @@ def generate_convergence_data(
     Bool
         Success.
     """
-    GRM_setting = 0 if par_method is None else 1
 
     setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
                              cadet_config_json)
@@ -408,8 +416,6 @@ def generate_convergence_data(
         setting_name = cadet_config_json
     else:
         setting_name = setting_name.group(1)
-
-    convergence_sim_names = []
 
     # read setup
     if database_url is not None:
@@ -449,17 +455,17 @@ def generate_convergence_data(
             config_data = None
 
     table = convergence.recalculate_results(
-        file_path=str(output_path) + '/', models=[setting_name],
-        ax_methods=[ax_method], ax_cells=ax_disc,
-        par_methods=[par_method], par_cells=par_disc,
-        rad_methods=[rad_method], rad_cells=rad_disc,
-        exact_names=[ref_file],
+        file_path=str(output_path) + '/', model=setting_name,
+        ax_method=ax_method, ax_cells=ax_disc,
+        par_method=par_method, par_cells=par_disc,
+        rad_method=rad_method, rad_cells=rad_disc,
+        exact_name=ref_file,
         unit=unitID, which=which,
         incl_min_val=True,
         transport_model=kwargs.pop('transport_model', None),
         ncomp=kwargs.pop('ncomp', None), nbound=kwargs.pop('nbound', None),
         save_path_=None,
-        simulation_names=None,
+        simulation_names=sim_names,
         save_names=None,
         export_results=False,
         **kwargs
@@ -482,14 +488,29 @@ def generate_convergence_data(
             if commit_hash is not None:
                 config_data['input']['meta']['cadet_commit_last_run'] = commit_hash
         # get method name
-        if ax_method == 0:
-            method_name = 'FV'
-        else:
-            method_name = 'DG_P' + str(ax_method)
-            if rad_method is not None:
-                method_name += 'radP' + str(rad_method)
-            if par_method is not None:
-                method_name += 'parP' + str(par_method)
+        refinement_ID = kwargs['refinement_ID']
+        disc = convergence.sim_go_to(convergence.get_simulation(sim_names[0]).root,
+                              ['input',
+                               'model',
+                               f'unit_{refinement_ID}',
+                               'discretization'
+                               ]
+                )
+        
+        method_name = convergence.generate_bulkDisc_name(disc)
+            
+        if par_method is not None:
+            
+            disc = convergence.sim_go_to(convergence.get_simulation(sim_names[0]).root,
+                                  ['input',
+                                   'model',
+                                   f'unit_{refinement_ID}',
+                                   'particle_type_000',
+                                   'discretization'
+                                   ]
+                    )
+            
+            method_name = method_name + convergence.generate_parDisc_name(disc, method_name)
 
         if config_data is not None and 'meta' in config_data['input'].keys():
             write_meta_json(
@@ -511,19 +532,20 @@ def generate_convergence_data(
         sens_name = str(sensitivity['param_' + '{:03d}'.format(sensIdx)].get('sens_name') or sensitivity['param_' + '{:03d}'.format(sensIdx)].get('SENS_NAME'))
 
         table = convergence.recalculate_results(
-            file_path=str(output_path) + '/', models=[setting_name],
-            ax_methods=[ax_method], ax_cells=ax_disc,
-            rad_methods=[rad_method], rad_cells=rad_disc,
-            exact_names=[ref_file],
+            file_path=str(output_path) + '/', model=setting_name,
+            ax_method=ax_method, ax_cells=ax_disc,
+            rad_method=rad_method, rad_cells=rad_disc,
+            exact_name=ref_file,
             unit=unitID, which='sens_' + which,
-            par_methods=[par_method], par_cells=par_disc,
+            par_method=par_method, par_cells=par_disc,
             incl_min_val=True,
             transport_model=None, ncomp=None, nbound=None,
             save_path_=None,
-            simulation_names=None,
+            simulation_names=sim_names,
             save_names=None,
             export_results=False,
-            **{'sensIdx': sensIdx}
+            sensIdx=sensIdx,
+            **kwargs
         )
 
         table = table.to_dict(orient='list')
@@ -577,17 +599,11 @@ def run_convergence_analysis_from_configs(
             [disc_list(8, 3), disc_list(1, 3)],
             [disc_list(8, 3), disc_list(4, 3)]
         ],
-        par_methods=[
-            [None, None],
-            [0, 3]
-        ],
-        par_discs=[
-            [None, None],
-            [disc_list(1, 3), disc_list(1, 3)]
-        ],
+        par_methods=None,
+        par_discs=None,
         rad_methods=None,
         rad_discs=None,
-        idas_abstol=[[None, None], [None, None]],
+        idas_abstol=None,
         n_jobs=-1,
         rerun_sims=True,
         **kwargs
@@ -655,57 +671,66 @@ def run_convergence_analysis_from_configs(
     commit_hash = None
 
     if 'refinement_IDs' not in kwargs.keys():
-        refinement_IDs = unit_IDs
+        if 'system_refinement_IDs' in kwargs.keys():
+            refinement_IDs = kwargs['system_refinement_IDs']
+        else:
+            refinement_IDs = unit_IDs
+            kwargs['refinement_IDs'] = unit_IDs
     elif kwargs['refinement_IDs'] == []:
         refinement_IDs = unit_IDs
     else:
         refinement_IDs = kwargs['refinement_IDs']
 
-    if rerun_sims:
-        # Create simulation objects
-        sims = []  # To be filled with all Cadet objects
+    # Create simulation objects
+    sims = []  # To be filled with all Cadet objects
+    sim_names = []
 
-        for modelIdx in range(0, len(cadet_config_names)): 
+    for modelIdx in range(0, len(cadet_config_names)): 
 
-            for methodIdx in range(0, len(ax_methods[modelIdx])):
+        sim_names_model = []
+        
+        for methodIdx in range(0, len(ax_methods[modelIdx])):
 
-                for discIdx in range(0, len(ax_discs[modelIdx][methodIdx])):
-                    
+            sim_names_method = []
+            
+            for discIdx in range(0, len(ax_discs[modelIdx][methodIdx])):
+                
+                if par_methods is None:
+                    par_method = None
+                else:
                     par_method = par_methods[modelIdx][methodIdx]
-                    par_cells = None
-                    if par_method is not None:
-                        par_cells = par_discs[modelIdx][methodIdx][discIdx]
-                    if rad_methods is not None:
-                        rad_method = rad_methods[modelIdx][methodIdx]
-                        rad_cells = rad_discs[modelIdx][methodIdx][discIdx]
-                    else:
-                        rad_method = None
-                        rad_cells = None
-                            
-                    if 'disc_refinement_functions' in kwargs:
+                par_cells = None
+                if par_method is not None:
+                    par_cells = par_discs[modelIdx][methodIdx][discIdx]
+                if rad_methods is not None:
+                    rad_method = rad_methods[modelIdx][methodIdx]
+                    rad_cells = rad_discs[modelIdx][methodIdx][discIdx]
+                else:
+                    rad_method = None
+                    rad_cells = None
+                        
+                if 'disc_refinement_functions' in kwargs:
+                    
+                    if not kwargs['disc_refinement_functions'][modelIdx][methodIdx] is create_object_from_config:
                         
                         sims.append(
                             kwargs['disc_refinement_functions'][modelIdx][methodIdx](
-                                config_data=cadet_configs[modelIdx],
-                                setting_name=cadet_config_names[modelIdx],
+                                config_data=copy.deepcopy(cadet_configs[modelIdx]),
                                 unit_id=refinement_IDs[modelIdx],
-                                discIdx=discIdx,
+                                disc_idx=discIdx,
                                 output_path=output_path,
                                 include_sens=include_sens[modelIdx],
-                                ax_method=ax_methods[modelIdx][methodIdx],
-                                ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
-                                par_method=par_method, par_cells=par_cells,
-                                rad_method=rad_method, rad_cells=rad_cells,
-                                idas_abstol=idas_abstol[modelIdx][methodIdx],
+                                idas_abstol=None if idas_abstol is None else idas_abstol[modelIdx][methodIdx],
+                                only_return_name=not rerun_sims,
                                 **kwargs
                                 )
                             )
                         
-                    else:
-    
+                    else: # needs the standard discretization input vectors, legacy code
+                        
                         sims.append(
                             create_object_from_config(
-                                config_data=cadet_configs[modelIdx],
+                                config_data=copy.deepcopy(cadet_configs[modelIdx]),
                                 setting_name=cadet_config_names[modelIdx],
                                 unit_id=refinement_IDs[modelIdx],
                                 ax_method=ax_methods[modelIdx][methodIdx],
@@ -715,11 +740,46 @@ def run_convergence_analysis_from_configs(
                                 output_path=output_path,
                                 idas_abstol=idas_abstol[modelIdx][methodIdx],
                                 include_sens=include_sens[modelIdx],
+                                only_return_name=not rerun_sims,
                                 **kwargs
                             )
                         )
+                    
+                else:
 
-        # Run simulations in one global parallelization
+                    sims.append(
+                        create_object_from_config(
+                            config_data=copy.deepcopy(cadet_configs[modelIdx]),
+                            setting_name=cadet_config_names[modelIdx],
+                            unit_id=refinement_IDs[modelIdx],
+                            ax_method=ax_methods[modelIdx][methodIdx],
+                            ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
+                            par_method=par_method, par_cells=par_cells,
+                            rad_method=rad_method, rad_cells=rad_cells,
+                            output_path=output_path,
+                            idas_abstol=idas_abstol[modelIdx][methodIdx],
+                            include_sens=include_sens[modelIdx],
+                            only_return_name=not rerun_sims,
+                            **kwargs
+                        )
+                    )
+                    
+                if rerun_sims:
+                    sim_names_method.append(
+                        sims[-1].filename
+                        # re.search(r'[^\\/]+\.h5$', sims[-1].filename).group()
+                        )
+                else:
+                    sim_names_method.append(
+                        sims[-1]
+                        # re.search(r'[^\\/]+\.h5$', sims[-1].filename).group()
+                        )
+                    
+            sim_names_model.append(sim_names_method)
+        sim_names.append(sim_names_model)
+
+    # Run simulations in one global parallelization
+    if rerun_sims:
         backend = Parallel(n_jobs=n_jobs, verbose=0)
         backend(delayed(run_simulation_in_verification)(sim, cadet_path)
                 for sim in zip(sims))
@@ -742,6 +802,7 @@ def run_convergence_analysis_from_configs(
         par_discs=par_discs,
         rad_methods=rad_methods,
         rad_discs=rad_discs,
+        sim_names=sim_names,
         **kwargs
     )
 
@@ -983,87 +1044,40 @@ def run_convergence_analysis_core(
     bool
         Success.
     """
-
-    # Get setting names and set reference file names if required
-    setting_names = []
-
+    
+    # get ref file names if ref files are not provided
     for modelIdx in range(0, len(cadet_config_jsons)):
-
-        setting_name = re.search(r'configuration_(.*?)(?:\.json|_FV|_DG)',
-                                 cadet_config_jsons[modelIdx])
-        if setting_name is None:
-            setting_name = cadet_config_jsons[modelIdx]
-        else:
-            setting_name = setting_name.group(1)
-
-        if not include_sens[modelIdx]:
-            setting_name = re.sub('sens|sensitivity', '', setting_name)
-
-        setting_names.append(setting_name)
-
+        
         for methodIdx in range(0, len(ax_methods[modelIdx])):
-
+            
             if ref_files[modelIdx][methodIdx] is None:
-
-                if rad_methods is None:
-                    
-                    if par_methods[modelIdx][methodIdx] is None:
-    
-                        ref_file = convergence.generate_1D_name(
-                            setting_name,
-                            ax_methods[modelIdx][methodIdx],
-                            ax_discs[modelIdx][methodIdx][-1]
-                        )
-                    else:
-    
-                        ref_file = convergence.generate_GRM_name(
-                            setting_name,
-                            ax_methods[modelIdx][methodIdx],
-                            ax_discs[modelIdx][methodIdx][-1],
-                            par_methods[modelIdx][methodIdx],
-                            par_discs[modelIdx][methodIdx][-1]
-                        )
-                        
-                        par_discs[modelIdx][methodIdx] = par_discs[modelIdx][methodIdx][:-1]
-                else:
-                    
-                    if par_methods[modelIdx][methodIdx] is None:
-    
-                        ref_file = convergence.generate_2D_name(
-                            setting_name,
-                            ax_methods[modelIdx][methodIdx],
-                            ax_discs[modelIdx][methodIdx][-1],
-                            rad_methods[modelIdx][methodIdx],
-                            rad_discs[modelIdx][methodIdx][-1]
-                        )
-                    else:
-    
-                        ref_file = convergence.generate_2DGRM_name(
-                            setting_name,
-                            ax_methods[modelIdx][methodIdx],
-                            ax_discs[modelIdx][methodIdx][-1],
-                            rad_methods[modelIdx][methodIdx],
-                            rad_discs[modelIdx][methodIdx][-1],
-                            par_methods[modelIdx][methodIdx],
-                            par_discs[modelIdx][methodIdx][-1]
-                        )
-
-                        par_discs[modelIdx][methodIdx] = par_discs[modelIdx][methodIdx][:-1]
                 
-                    rad_discs[modelIdx][methodIdx] = rad_discs[modelIdx][methodIdx][:-1]
-
-                ax_discs[modelIdx][methodIdx] = ax_discs[modelIdx][methodIdx][:-1]
-
-                ref_files[modelIdx][methodIdx] = ref_file
-
+                ref_files[modelIdx][methodIdx] = re.search(
+                    r'[^\\/]+\.h5$',
+                    kwargs.get('sim_names')[modelIdx][methodIdx].pop()
+                    ).group()
+                
+                ax_discs[modelIdx][methodIdx].pop()
+                if par_discs is not None and par_discs[modelIdx][methodIdx] is not None:
+                    par_discs[modelIdx][methodIdx].pop()
+                if rad_discs is not None and rad_discs is not None:
+                    if rad_discs[modelIdx][methodIdx] is not None:
+                        rad_discs[modelIdx][methodIdx].pop()
+    
     result_names = []
+
+    sim_names = kwargs.pop('sim_names', None)
+    
+    refinement_IDs = kwargs.pop('refinement_IDs', None)
+    if refinement_IDs is None:
+        refinement_IDs = kwargs['system_refinement_IDs']
 
     # Calculate and write convergence tables
     for modelIdx in range(0, len(cadet_config_jsons)):
 
         for methodIdx in range(0, len(ax_methods[modelIdx])):
 
-            par_method = par_methods[modelIdx][methodIdx]
+            par_method = None if par_methods is None else par_methods[modelIdx][methodIdx]
             if par_method is None:
                 par_disc = None
             else:
@@ -1091,6 +1105,8 @@ def run_convergence_analysis_core(
                 sens_included=include_sens[modelIdx],
                 write_sens=True,
                 commit_hash=commit_hash,
+                sim_names=sim_names[modelIdx][methodIdx] if sim_names is not None else None,
+                refinement_ID=refinement_IDs[modelIdx],
                 **kwargs
             )
 

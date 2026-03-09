@@ -101,7 +101,7 @@ def get_model(spatial_method_bulk, spatial_method_particle):
     model.input.model.unit_001.particle_type_000.binding_partype_dependent = 1
 
     # Spatial discretization
-    model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = ['EQUIDISTANT_PAR']
+    model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     model.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = spatial_method_particle
     model.input.model.unit_001.particle_type_000.discretization.PAR_POLYDEG = 3
     model.input.model.unit_001.particle_type_000.discretization.PAR_NELEM = 1

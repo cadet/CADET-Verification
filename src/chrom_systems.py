@@ -50,9 +50,8 @@ def chromatography_systems_tests(n_jobs, small_test,
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol,
         ax_methods, ax_discs,
-        par_methods=par_methods, par_discs=par_discs,
+        par_methods=par_methods, par_discs=par_discs, idas_abstol=idas_abstol,
         addition=addition)
     
     if analytical_reference:
@@ -102,9 +101,8 @@ def chromatography_systems_tests(n_jobs, small_test,
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol,
         ax_methods, ax_discs,
-        par_methods=par_methods, par_discs=par_discs,
+        par_methods=par_methods, par_discs=par_discs, idas_abstol=idas_abstol,
         addition=addition)
 
     if analytical_reference:
@@ -156,8 +154,9 @@ def chromatography_systems_tests(n_jobs, small_test,
         n_jobs, output_path, cadet_path, small_test=small_test)
 
     bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which, idas_abstol,
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
         ax_methods, ax_discs, par_methods=par_methods, par_discs=par_discs,
+        idas_abstol=idas_abstol,
         addition=addition)
 
     config_names = ["SMBsystem1_LRM_linBnd_2comp_"]

@@ -270,7 +270,7 @@ def GRM2D_linBnd_benchmark1(
         else:
             column[groupName].discretization.SPATIAL_METHOD = 'FV'
             column[groupName].discretization.NCELLS = parNElem
-            column[groupName].discretization.PAR_DISC_TYPE = ['EQUIDISTANT_PAR']
+            column[groupName].discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
 
     if 'INIT_C' in kwargs:
 

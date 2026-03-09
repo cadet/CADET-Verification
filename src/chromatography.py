@@ -46,7 +46,7 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
         cadet_config_names=cadet_config_names, addition=addition,
     disc_refinement_functions = disc_refinement_functions)
 
@@ -54,7 +54,7 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition,
         disc_refinement_functions = disc_refinement_functions
         )
@@ -64,7 +64,7 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition,
     disc_refinement_functions = disc_refinement_functions)
 
