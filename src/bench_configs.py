@@ -291,7 +291,10 @@ def fv_benchmark(small_test=False, sensitivities=False):
             [None],
             [bench_func.disc_list(1, 6 if not small_test else 3)],
             [bench_func.disc_list(1, 4 if not small_test else 3)]
-        ]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(8)
+            ]
     }
 
     return benchmark_config
@@ -398,7 +401,10 @@ def dg_benchmark(small_test=False, sensitivities=False):
             [None],
             [bench_func.disc_list(1, 5 if not small_test else 3)],
             [bench_func.disc_list(1, 4 if not small_test else 3)]
-        ]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(8)
+            ]
     }
 
     return benchmark_config
@@ -604,7 +610,10 @@ def radial_flow_benchmark(small_test=False, sensitivities=False):
             [None],
             [None],
             [bench_func.disc_list(1, 5 if not small_test else 3)]
-        ]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(3)
+            ]
     }
 
     return benchmark_config
@@ -1208,7 +1217,8 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
                   rad_methods=None, rad_discs=None,
                   refinement_IDs=None,
                   cadet_config_names=None,
-                  addition=None):
+                  addition=None,
+                  disc_refinement_functions = None):
 
     if addition is None:
         addition = {}
@@ -1221,6 +1231,8 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
     idas_abstol.extend(addition['idas_abstol'])
     ax_methods.extend(addition['ax_methods'])
     ax_discs.extend(addition['ax_discs'])
+    if disc_refinement_functions is not None:
+        disc_refinement_functions.extend(addition['disc_refinement_functions'])
     if par_methods is not None:
         par_methods.extend(addition['par_methods'])
         par_discs.extend(addition['par_discs'])
