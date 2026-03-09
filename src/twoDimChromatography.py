@@ -227,9 +227,9 @@ def GRM2D_linBnd_tests(
 
         bench_configs.add_benchmark(
             cadet_configs, include_sens, ref_files, unit_IDs, which,
-            idas_abstol,
             ax_methods, ax_discs, rad_methods=rad_methods, rad_discs=rad_discs,
             par_methods=par_methods, par_discs=par_discs,
+            idas_abstol=idas_abstol,
             refinement_IDs=refinement_IDs,
             addition=addition)
 

@@ -1212,9 +1212,10 @@ def merge_benchmark(benchmark_config1, benchmark_config2):
 
 
 def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
-                  idas_abstol, ax_methods, ax_discs,
+                  ax_methods, ax_discs,
                   par_methods=None, par_discs=None,
                   rad_methods=None, rad_discs=None,
+                  idas_abstol=None,
                   refinement_IDs=None,
                   cadet_config_names=None,
                   addition=None,
@@ -1228,9 +1229,12 @@ def add_benchmark(cadet_config_jsons, include_sens, ref_files, unit_IDs, which,
     ref_files.extend(addition['ref_files'])
     unit_IDs.extend(addition['unit_IDs'])
     which.extend(addition['which'])
-    idas_abstol.extend(addition['idas_abstol'])
+    
     ax_methods.extend(addition['ax_methods'])
     ax_discs.extend(addition['ax_discs'])
+    
+    if idas_abstol is not None:
+        idas_abstol.extend(addition['idas_abstol'])
     if disc_refinement_functions is not None:
         disc_refinement_functions.extend(addition['disc_refinement_functions'])
     if par_methods is not None:

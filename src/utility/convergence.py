@@ -1799,6 +1799,79 @@ def calculate_average_error(solution, reference):
     """
     return np.calculate_weighted_error(solution, reference, 1.0)
 
+def get_case_insensitive(d, key):
+    key = key.lower()
+    for k, v in d.items():
+        if k.lower() == key:
+            if isinstance(v, bytes):
+                v = v.decode("utf-8")
+            return v
+    return None
+
+def generate_bulkDisc_name(disc):
+    
+    name = get_case_insensitive(disc, 'SPATIAL_METHOD')
+    
+    suffix = ""
+    
+    if get_case_insensitive(disc, 'GRID_FACES') is not None:
+        
+        grid = np.array(get_case_insensitive(disc, 'GRID_FACES'))
+        
+        is_equidistant = np.allclose(np.diff(grid), np.diff(grid)[0])
+        
+        suffix = "" if  is_equidistant else "nonEq"
+
+    if name == "FV":
+        
+        if get_case_insensitive(disc, 'RECONSTRUCTION') == "WENO":
+            if get_case_insensitive(disc['weno'], 'WENO_ORDER') == 3:
+                return name + suffix
+            else:
+                return name + "WENO" + str(get_case_insensitive(disc['weno'], 'WENO_ORDER')) + suffix
+        else:
+            if get_case_insensitive(disc, 'RECONSTRUCTION') is None:
+                 return name + suffix
+            return name + get_case_insensitive(disc, 'RECONSTRUCTION') + suffix
+        
+    elif name == "DG":
+          
+        # todo once implemented: non-eq
+        
+        exInt = False if get_case_insensitive(disc, "EXACT_INTEGRATION") is None else get_case_insensitive(disc, "EXACT_INTEGRATION")
+        name = "exIntDG" if exInt else "cDG"
+        
+        polyDeg = get_case_insensitive(disc, "POLYDEG")
+        if polyDeg is None:
+            polyDeg = get_case_insensitive(disc, "AX_POLYDEG")
+        if polyDeg is None:
+            return name
+        return name + "_P" + str(polyDeg)
+    else:
+        return name
+
+
+def generate_parDisc_name(disc, bulkDiscName=None):
+    
+    name = "par" + get_case_insensitive(disc, 'SPATIAL_METHOD')
+    
+    suffix = ""
+    
+    if get_case_insensitive(disc, 'PAR_DISC_TYPE') is not None:
+        suffix = "" if get_case_insensitive(disc, 'PAR_DISC_TYPE') == "EQUIDISTANT_PAR" else "nonEq"
+    
+    if name == "parFV":
+        if suffix == "" and re.search("FV", bulkDiscName):
+            return ""
+        return name + suffix
+        
+    elif name == "parDG":
+        polyDeg = get_case_insensitive(disc, "PAR_POLYDEG")
+        if polyDeg is None:
+            return "" if suffix == "" and re.search("DG", bulkDiscName) and re.search(f"P{polyDeg}", bulkDiscName) else name + suffix
+        return name + "_P" + str(polyDeg) + suffix
+    else:
+        return name + suffix
 
 def generate_1D_name(prefix, axP, axCells, suffix='.h5'):
     """Generate simulation name for bulk discretized models (LRMP, LRM).
@@ -2638,7 +2711,7 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
                     par_dof = (nComp + nBound) * abs(method+1) * discretization
                     if method == 0:  # add flux states for FV discretization
                         flux_dof = bulk_dof
-                elif model == "LRM":
+                elif model == "LRM" or "COL1D":
                     par_dof = nBound * abs(method+1) * discretization
                 else:
                     raise ValueError(
@@ -2884,16 +2957,14 @@ def convergency_table(method,
     """
     disc = np.array(disc)
     error_types = np.array(error_types)
-    abs_errors = np.abs(np.array(abs_errors, dtype=object))
+    abs_errors = np.array(abs_errors)
     header = []
     header.append("$N_e^z$")
     table = []
     # Infer dimensionality of table
-    offRow = 1
     if disc.ndim == 2:
         if len(disc) == 3 and (transport_model is not None and re.search("2D", transport_model)): # 2DGRM
             nDisc = disc.shape[1]
-            offCol = 3
             header.append("$N_e^r$")
             header.append("$N_e^p$")
             table.append(disc[0])
@@ -2901,19 +2972,16 @@ def convergency_table(method,
             table.append(disc[2])
         elif len(disc) == 2 and (transport_model is not None and re.search("2D", transport_model)): # 2D LRM or LRMP
             nDisc = disc.shape[1]
-            offCol = 2
             header.append("$N_e^r$")
             table.append(disc[0])
             table.append(disc[1])
         elif len(disc) == 2: # GRM
             nDisc = disc.shape[1]
-            offCol = 2
             header.append("$N_e^p$")
             table.append(disc[0])
             table.append(disc[1])
     elif (disc.ndim == 1):   # LRMP, LRM
         nDisc = len(disc)
-        offCol = 1
         table.append(disc)
     else:
         raise ValueError(
@@ -2936,8 +3004,6 @@ def convergency_table(method,
                 raise ValueError(
                     "Not the same number of discretizations as errors."
                 )
-
-    DOFs = calculate_DOFs(disc, method, full_DOFs=full_DOFs, model=transport_model)
 
     # Main loop: calculate all errors and EOC's
     for error_type in range(0, len(error_types)):
@@ -3413,12 +3479,12 @@ def std_latex_table(data_frame, latex_columns, math_mode=True, error_digits=3):
                                    })
 
 
-def recalculate_results(file_path, models,
-                        ax_methods, ax_cells,
-                        exact_names,
+def recalculate_results(file_path, model,
+                        ax_method, ax_cells,
+                        exact_name,
                         unit='001', which='outlet',
-                        par_methods=[None], par_cells=None,
-                        rad_methods=[None], rad_cells=None,
+                        par_method=None, par_cells=None,
+                        rad_method=None, rad_cells=None,
                         incl_min_val=True,
                         transport_model=None, ncomp=None, nbound=None,
                         save_path_=None,
@@ -3471,255 +3537,236 @@ def recalculate_results(file_path, models,
 
     """
 
-    for modelIdx in range(0, len(models)):
+    extra_keys = {}        
 
-        extra_keys = {}        
+    # needed for DOF calculation
+    if transport_model is None:
+        try:
+            transport_model = re.search(
+                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D',
+                model,
+                re.IGNORECASE).group(0)
+        except:
+            raise ValueError(
+                "Considered transport model neither explicitly specified \
+                nor given in model name: " + model)
+    if ncomp is None:
+        try:
+            ncomp = int(re.search(r'(_)(\d+)(comp)',
+                                  model,
+                                  re.IGNORECASE).group(2))
+        except:
+            raise ValueError(
+                "Number of components neither explicitly specified \
+                nor given in model name: " + model)
+    if nbound is None:
+        nbound = ncomp
 
-        # needed for DOF calculation
-        if transport_model is None:
-            try:
-                transport_model = re.search(
-                    '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM',
-                    models[modelIdx],
-                    re.IGNORECASE).group(0)
-            except:
-                raise ValueError(
-                    "Considered transport model neither explicitly specified \
-                    nor given in model name: " + models[modelIdx])
-        if ncomp is None:
-            try:
-                ncomp = int(re.search(r'(_)(\d+)(comp)',
-                                      models[modelIdx],
-                                      re.IGNORECASE).group(2))
-            except:
-                raise ValueError(
-                    "Number of components neither explicitly specified \
-                    nor given in model name: " + models[modelIdx])
-        if nbound is None:
-            nbound = ncomp
+    # Data per discretization method
+    abs_errors = []
+    DoFs = []
+    bulk_DoFs = []
+    convergence_tables = []
+    if incl_min_val:
+        min_val = []
 
-        # Data per discretization method
-        abs_errors = []
-        DoFs = []
-        bulk_DoFs = []
-        convergence_tables = []
-        if incl_min_val:
-            min_val = []
-
-        if type(exact_names[modelIdx]) is not str and type(exact_names[modelIdx]) is not None:
-            
-            reference = exact_names[modelIdx]
-            
-        elif which == 'radial_outlet':
-            
-            extra_keys['domain_end'] = sim_go_to(get_simulation(file_path+exact_names[modelIdx]).root,
-                      ['input', 'model', 'unit_'+unit, 'col_radius']
-                      )
-            extra_keys['ref_coords'] = get_radial_coordinates(file_path+exact_names[modelIdx], unit)
-            nRad = len(extra_keys['ref_coords'])
-            reference = []
-            kwargs.update(extra_keys)
-            
-            for rad in range(nRad):
-                reference.append(get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
-                    'comp', [-1])))
-            reference=np.array(reference)
-        else:
-            
-            reference = get_solution(file_path+exact_names[modelIdx], 'unit_'+unit, which, kwargs.get(
-                'comp', [-1]), **{'sensIdx': kwargs.get('sensIdx', 0)})
-
-        if simulation_names is None:
-            simulation_names = []
-            for m in range(0, len(ax_methods)):
-
-                if len(ax_methods) > 1:
-                    ax_cells_ = ax_cells[m]
-                    par_cells_ = None if par_cells is None else par_cells[m]
-                    rad_cells_ = None if rad_cells is None else rad_cells[m]
-                else:
-                    ax_cells_ = ax_cells
-                    par_cells_ = par_cells
-                    rad_cells_ = rad_cells
-
-                if rad_methods[0] is None:
-                    if par_methods[0] is None:
-                        simulation_names.append(
-                            generate_simulation_names(
-                                prefix=file_path+models[modelIdx],
-                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_
-                            )
-                        )
-                    else:
-                        simulation_names.append(
-                            generate_simulation_names(
-                                prefix=file_path+models[modelIdx],
-                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
-                                par_methods=[par_methods[m]
-                                             ], par_cells=par_cells_
-                            )
-                        )
-                else:
-                    if par_methods[0] is None:
-                        simulation_names.append(
-                            generate_simulation_names(
-                                prefix=file_path+models[modelIdx],
-                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
-                                rad_methods=[rad_methods[m]
-                                             ], rad_cells=rad_cells_
-                            )
-                        )
-                    else:
-                        simulation_names.append(
-                            generate_simulation_names(
-                                prefix=file_path+models[modelIdx],
-                                ax_methods=[ax_methods[m]], ax_cells=ax_cells_,
-                                par_methods=[par_methods[m]
-                                             ], par_cells=par_cells_,
-                                rad_methods=[rad_methods[m]
-                                             ], rad_cells=rad_cells_
-                            )
-                        )
-
-        nTimePoints = len(get_solution_times(simulation_names[0][0]))
+    if type(exact_name) is not str and type(exact_name) is not None:
         
-        error_weight = 1.0/nTimePoints if kwargs.get('time_weighted_error', False) else 1.0
+        reference = exact_name
         
-        for m in range(0, len(ax_methods)):
+    elif which == 'radial_outlet':
+        
+        extra_keys['domain_end'] = sim_go_to(get_simulation(file_path+exact_name).root,
+                  ['input', 'model', 'unit_'+unit, 'col_radius']
+                  )
+        extra_keys['ref_coords'] = get_radial_coordinates(file_path+exact_name, unit)
+        nRad = len(extra_keys['ref_coords'])
+        reference = []
+        kwargs.update(extra_keys)
+        
+        for rad in range(nRad):
+            reference.append(get_solution(file_path+exact_name, 'unit_'+unit, 'outlet_port_{:03d}'.format(rad), kwargs.get(
+                'comp', [-1])))
+        reference=np.array(reference)
+    else:
+        
+        reference = get_solution(file_path+exact_name, 'unit_'+unit, which, kwargs.get(
+            'comp', [-1]), **{'sensIdx': kwargs.get('sensIdx', 0)})
 
-            if len(ax_methods) > 1:
-                ax_cells_ = ax_cells[m]
-                par_cells_ = None if par_cells is None else par_cells[m]
-                rad_cells_ = None if rad_cells is None else rad_cells[m]
-            else:
-                ax_cells_ = ax_cells
-                par_cells_ = par_cells
-                rad_cells_ = rad_cells
+    if simulation_names is None:
+        
+        simulation_names = []
 
-            abs_errors.append(
-                calculate_all_abs_errors(
-                    simulation_names[m],
-                    reference,
-                    unit,
-                    which=which,
-                    polyDeg=rad_methods[m], nCells=rad_cells_,
-                    **kwargs
-                )
-            )
-            if incl_min_val:
-                min_val.append(
-                    calculate_all_min_vals(
-                        simulation_names[m],
-                        unit,
-                        which=which
+        if rad_method is None:
+            if par_method is None:
+                simulation_names.append(
+                    generate_simulation_names(
+                        prefix=file_path+model,
+                        ax_methods=[ax_method], ax_cells=ax_cells
                     )
                 )
-            if par_methods[0] is None and rad_methods[0] is None:
-                DoFs.append(
-                    calculate_DOFs(ax_cells_,
-                                   ax_methods[m],
-                                   full_DOFs=True,
-                                   model=transport_model,
-                                   nComp=ncomp, nBound=nbound)
-                )
-                bulk_DoFs.append(
-                    calculate_DOFs(ax_cells_,
-                                   ax_methods[m],
-                                   full_DOFs=False,
-                                   model=transport_model,
-                                   nComp=ncomp, nBound=nbound)
-                )
-                # Convergence Table
-                header, table = convergency_table(ax_methods[m],
-                                                  ax_cells_,
-                                                  abs_errors[m],
-                                                  delta=error_weight,
-                                                  error_types=kwargs.get('error_types', ['max', 'L1', 'L2']),
-                                                  sim_names=simulation_names[m])
-
             else:
-                
-                aux_methods = [ax_methods[m]]
-                aux_cells = [ax_cells_]
-                
-                if rad_methods[0] is not None:
-                    aux_methods.append(rad_methods[m])
-                    aux_cells.append(rad_cells_)
-                
-                if par_methods[0] is not None:
-                    aux_methods.append(par_methods[m])
-                    aux_cells.append(par_cells_)
-                
-                DoFs.append(
-                    calculate_DOFs(aux_cells,
-                                   aux_methods,
-                                   full_DOFs=True,
-                                   model=transport_model,
-                                   nComp=ncomp, nBound=nbound)
+                simulation_names.append(
+                    generate_simulation_names(
+                        prefix=file_path+model,
+                        ax_methods=[ax_method], ax_cells=ax_cells,
+                        par_methods=[par_method], par_cells=par_cells
+                    )
                 )
-                bulk_DoFs.append(
-                    calculate_DOFs(aux_cells,
-                                   aux_methods,
-                                   full_DOFs=False,
-                                   model=transport_model,
-                                   nComp=ncomp, nBound=nbound)
+        else:
+            if par_method is None:
+                simulation_names.append(
+                    generate_simulation_names(
+                        prefix=file_path+model,
+                        ax_methods=[ax_method], ax_cells=ax_cells,
+                        rad_methods=[rad_method], rad_cells=rad_cells
+                    )
                 )
-                # Convergence Table
-                header, table = convergency_table(
-                    aux_methods,
-                    aux_cells,
-                    abs_errors[m],
-                    delta=error_weight,
-                    error_types=kwargs.get('error_types', ['max', 'L1', 'L2']),
-                    sim_names=simulation_names[m],
-                    full_DOFs=False,
-                    transport_model=transport_model
-                )
-
-            if incl_min_val:
-                table = np.column_stack((np.array(table), min_val[m]))
-                header.append('Min. value')
-
-            convergence_tables.append(table)
-
-            # Export Data
-            if save_names == None:
-                if ax_methods[m] == 0:
-                    save_name = models[modelIdx] + "_FV"
-                elif ax_methods[m] < 0:
-                    save_name = models[modelIdx] + \
-                        "_DGexInt_P" + str(abs(ax_methods[m]))
-                else:
-                    save_name = models[modelIdx] + \
-                        "_DG_P" + str(abs(ax_methods[m]))
-                if par_methods[0] is not None:
-                    if par_methods[m] < 0:
-                        save_name += "_cDG_parP" + str(abs(par_methods[m]))
-                    elif abs(par_methods[m]) != abs(ax_methods[m]):
-                        save_name += "parP" + str(abs(par_methods[m]))
             else:
-                save_name = save_names[m]
+                simulation_names.append(
+                    generate_simulation_names(
+                        prefix=file_path+model,
+                        ax_methods=[ax_method], ax_cells=ax_cells,
+                        par_methods=[par_method], par_cells=par_cells,
+                        rad_methods=[rad_method], rad_cells=rad_cells
+                    )
+                )
 
-            # add (bulk) DoFs to output table
-            header = np.insert(header, len(header), 'DoF')
-            result = np.hstack(
-                (convergence_tables[m], np.atleast_2d(DoFs[m]).T))
-            header = np.insert(header, len(header), 'Bulk DoF')
-            result = np.hstack(
-                (result, np.atleast_2d(bulk_DoFs[m]).T))
+    nTimePoints = len(get_solution_times(simulation_names[0]))
+    
+    error_weight = 1.0/nTimePoints if kwargs.get('time_weighted_error', False) else 1.0
+    
+    abs_errors = calculate_all_abs_errors(
+        simulation_names,
+        reference,
+        unit,
+        which=which,
+        polyDeg=rad_method, nCells=rad_cells,
+        **kwargs
+        )
+    if incl_min_val:
+        min_val = calculate_all_min_vals(
+            simulation_names,
+            unit,
+            which=which
+            )
+    if par_method is None and rad_method is None:
+        DoFs = calculate_DOFs(ax_cells,
+            ax_method,
+            full_DOFs=True,
+            model=transport_model,
+            nComp=ncomp, nBound=nbound
+            )
+        bulk_DoFs = calculate_DOFs(ax_cells,
+            ax_method,
+            full_DOFs=False,
+            model=transport_model,
+            nComp=ncomp, nBound=nbound
+            )
+        # Convergence Table
+        header, table = convergency_table(
+            ax_method, ax_cells,
+            abs_errors,
+            delta=error_weight,
+            error_types=kwargs.get('error_types', ['max', 'L1', 'L2']),
+            sim_names=simulation_names
+            )
 
-            # add method to output table
-            header = np.insert(header, 0, '$N_d$')
-            arr = np.empty(len(ax_cells_), dtype=object)
-            arr[:] = str(int(abs(ax_methods[m])))
-            result = np.column_stack((arr, result))
+    else:
+        
+        aux_methods = [ax_method]
+        aux_cells = [ax_cells]
+        
+        if rad_method is not None:
+            aux_methods.append(rad_method)
+            aux_cells.append(rad_cells)
+        
+        if par_method is not None:
+            aux_methods.append(par_method)
+            aux_cells.append(par_cells)
+        
+        DoFs.append(
+            calculate_DOFs(aux_cells,
+                           aux_methods,
+                           full_DOFs=True,
+                           model=transport_model,
+                           nComp=ncomp, nBound=nbound)
+        )
+        bulk_DoFs.append(
+            calculate_DOFs(aux_cells,
+                           aux_methods,
+                           full_DOFs=False,
+                           model=transport_model,
+                           nComp=ncomp, nBound=nbound)
+        )
+        # Convergence Table
+        header, table = convergency_table(
+            aux_methods,
+            aux_cells,
+            abs_errors,
+            delta=error_weight,
+            error_types=kwargs.get('error_types', ['max', 'L1', 'L2']),
+            sim_names=simulation_names,
+            full_DOFs=False,
+            transport_model=transport_model
+        )
 
-            # export
-            if export_results:
-                if save_path_ is None:
-                    save_path_ = file_path
-                pd.DataFrame(result, columns=header).to_csv(
-                    save_path_ + save_name + ".csv", index=False)
+    if incl_min_val:
+        table = np.column_stack((np.array(table), min_val))
+        header.append('Min. value')
+
+    convergence_tables = table
+
+    # Export Data
+    if save_names == None:
+        
+        refinement_ID = kwargs['refinement_ID']
+        
+        disc = sim_go_to(get_simulation(simulation_names[0]).root,
+                              ['input',
+                               'model',
+                               f'unit_{refinement_ID}',
+                               'discretization'
+                               ]
+                )
+        
+        save_name = model + generate_bulkDisc_name(disc)
+            
+        if par_method is not None:
+            
+            disc = sim_go_to(get_simulation(simulation_names[0]).root,
+                                  ['input',
+                                   'model',
+                                   f'unit_{refinement_ID}',
+                                   'particle_type_000',
+                                   'discretization'
+                                   ]
+                    )
+            
+            save_name = save_name + generate_parDisc_name(disc, generate_bulkDisc_name(disc))
+    else:
+        save_name = save_names
+
+    # add (bulk) DoFs to output table
+    header = np.insert(header, len(header), 'DoF')
+    result = np.hstack(
+        (convergence_tables, np.atleast_2d(DoFs).T))
+    header = np.insert(header, len(header), 'Bulk DoF')
+    result = np.hstack(
+        (result, np.atleast_2d(bulk_DoFs).T))
+
+    # add method to output table
+    header = np.insert(header, 0, '$N_d$')
+    arr = np.empty(len(ax_cells), dtype=object)
+    arr[:] = str(int(abs(ax_method)))
+    result = np.column_stack((arr, result))
+
+    # export
+    if export_results:
+        if save_path_ is None:
+            save_path_ = file_path
+        pd.DataFrame(result, columns=header).to_csv(
+            save_path_ + save_name + ".csv", index=False)
 
     return pd.DataFrame(result, columns=header)
 
