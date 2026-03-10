@@ -197,27 +197,28 @@ def create_object_from_config(
         
     for tmpID in refinement_IDs:
         if tmpID is not None:
-            if ax_method == 0:
-                config_data['input']['model']['unit_' +
-                                              tmpID]['discretization']['SPATIAL_METHOD'] = "FV"
-                config_data['input']['model']['unit_' +
-                                              tmpID]['discretization']['NCOL'] = ax_cells
-                if 'WENO_ORDER' in kwargs.keys():
+            if ax_method is not None:
+                if ax_method == 0:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['weno']['WENO_ORDER'] = kwargs['WENO_ORDER']
-            else:
-                config_data['input']['model']['unit_' +
-                                              tmpID]['discretization']['SPATIAL_METHOD'] = "DG"
-                if rad_method is None:
+                                                  tmpID]['discretization']['SPATIAL_METHOD'] = "FV"
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['POLYDEG'] = ax_method
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['NELEM'] = ax_cells
+                                                  tmpID]['discretization']['NCOL'] = ax_cells
+                    if 'WENO_ORDER' in kwargs.keys():
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['weno']['WENO_ORDER'] = kwargs['WENO_ORDER']
                 else:
                     config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['AX_POLYDEG'] = ax_method
-                    config_data['input']['model']['unit_' +
-                                                  tmpID]['discretization']['AX_NELEM'] = ax_cells
+                                                  tmpID]['discretization']['SPATIAL_METHOD'] = "DG"
+                    if rad_method is None:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['POLYDEG'] = ax_method
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['NELEM'] = ax_cells
+                    else:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['AX_POLYDEG'] = ax_method
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['AX_NELEM'] = ax_cells
 
             if par_method is not None:
             
@@ -669,7 +670,7 @@ def run_convergence_analysis_from_configs(
             for methodIdx in range(0, len(ax_methods[modelIdx])):
 
                 for discIdx in range(0, len(ax_discs[modelIdx][methodIdx])):
-
+                    
                     par_method = par_methods[modelIdx][methodIdx]
                     par_cells = None
                     if par_method is not None:
@@ -680,22 +681,43 @@ def run_convergence_analysis_from_configs(
                     else:
                         rad_method = None
                         rad_cells = None
-
-                    sims.append(
-                        create_object_from_config(
-                            config_data=cadet_configs[modelIdx],
-                            setting_name=cadet_config_names[modelIdx],
-                            unit_id=refinement_IDs[modelIdx],
-                            ax_method=ax_methods[modelIdx][methodIdx],
-                            ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
-                            par_method=par_method, par_cells=par_cells,
-                            rad_method=rad_method, rad_cells=rad_cells,
-                            output_path=output_path,
-                            idas_abstol=idas_abstol[modelIdx][methodIdx],
-                            include_sens=include_sens[modelIdx],
-                            **kwargs
+                            
+                    if 'disc_refinement_functions' in kwargs:
+                        
+                        sims.append(
+                            kwargs['disc_refinement_functions'][modelIdx][methodIdx](
+                                config_data=cadet_configs[modelIdx],
+                                setting_name=cadet_config_names[modelIdx],
+                                unit_id=refinement_IDs[modelIdx],
+                                discIdx=discIdx,
+                                output_path=output_path,
+                                include_sens=include_sens[modelIdx],
+                                ax_method=ax_methods[modelIdx][methodIdx],
+                                ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
+                                par_method=par_method, par_cells=par_cells,
+                                rad_method=rad_method, rad_cells=rad_cells,
+                                idas_abstol=idas_abstol[modelIdx][methodIdx],
+                                **kwargs
+                                )
+                            )
+                        
+                    else:
+    
+                        sims.append(
+                            create_object_from_config(
+                                config_data=cadet_configs[modelIdx],
+                                setting_name=cadet_config_names[modelIdx],
+                                unit_id=refinement_IDs[modelIdx],
+                                ax_method=ax_methods[modelIdx][methodIdx],
+                                ax_cells=ax_discs[modelIdx][methodIdx][discIdx],
+                                par_method=par_method, par_cells=par_cells,
+                                rad_method=rad_method, rad_cells=rad_cells,
+                                output_path=output_path,
+                                idas_abstol=idas_abstol[modelIdx][methodIdx],
+                                include_sens=include_sens[modelIdx],
+                                **kwargs
+                            )
                         )
-                    )
 
         # Run simulations in one global parallelization
         backend = Parallel(n_jobs=n_jobs, verbose=0)
