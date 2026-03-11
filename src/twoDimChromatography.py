@@ -214,6 +214,60 @@ def GRM2D_linBnd_tests(
 
         return benchmark_config
 
+    def GRM2D_DG_Benchmark(small_test=False, **kwargs):
+
+        nDisc = 3 if small_test else 4
+        nRadialZones = kwargs.get('nRadialZones', 3)
+
+        benchmark_config = {
+            'cadet_config_jsons': [
+                settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+                    radNElem=nRadialZones,
+                    rad_inlet_profile=None,
+                    USE_MODIFIED_NEWTON=1, axMethod=3, **kwargs)
+            ],
+            'include_sens': [
+                False
+            ],
+            'ref_files': [
+                [kwargs.get('reference', None)]
+            ],
+            'refinement_ID': [
+                '000'
+            ],
+            'unit_IDs': [  # note that we consider radial zone 0
+                str(nRadialZones + 1 +
+                    0).zfill(3) if kwargs.get('analytical_reference', 0) else '000'
+            ],
+            'which': [
+                'outlet' if kwargs.get(
+                    'analytical_reference', 0) else 'radial_outlet'  # outlet_port_000
+            ],
+            'idas_abstol': [
+                [1e-10]
+            ],
+            'ax_methods': [
+                [3]
+            ],
+            'ax_discs': [
+                [bench_func.disc_list(4, nDisc)]
+            ],
+            'rad_methods': [
+                [3]
+            ],
+            'rad_discs': [
+                [bench_func.disc_list(nRadialZones, nDisc)]
+            ],
+            'par_methods': [
+                [3]
+            ],
+            'par_discs': [
+                [bench_func.disc_list(max(1, nRadialZones - 1), nDisc)]
+            ]
+        }
+
+        return benchmark_config
+
     # %% create benchmark configurations
 
     for setting in settings:
