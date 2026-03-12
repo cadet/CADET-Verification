@@ -26,7 +26,7 @@ def get_model(
     #%% Column unit
     column = Dict()
     
-    column.UNIT_TYPE = 'LUMPED_RATE_MODEL_WITHOUT_PORES'
+    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.ncomp = 2
     column.col_dispersion = kwargs.get("col_dispersion", 1e-05)
     column.col_length = 1.0
@@ -43,8 +43,6 @@ def get_model(
         ]
     model.input.model.connections.switch_000.section = 0
     
-    
-      
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = "DG"
         column.discretization.EXACT_INTEGRATION = kwargs.get('exact_integration', 0)
@@ -64,18 +62,20 @@ def get_model(
     column.discretization.USE_ANALYTIC_JACOBIAN = 1
     column.init_c = [ 0.0 , 0.0]
 
+    # Particle Model
+    column.particle_type_000.has_film_diffusion = False
+    
+    column.particle_type_000.nbound = [1, 1] # comes from the binding model, specifies the number of bound states for each component
+    column.particle_type_000.init_cs = [0.0, 0.0]
+    
     # Adsorption - LANGMUIR for 2 components
-    column.adsorption_model = 'MULTI_COMPONENT_LANGMUIR'
-    column.adsorption.is_kinetic = kwargs.get('is_kinetic', 0)
+    column.particle_type_000.adsorption_model = 'MULTI_COMPONENT_LANGMUIR'
+    column.particle_type_000.adsorption.is_kinetic = kwargs.get('is_kinetic', 0)
     
     # Langmuir parameters for 2 components
-    column.adsorption.mcl_ka = kwargs.get('mcl_ka', [0.1, 0.05])
-    column.adsorption.mcl_kd = kwargs.get('mcl_kd', [1.0, 1.0])                 
-    column.adsorption.mcl_qmax = kwargs.get('mcl_qmax', [10.0, 10.0])
-    
-    column.nbound = [1, 1]           #comes from the binding model, specifies the number of bound states for each component
-    column.init_q = [0.0, 0.0]
-
+    column.particle_type_000.adsorption.mcl_ka = kwargs.get('mcl_ka', [0.1, 0.05])
+    column.particle_type_000.adsorption.mcl_kd = kwargs.get('mcl_kd', [1.0, 1.0])                 
+    column.particle_type_000.adsorption.mcl_qmax = kwargs.get('mcl_qmax', [10.0, 10.0])
 
     model.input.model.unit_001 = column
     
@@ -158,20 +158,15 @@ if __name__ == "__main__":
         #Running CADET simulation
         data = model.run()
         
-                
-        # Try to display some results
-        try:
+        if data.return_code == 0:
             # Load the results from the model
             model.load()
             outlet_data = model.root.output.solution.unit_001.solution_outlet
             sim_time = model.root.output.solution.solution_times
             plt.plot(sim_time, outlet_data)
             plt.show()
-
-
-        except Exception as e:
-            print(f"\n⚠ Could not extract sample data: {e}")
-            print("  (Model ran successfully, but couldn't read output)")
+        else:
+            raise Exception(data.error_message)
         
         print("\n" + "=" * 60)
         print("=== Check complete ===")
