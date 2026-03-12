@@ -23,10 +23,9 @@ from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
 from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_langLRM_2comp_benchmark1
 
 # %% benchmark templates
-
-# TODO add Langmuir setting used in Breuer et al
 
 _benchmark_settings_ = [
     'full_chromatography_benchmark',
@@ -241,7 +240,12 @@ def fv_benchmark(small_test=False, sensitivities=False):
                 'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
                 'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
                 'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
-            })
+                }
+            ),
+           setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                    spatial_method_bulk=0, spatial_method_particle=0,
+                    particle_type='GENERAL_RATE_PARTICLE'
+                    )
         ],
         'cadet_config_names': [
             'LRM_dynLin_1comp_benchmark1',
@@ -251,23 +255,24 @@ def fv_benchmark(small_test=False, sensitivities=False):
             'LRM_reqSMA_4comp_benchmark1',
             'LRMP_reqSMA_4comp_benchmark1',
             'GRM_reqSMA_4comp_benchmark1',
-            'GRM_4parTypeLin_4comp_benchmark1'
+            'GRM_4parTypeLin_4comp_benchmark1',
+            'LRM_reqLang_2comp_benchmark1',
         ],
-        'include_sens': [True] * 8 if sensitivities else [False] * 8,
+        'include_sens': [True] * 9 if sensitivities else [False] * 9,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None], [None]
+            [None], [None], [None], [None], [None], [None], [None], [None], [None]
         ],
         'unit_IDs': [
-            '001', '001', '001', '001', '000', '000', '000', '001'
+            '001', '001', '001', '001', '000', '000', '000', '001', '001'
         ],
         'which': [
-            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
         ],
         'idas_abstol': [
-            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
+            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6], [1e-8]
         ],
         'ax_methods': [
-            [0], [0], [0], [0], [0], [0], [0], [0]
+            [0], [0], [0], [0], [0], [0], [0], [0], [0]
         ],
         'ax_discs': [
             [bench_func.disc_list(8, 8 if not small_test else 3)],
@@ -277,10 +282,11 @@ def fv_benchmark(small_test=False, sensitivities=False):
             [bench_func.disc_list(8, 6 if not small_test else 3)],
             [bench_func.disc_list(8, 6 if not small_test else 3)],
             [bench_func.disc_list(8, 6 if not small_test else 3)],
-            [bench_func.disc_list(8, 4 if not small_test else 3)]
+            [bench_func.disc_list(8, 4 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [None], [0], [0], [None], [None], [0], [0]
+            [None], [None], [0], [0], [None], [None], [0], [0], [None]
         ],
         'par_discs': [
             [None],
@@ -290,10 +296,11 @@ def fv_benchmark(small_test=False, sensitivities=False):
             [None],
             [None],
             [bench_func.disc_list(1, 6 if not small_test else 3)],
-            [bench_func.disc_list(1, 4 if not small_test else 3)]
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            [None]
         ],
         'disc_refinement_functions' : [
-            [bench_func.create_object_from_config] for _ in range(8)
+            [bench_func.create_object_from_config] for _ in range(9)
             ]
     }
 
