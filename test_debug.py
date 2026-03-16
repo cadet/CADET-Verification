@@ -12,6 +12,7 @@ from pathlib import Path
 
 import src.utility.convergence as convergence
 
+import src.transport_convDisp as transport_convDisp
 import src.chromatography as chromatography
 import src.bindings as bindings
 import src.crystallization as crystallization
@@ -24,6 +25,7 @@ small_test = True
 n_jobs = -1
 delete_h5_files = False
 
+run_transport_tests = False
 run_binding_tests = False
 run_chromatography_tests = False
 run_MCT_tests = False
@@ -36,6 +38,16 @@ sys.path.append(str(Path(".")))
 output_path = Path.cwd() / "output" / "test_cadet-core"
 cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master8_5thmarch2026_33f88a4\aRELEASE"
 # convergence.get_cadet_path()
+
+if run_transport_tests:
+    transport_convDisp.transport_tests(
+        n_jobs=n_jobs,
+        small_test=small_test,
+        output_path=str(output_path) + "/transport",
+        cadet_path=cadet_path
+    )
+    if delete_h5_files:
+        convergence.delete_h5_files(str(output_path) + "/transport")
         
 if run_chromatography_tests:
     chromatography.chromatography_tests(

@@ -19,6 +19,7 @@ from cadetrdm import ProjectRepo
 
 import src.utility.convergence as convergence
 
+import src.transport_convDisp as transport_convDisp
 import src.chromatography as chromatography
 import src.bindings as bindings
 import src.crystallization as crystallization
@@ -42,6 +43,10 @@ def delete_h5_files(request):
 @pytest.fixture
 def run_binding_tests(request):
     return request.config.getoption("--run-binding-tests")
+
+@pytest.fixture
+def run_transport_tests(request):
+    return request.config.getoption("--run-transport-tests")
 
 @pytest.fixture
 def run_chromatography_tests(request):
@@ -96,6 +101,16 @@ def test_selected_model_groups(
     cadet_path = convergence.get_cadet_path()
 
     with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
+
+        if run_transport_tests:
+            transport_convDisp.transport_tests(
+                n_jobs=n_jobs,
+                small_test=small_test,
+                output_path=str(output_path) + "/transport",
+                cadet_path=cadet_path
+            )
+            if delete_h5_files:
+                convergence.delete_h5_files(str(output_path) + "/transport")        
 
         if run_chromatography_tests:
             chromatography.chromatography_tests(
