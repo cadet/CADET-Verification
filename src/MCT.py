@@ -56,11 +56,12 @@ def MCT_tests(n_jobs, small_test,
         config, 'LRM_noBnd_1comp_MCTbenchmark',
         output_path=str(output_path)
         )
+    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:
         print(data.error_message)
-        raise Exception(f"simulation failed")
+        raise Exception(f"simulation failed with {data.error_message}")
     model.save()
     
     json_path = Path(__file__).resolve().parent / "benchmark_models" / "configuration_MCT1ch_noEx_noReac_benchmark1.json"
@@ -71,6 +72,7 @@ def MCT_tests(n_jobs, small_test,
         config, 'MCT1ch_noEx_noReac_benchmark1',
         output_path=str(output_path)
         )
+    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:
@@ -97,6 +99,7 @@ def MCT_tests(n_jobs, small_test,
         config, 'MCT1ch_noEx_reac_benchmark1',
         output_path=str(output_path)
         )
+    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:
@@ -123,6 +126,7 @@ def MCT_tests(n_jobs, small_test,
         config, 'MCT2ch_oneWayEx_reac_benchmark1',
         output_path=str(output_path)
         )
+    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:
@@ -151,6 +155,7 @@ def MCT_tests(n_jobs, small_test,
         config, 'MCT3ch_twoWayExc_reac_benchmark1',
         output_path=str(output_path)
         )
+    model.install_path = cadet_path
     data = model.run_simulation()
     model.load_from_file()
     if not data.return_code == 0:
