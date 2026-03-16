@@ -56,6 +56,10 @@ def get_model(
     else:
         column.discretization.SPATIAL_METHOD = 'FV'
         column.discretization.NCOL = radNElem
+        column.discretization.RECONSTRUCTION = "WENO"
+        column.discretization.weno.WENO_ORDER = 3
+        column.discretization.weno.WENO_EPS = 1e-10
+        column.discretization.weno.BOUNDARY_MODEL = 0
         column.discretization.GS_TYPE = 0
         column.discretization.MAX_KRYLOV = 10
         column.discretization.MAX_RESTARTS = 100
