@@ -13,6 +13,7 @@ def pytest_addoption(parser):
     parser.addoption("--n-jobs", type=int, default=-1)
     parser.addoption("--delete-h5-files", type=str2bool, default=True)
 
+    parser.addoption("--run-transport-tests", type=str2bool, default=True)
     parser.addoption("--run-binding-tests", type=str2bool, default=True)
     parser.addoption("--run-chromatography-tests", type=str2bool, default=True)
     parser.addoption("--run-chromatography-sensitivity-tests", type=str2bool, default=True)
