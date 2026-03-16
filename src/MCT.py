@@ -7,14 +7,12 @@ This script creates reference data for the MCT tests in CADET-Core.
 
 #%% Include packages
 import os
-import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
 import re
 import json
 
 from cadet import Cadet
-from cadetrdm import ProjectRepo
 
 import src.bench_func as bf
 import src.utility.convergence as convergence

@@ -1,11 +1,7 @@
 import os
 import json
 import requests
-import sys
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
-from typing import Dict, List, Tuple, Set, Union
-import re
 
 
 # Read token from environment variable (recommended) or set it directly here

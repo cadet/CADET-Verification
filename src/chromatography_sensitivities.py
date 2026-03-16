@@ -7,15 +7,8 @@ This script defines chromatography sensitivity tests.
 
 # %% Include packages
 import os
-import sys
-from pathlib import Path
 import re
-from joblib import Parallel, delayed
-import numpy as np
 import matplotlib.pyplot as plt
-
-from cadet import Cadet
-from cadetrdm import ProjectRepo
 
 import src.utility.convergence as convergence
 import src.bench_configs as bench_configs
@@ -47,7 +40,7 @@ def chromatography_sensitivity_tests(
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
-         ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition)
 
     addition = bench_configs.sensitivity_benchmark1(

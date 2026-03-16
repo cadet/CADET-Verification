@@ -6,10 +6,7 @@ This scirpt defines chromatography system tests
 """
 
 
-import numpy as np
 import os
-
-from cadet import Cadet
 
 import src.utility.convergence as convergence
 import src.bench_configs as bench_configs

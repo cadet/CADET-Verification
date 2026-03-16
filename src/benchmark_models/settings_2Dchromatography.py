@@ -9,8 +9,6 @@ This script defines model settings considered for the verification of the
 import numpy as np
 from matplotlib import pyplot as plt
 from addict import Dict
-import h5py
-import json
 import re
 import copy
 
