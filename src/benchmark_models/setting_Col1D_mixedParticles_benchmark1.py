@@ -7,10 +7,6 @@ This script defines an axial flow model with two particle types. One particle ty
 
 import numpy as np
 from addict import Dict
-import re
-import os
-import sys
-import src.utility.convergence as convergence
 
 
 def get_model(spatial_method_bulk, spatial_method_particle):

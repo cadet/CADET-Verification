@@ -11,7 +11,6 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import legendre
-from scipy.optimize import newton
 import math
 import pandas as pd
 from dataclasses import dataclass
