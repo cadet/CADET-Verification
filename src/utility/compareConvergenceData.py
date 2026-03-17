@@ -46,7 +46,7 @@ def github_request(url: str, params: dict = None) -> requests.Response:
     resp.raise_for_status()  # raise HTTPError for 4xx/5xx
     return resp
 
-def get_github_files(owner: str, repo: str, branch: str, path: str = "") -> List[str]:
+def get_github_files(owner: str, repo: str, branch: str, path: str = "") -> list[str]:
     """
     Get all file download URLs from a GitHub repo, branch, and path.
     Uses authentication if GITHUB_TOKEN is set to increase rate limits.
@@ -54,7 +54,7 @@ def get_github_files(owner: str, repo: str, branch: str, path: str = "") -> List
     api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
     return get_github_files_recursive(api_url, branch)
 
-def get_github_files_recursive(api_url: str, branch: str) -> List[str]:
+def get_github_files_recursive(api_url: str, branch: str) -> list[str]:
     """
     Recursively fetch all files from a GitHub API URL using optional token.
     """
@@ -83,7 +83,7 @@ def get_github_files_recursive(api_url: str, branch: str) -> List[str]:
     return files
 
 
-def get_local_files(directory: str) -> List[str]:
+def get_local_files(directory: str) -> list[str]:
     """Get all files from local directory recursively"""
     files = []
     try:
@@ -96,7 +96,7 @@ def get_local_files(directory: str) -> List[str]:
     return files
 
 
-def get_files_from_path(path: Union[str, Tuple[str, str, str, str]]) -> List[str]:
+def get_files_from_path(path: str | tuple[str, str, str, str]) -> list[str]:
     """
     Get files from either a local directory or a GitHub repo spec.
     GitHub repo spec is a tuple: (owner, repo, branch, path)
@@ -111,7 +111,7 @@ def get_files_from_path(path: Union[str, Tuple[str, str, str, str]]) -> List[str
 
 
 
-def filter_convergence_json(files: List[str]) -> List[str]:
+def filter_convergence_json(files: list[str]) -> list[str]:
     """Filter files to only include JSON files starting with 'convergence'"""
     filtered = []
     for file in files:
@@ -121,7 +121,7 @@ def filter_convergence_json(files: List[str]) -> List[str]:
     return filtered
 
 
-def get_file_content(file_path: str) -> Dict:
+def get_file_content(file_path: str) -> dict:
     """Get JSON content from file (local or remote)"""
     try:
         if file_path.startswith(('http://', 'https://')):
@@ -192,7 +192,7 @@ def compare_values(val1, val2, key_path: str, print_only_convergence_differences
         return True
 
 
-def calculate_percentage_difference(list1: List[float], list2: List[float]) -> List[float]:
+def calculate_percentage_difference(list1: list[float], list2: list[float]) -> list[float]:
     """Calculate percentage difference between two lists of numbers"""
     if len(list1) != len(list2):
         return []
@@ -210,8 +210,8 @@ def calculate_percentage_difference(list1: List[float], list2: List[float]) -> L
     return differences
 
 
-def compare_json_directories(dir1: Union[str, Tuple[str,str,str,str]], 
-                             dir2: Union[str, Tuple[str,str,str,str]],
+def compare_json_directories(dir1: str | tuple[str,str,str,str], 
+                             dir2: str | tuple[str,str,str,str],
                              print_only_convergence_differences: bool):
     """
     Compare JSON files between two directories or GitHub repo paths.
