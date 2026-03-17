@@ -7,6 +7,7 @@ This script implements a spline based data-driven binding setting
 
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from cadet import Cadet
 
@@ -134,13 +135,16 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.solver.user_solution_times = np.linspace(0.0, 7200.0, 601)
     
     if run_simulation:
-        model.filename = output_path + '\Spline_knots_Shallow_7.h5'
-        model.run_simulation()
+        
+        model.filename = os.path.join(output_path, 'GRM_SplineBnd_knots_Shallow_7.h5')
         model.save()
+        return_data = model.run_simulation()
+        
+        if not return_data.return_code == 0:
+            raise Exception(f"simulation failed with {return_data.error_message}\n and LOG:\n {return_data.log}")
         
         if plot_result:
     
-            model.load_from_file() 
             time = model.root.output.solution.solution_times
             outlet = model.root.output.solution.unit_001.solution_outlet
             
@@ -148,8 +152,7 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
             plt.xlabel(r'Time, $min$')
             plt.ylabel(r'Concentration, $g/L$')
             plt.legend(frameon=0)
-            plt.show()
-            plt.savefig(output_path + '/GRM_ACT_2comp_benchmark1.png')
+            plt.savefig(output_path + '/GRM_SplineBnd_knots_Shallow_7.png')
             plt.show()
             plt.close()
         

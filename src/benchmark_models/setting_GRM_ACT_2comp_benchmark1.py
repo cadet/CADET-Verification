@@ -177,9 +177,11 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.save()
     
     if run_simulation:
-        data = model.run_simulation()
-        if not data.return_code == 0:
-            raise Exception(f"simulation failed with {data.error_message}")
+        
+        return_data = model.run_simulation()
+        
+        if not return_data.return_code == 0:
+            raise Exception(f"simulation failed with {return_data.error_message}\n and LOG:\n {return_data.log}")
             
         if plot_result:
     
