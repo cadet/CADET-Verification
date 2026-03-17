@@ -661,7 +661,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
-        sim_times_int.append(model.root.meta_time_sim)        
+        sim_times_int.append(model.root.meta.time_sim)        
 
     relative_L1_norms = []  # store the relative L1 norms here
     for nx in n_xs:
@@ -704,7 +704,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
 
-        sim_times_ax.append(model.root.meta_time_sim) 
+        sim_times_ax.append(model.root.meta.time_sim) 
 
     relative_L1_norms = []  # store the relative L1 norms here
     for nx in n_xs:
