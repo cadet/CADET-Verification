@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 
 from cadet import Cadet
 
-def ACT_benchmark1(cadet_path, output_path,
-                   run_simulation, plot_result): 
+def get_model(cadet_path, output_path, run_simulation, plot_result): 
 
     ## set up
     injection_volume = 1e-6         ## m^3
@@ -188,7 +187,6 @@ def ACT_benchmark1(cadet_path, output_path,
             time = model.root.output.solution.solution_times
             c = model.root.output.solution.unit_001.solution_outlet_comp_001
             pH_outlet = model.root.output.solution.unit_001.solution_outlet_comp_000
-            pH_inlet = model.root.output.solution.unit_000.solution_outlet_comp_000
 
             measurement_factor = 710     ## converts conc to mAU
             fig = plt.figure()
@@ -200,5 +198,10 @@ def ACT_benchmark1(cadet_path, output_path,
             ax_ph = ax.twinx()
             ax_ph.plot(time/60*Q*6e7, pH_outlet, label='pH')
             ax_ph.set_ylabel('pH')
+            plt.title('ACT binding')
+            plt.legend()
             plt.savefig(output_path + '/GRM_ACT_2comp_benchmark1.png')
+            plt.show()
             plt.close()
+            
+        return model
