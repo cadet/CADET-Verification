@@ -678,7 +678,19 @@
       ],
       "NCOMP": 1,
       "NCHANNEL": 2,
-      "REACTION_MODEL": "MASS_ACTION_LAW",
+      "NREAC_LIQUID": 1,
+        "liquid_reaction_000": {
+            "TYPE": "MASS_ACTION_LAW",
+            "MAL_KBWD": [
+                0.0
+            ],
+            "MAL_KFWD": [
+                0.000567
+            ],
+            "MAL_STOICHIOMETRY": [
+                -1.0
+            ]
+      },
       "UNIT_TYPE": "MULTI_CHANNEL_TRANSPORT",
       "discretization": {
         "MAX_RESTARTS": 10,
@@ -689,17 +701,6 @@
           "WENO_EPS": 1e-10,
           "WENO_ORDER": 3
         }
-      },
-      "reaction_bulk": {
-        "MAL_KBWD_BULK": [
-          0
-        ],
-        "MAL_KFWD_BULK": [
-          0.000567
-        ],
-        "MAL_STOICHIOMETRY_BULK": [
-          -1
-        ]
       }
     },
     "unit_002": {
