@@ -56,6 +56,7 @@ def add_sensitivity_GRM_SMA_4comp_benchmark1(model, sensName):
 def get_sensbenchmark1(filename=None):
     
     model = get_model(filename)
+    model['input']['solver']['CONSISTENT_INIT_MODE_SENS'] = 3
     model['input'].pop('sensitivity')
     model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'COL_DISPERSION')
     model = add_sensitivity_GRM_SMA_4comp_benchmark1(model, 'PAR_DIFFUSION')

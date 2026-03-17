@@ -663,6 +663,7 @@
         "MAX_KRYLOV": 0,
         "MAX_RESTARTS": 10,
         "NCOL": 256,
+        "SPATIAL_METHOD": "FV",
         "RECONSTRUCTION": "WENO",
         "SCHUR_SAFETY": 1e-08,
         "USE_ANALYTIC_JACOBIAN": 1,
