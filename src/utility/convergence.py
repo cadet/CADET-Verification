@@ -1838,7 +1838,7 @@ def generate_bulkDisc_name(disc):
         # todo once implemented: non-eq
         
         exInt = False if get_case_insensitive(disc, "EXACT_INTEGRATION") is None else get_case_insensitive(disc, "EXACT_INTEGRATION")
-        name = "exIntDG" if exInt else "cDG"
+        name = "exIntDG" if exInt else "DG" # "cDG"
         
         polyDeg = get_case_insensitive(disc, "POLYDEG")
         if polyDeg is None:
@@ -1868,7 +1868,7 @@ def generate_parDisc_name(disc, bulkDiscName=None):
         polyDeg = get_case_insensitive(disc, "PAR_POLYDEG")
         if polyDeg is None:
             return "" if suffix == "" and re.search("DG", bulkDiscName) and re.search(f"P{polyDeg}", bulkDiscName) else name + suffix
-        return name + "_P" + str(polyDeg) + suffix
+        return "parP" + str(polyDeg) + suffix
     else:
         return name + suffix
 
