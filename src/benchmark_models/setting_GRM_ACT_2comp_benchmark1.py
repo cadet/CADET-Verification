@@ -71,7 +71,7 @@ def ACT_benchmark1(cadet_path, output_path,
     model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
     model.root.input.model.unit_001.discretization.weno.boundary_model = 0
     model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-    model.root.input.model.unit_001.discretization.weno.weno_order = 2
+    model.root.input.model.unit_001.discretization.weno.weno_order = 3
     model.root.input.model.unit_001.discretization.gs_type = 1
     model.root.input.model.unit_001.discretization.max_krylov = 0
     model.root.input.model.unit_001.discretization.max_restarts = 10

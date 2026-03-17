@@ -51,7 +51,7 @@ def get_model(
         column.discretization.RECONSTRUCTION = 'WENO'
         column.discretization.weno.BOUNDARY_MODEL = 0
         column.discretization.weno.WENO_EPS = 1e-10
-        column.discretization.weno.WENO_ORDER = 2
+        column.discretization.weno.WENO_ORDER = 3
         column.discretization.GS_TYPE = 1
         column.discretization.MAX_KRYLOV = 0
         column.discretization.MAX_RESTARTS = 10
