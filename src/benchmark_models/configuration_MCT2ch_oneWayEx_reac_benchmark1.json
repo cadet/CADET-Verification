@@ -678,7 +678,7 @@
       ],
       "NCOMP": 1,
       "NCHANNEL": 2,
-      "REACTION_MODEL": "MASS_ACTION_LAW",
+      "NREAC_LIQUID": 1,
       "UNIT_TYPE": "MULTI_CHANNEL_TRANSPORT",
       "discretization": {
         "MAX_RESTARTS": 10,
@@ -690,14 +690,15 @@
           "WENO_ORDER": 3
         }
       },
-      "reaction_bulk": {
-        "MAL_KBWD_BULK": [
+      "liquid_reaction_000": {
+        "TYPE":"MASS_ACTION_LAW",
+        "MAL_KBWD": [
           0
         ],
-        "MAL_KFWD_BULK": [
+        "MAL_KFWD": [
           0.000567
         ],
-        "MAL_STOICHIOMETRY_BULK": [
+        "MAL_STOICHIOMETRY": [
           -1
         ]
       }
