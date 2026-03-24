@@ -6,14 +6,16 @@ import src.benchmark_models.helper_connections_2Dmodels as helper
 
 
 def get_model(
-        particle_type='GENERAL_RATE_PARTICLE', nRadZones=3,
-        refinement=1, polyDeg=3,
+        polyDeg, axNElem, radNElem, parNElem,
+        particle_type="GENERAL_RATE_PARTICLE",
         **kwargs
         ):
     
-    radNElem = nRadZones * kwargs.get('radRefinement', refinement)
-    axNElem = 8 * kwargs.get('axRefinement', refinement)
-    parNElem = kwargs.get('parZ', 1)
+    nRadZones = radNElem
+    
+    radNElem = radNElem
+    axNElem = axNElem
+    parNElem = parNElem
     
     model = Dict()
     
@@ -24,12 +26,35 @@ def get_model(
     column.UNIT_TYPE = 'COLUMN_MODEL_2D'
     column.col_length = 0.014
     column.col_radius = 0.01
-    column.col_porosity = 0.37
+    
+    # Build a radially resolved porosity profile to mimic wall effects in packed columns.
+    # The porosity is assumed lower in the bulk (core) and increases smoothly toward the wall,
+    # where packing is less dense. An exponential function is used to create a smooth transition
+    # between core and wall porosity over a characteristic decay length on the order of a few
+    # particle diameters. This provides a physically plausible profile while remaining simple
+    # and well-suited for visualizing radial gradients in the simulation.
+    par_radius = 4.5e-05
+    R = column.col_radius
+    eps_core = 0.36
+    eps_wall = 0.42
+    dp = 2 * par_radius
+    lam = 2.0 * dp  # decay length
+    
+    eps_r = []
+    
+    # rad_coords, _ = helper.get_radCoords_and_crossSectionAreas(polyDeg, radNElem, column.col_radius)
+    deltaR = column.col_radius / radNElem
+    for r in range(radNElem):
+        eps = eps_core + (eps_wall - eps_core) * np.exp(-(R - deltaR * (0.5 + r)) / lam)
+        eps_r.append(eps)
+    
+    column.col_porosity = eps_r
+    
     column.npartype = 0 if particle_type is None else 1
     
     column.ncomp = 4
     column.init_c = [50.0, 0.0, 0.0, 0.0]
-    column.col_dispersion = 5.75e-08
+    column.col_dispersion_axial = 5.75e-08
     column.col_dispersion_radial = kwargs.get('col_dispersion_radial', 5e-08)
     column.velocity = 0.000575
 
@@ -46,10 +71,12 @@ def get_model(
     if particle_type is not None:
         
         column.particle_type_000.par_geom = ['SPHERE']
-        column.particle_type_000.particle_type = particle_type
-        column.particle_type_000.par_radius = 4.5e-05
+        column.particle_type_000.par_radius = par_radius
         column.particle_type_000.par_coreradius = 0.0
         column.particle_type_000.par_porosity = 0.75
+        column.particle_type_000.has_film_diffusion = True
+        column.particle_type_000.has_pore_diffusion = True
+        column.particle_type_000.has_surface_diffusion = False
         column.particle_type_000.film_diffusion = [6.9e-06, 6.9e-06, 6.9e-06, 6.9e-06]
         column.particle_type_000.pore_diffusion = [7.00e-10, 6.07e-11, 6.07e-11, 6.07e-11]
         column.particle_type_000.surface_diffusion = [0.,0.,0.,0.]
@@ -78,10 +105,11 @@ def get_model(
     model.input.model.connections.connections_include_ports = 1
     model.input.model.connections.nswitches = 1
     connections, rad_coords = helper.generate_connections_matrix(
-            rad_method=column.discretization.RAD_POLYDEG, rad_cells=radNElem,
-            velocity=column.velocity, porosity=column.col_porosity, col_radius=column.col_radius,
+            rad_method=polyDeg, rad_cells=radNElem,
+            velocity=column.velocity, porosity=column.col_porosity[0], col_radius=column.col_radius,
             add_inlet_per_port=nRadZones, add_outlet=True
         )
+    
     model.input.model.connections.switch_000.connections = connections
     model.input.model.connections.switch_000.section = 0
     
@@ -129,27 +157,69 @@ def get_model(
     model.input.solver.sections.nsec = 3
     model.input.solver.sections.section_continuity = [ 0, 0 ]
     model.input.solver.sections.section_times = [ 0.0, 10.0, 90.0, 1500.0]
-    model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
-    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-10)
+    model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-7)
+    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-5)
+    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-8)
     model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-12
     model.input.solver.time_integrator.MAX_STEPS = 10000
-    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-10)
     
     # Return data
-    model.input.solver.user_solution_times = np.linspace(0, 1500, 1501)
+    model.input.solver.user_solution_times = np.linspace(0.0, 1500.0, 1501)
     model.input['return'].split_components_data = 0
     model.input['return'].split_ports_data = 0
-    model.input['return'].unit_000.write_coordinates = kwargs.get('return_bulk', False) or kwargs.get('return_particle', False)
+    model.input['return'].unit_000.write_coordinates = kwargs.get('write_solution_bulk', False) or kwargs.get('write_solution_particle', False) or kwargs.get('write_solution_solid', False)
     model.input['return'].unit_000.write_sens_bulk = 0
     model.input['return'].unit_000.write_sens_last = 0
-    model.input['return'].unit_000.write_sens_outlet = 1
-    model.input['return'].unit_000.write_solution_bulk = kwargs.get('return_bulk', False)
+    model.input['return'].unit_000.write_sens_outlet = 0
+    model.input['return'].unit_000.write_solution_bulk = kwargs.get('write_solution_bulk', False)
     model.input['return'].unit_000.write_solution_flux = 0
     model.input['return'].unit_000.write_solution_inlet = 0
     model.input['return'].unit_000.write_solution_outlet = 1
-    model.input['return'].unit_000.write_solution_particle = kwargs.get('return_particle', False)
-    model.input['return'].unit_000.write_solution_solid = kwargs.get('return_particle', False)
+    model.input['return'].unit_000.write_solution_particle = kwargs.get('write_solution_particle', False)
+    model.input['return'].unit_000.write_solution_solid = kwargs.get('write_solution_solid', False)
     model.input['return'].write_solution_times = 1
     
     return model
+
+
+
+
+
+from cadet import Cadet
+
+model = Cadet()
+model.install_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master5_fixParCoords_783967a\aRELEASE"
+
+
+polyDeg = 3
+axNElem = 8
+radNElem = 4
+parNElem = 1
+
+model.root = get_model(
+    polyDeg=polyDeg, axNElem=axNElem, radNElem=radNElem, parNElem=parNElem,
+    write_solution_bulk=True, write_solution_particle=True, write_solution_solid=True
+    )
+modelName = f"2DLWE_DG_P{polyDeg}Z{axNElem}radZ{radNElem}parZ{parNElem}"
+model.filename = r"C:\Users\jmbr\software/" + modelName + ".h5"
+
+model.save()
+return_data = model.run_simulation()
+print(return_data.return_code)
+print(return_data.error_message)
+model.load()
+model.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
