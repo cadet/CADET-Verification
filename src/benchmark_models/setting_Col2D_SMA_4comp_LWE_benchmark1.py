@@ -36,8 +36,8 @@ def get_model(
     deltaR = column.col_radius / radNElem
     par_radius = 4.5e-05
     R = column.col_radius
-    eps_core = 0.36
-    eps_wall = 0.42
+    eps_inner = kwargs.get('eps_inner', 0.35)
+    eps_wall = kwargs.get('eps_wall', 0.5)
     dp = 2 * par_radius
     lam = 2.0 * dp  # decay length
     
@@ -45,12 +45,13 @@ def get_model(
     
     # rad_coords, _ = helper.get_radCoords_and_crossSectionAreas(polyDeg, radNElem, column.col_radius)
     for r in range(radNElem):
-        eps = eps_core + (eps_wall - eps_core) * np.exp(-(R - deltaR * (1.0 + r)) / lam) # 1.0 + r to get the porosity at the right edge of the element
+        eps = eps_inner + (eps_wall - eps_inner) * np.exp(-(R - deltaR * (1.0 + r)) / lam) # 1.0 + r to get the porosity at the right edge of the element
         eps_r.append(eps)
     
     column.col_porosity = eps_r
     
-    print(np.array(eps_r) / 0.37 * 0.000575)
+    print("Interstitial velocity per radial zone: ", np.array(eps_r) / 0.37 * 0.000575)
+    print("Porosity per radial zone: ", np.array(eps_r))
     
     column.npartype = 0 if particle_type is None else 1
     
@@ -142,6 +143,8 @@ def get_model(
 
         model.input.model['unit_' + str(rad + 1).zfill(3)
                     ] = copy.deepcopy(inletUnit)
+        model.input.model['unit_' + str(rad + 1).zfill(3)
+                    ]['const_coeff'] = [50.0, 1.0 * rad, 1.0 * rad, 1.0 * rad]
         
         model.input.model['unit_' + str(radNElem + 1 + rad).zfill(3)] = copy.deepcopy(outletUnit)
         
@@ -167,7 +170,7 @@ def get_model(
     
     # Return data
     model.input.solver.user_solution_times = np.linspace(0.0, 1500.0, 1501)
-    model.input['return'].split_components_data = 0
+    model.input['return'].split_components_data = 1
     model.input['return'].split_ports_data = 0
     model.input['return'].unit_000.write_coordinates = kwargs.get('write_solution_bulk', False) or kwargs.get('write_solution_particle', False) or kwargs.get('write_solution_solid', False)
     model.input['return'].unit_000.write_sens_bulk = 0
@@ -187,32 +190,33 @@ def get_model(
 
 
 
-# from cadet import Cadet
+from cadet import Cadet
 
-# model = Cadet()
-# model.install_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master5_fixParCoords_783967a\aRELEASE"
+model = Cadet()
+model.install_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master_fixCoords\aRELEASE"
 
 
-polyDeg = 3
+polyDeg = 5
 axNElem = 8
-radNElem = 4
-parNElem = 1
+radNElem = 2
+parNElem = 8
 
-# model.root = 
+eps_wall=0.5
 
-jo = get_model(
+model.root = get_model(
     polyDeg=polyDeg, axNElem=axNElem, radNElem=radNElem, parNElem=parNElem,
-    write_solution_bulk=True, write_solution_particle=True, write_solution_solid=True
+    write_solution_bulk=True, write_solution_particle=True, write_solution_solid=True,
+    eps_wall=eps_wall, eps_inner=0.35
     )
-# modelName = f"2DLWE_DG_P{polyDeg}Z{axNElem}radZ{radNElem}parZ{parNElem}"
-# model.filename = r"C:\Users\jmbr\software/" + modelName + ".h5"
+modelName = f"2DLWE_radInlet_epsRc{eps_wall}_DG_P{polyDeg}Z{axNElem}radZ{radNElem}parZ{parNElem}"
+model.filename = r"C:\Users\jmbr\software/" + modelName + ".h5"
 
-# model.save()
-# return_data = model.run_simulation()
-# print(return_data.return_code)
-# print(return_data.error_message)
-# model.load()
-# model.save()
+model.save()
+return_data = model.run_simulation()
+print(return_data.return_code)
+print(return_data.error_message)
+model.load()
+model.save()
 
 
 
