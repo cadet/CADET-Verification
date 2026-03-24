@@ -33,6 +33,7 @@ def get_model(
     # between core and wall porosity over a characteristic decay length on the order of a few
     # particle diameters. This provides a physically plausible profile while remaining simple
     # and well-suited for visualizing radial gradients in the simulation.
+    deltaR = column.col_radius / radNElem
     par_radius = 4.5e-05
     R = column.col_radius
     eps_core = 0.36
@@ -43,12 +44,13 @@ def get_model(
     eps_r = []
     
     # rad_coords, _ = helper.get_radCoords_and_crossSectionAreas(polyDeg, radNElem, column.col_radius)
-    deltaR = column.col_radius / radNElem
     for r in range(radNElem):
-        eps = eps_core + (eps_wall - eps_core) * np.exp(-(R - deltaR * (0.5 + r)) / lam)
+        eps = eps_core + (eps_wall - eps_core) * np.exp(-(R - deltaR * (1.0 + r)) / lam) # 1.0 + r to get the porosity at the right edge of the element
         eps_r.append(eps)
     
     column.col_porosity = eps_r
+    
+    print(np.array(eps_r) / 0.37 * 0.000575)
     
     column.npartype = 0 if particle_type is None else 1
     
@@ -185,10 +187,10 @@ def get_model(
 
 
 
-from cadet import Cadet
+# from cadet import Cadet
 
-model = Cadet()
-model.install_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master5_fixParCoords_783967a\aRELEASE"
+# model = Cadet()
+# model.install_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master5_fixParCoords_783967a\aRELEASE"
 
 
 polyDeg = 3
@@ -196,19 +198,21 @@ axNElem = 8
 radNElem = 4
 parNElem = 1
 
-model.root = get_model(
+# model.root = 
+
+jo = get_model(
     polyDeg=polyDeg, axNElem=axNElem, radNElem=radNElem, parNElem=parNElem,
     write_solution_bulk=True, write_solution_particle=True, write_solution_solid=True
     )
-modelName = f"2DLWE_DG_P{polyDeg}Z{axNElem}radZ{radNElem}parZ{parNElem}"
-model.filename = r"C:\Users\jmbr\software/" + modelName + ".h5"
+# modelName = f"2DLWE_DG_P{polyDeg}Z{axNElem}radZ{radNElem}parZ{parNElem}"
+# model.filename = r"C:\Users\jmbr\software/" + modelName + ".h5"
 
-model.save()
-return_data = model.run_simulation()
-print(return_data.return_code)
-print(return_data.error_message)
-model.load()
-model.save()
+# model.save()
+# return_data = model.run_simulation()
+# print(return_data.return_code)
+# print(return_data.error_message)
+# model.load()
+# model.save()
 
 
 
