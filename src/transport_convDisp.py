@@ -509,7 +509,7 @@ def transport_tests(n_jobs, small_test,
                 setting_MCT_transport.get_model()
             ],
             'cadet_config_names': [
-                'MCT_transport_1comp_benchmark1'
+                'COL1D_MCT_transport_1comp_benchmark1'
             ],
             'include_sens': [False],
             'ref_files': [[None] * nNumMethods],
@@ -524,25 +524,25 @@ def transport_tests(n_jobs, small_test,
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
-                         setting_name="MCT_transport_1comp_WENO3_benchmark1",
+                         setting_name="COL1D_MCT_transport_1comp_WENO3_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
                          time_integrator=time_integrator,
 
                          ),
                 partial(refine_discretization,
-                         setting_name="MCT_transport_1comp_WENO3nonEq_benchmark1",
+                         setting_name="COL1D_MCT_transport_1comp_WENO3nonEq_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
                          time_integrator=time_integrator,
 
                          ),
                 partial(refine_discretization,
-                         setting_name="MCT_transport_1comp_KOREN_benchmark1",
+                         setting_name="COL1D_MCT_transport_1comp_KOREN_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
                          time_integrator=time_integrator,
 
                          ),
                 partial(refine_discretization,
-                         setting_name="MCT_transport_1comp_KORENnonEq_benchmark1",
+                         setting_name="COL1D_MCT_transport_1comp_KORENnonEq_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
                          time_integrator=time_integrator,
 
@@ -611,7 +611,7 @@ def transport_tests(n_jobs, small_test,
                 setting_2DGRM_transport.get_model()
             ],
             'cadet_config_names': [
-                'GRM2D_transport_1comp_benchmark1'
+                'COL1D_2DGRM_transport_1comp_benchmark1'
             ],
             'include_sens': [False],
             'ref_files': [[None] * nNumMethods],
@@ -626,22 +626,22 @@ def transport_tests(n_jobs, small_test,
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization_2dgrm,
-                         setting_name="GRM2D_transport_1comp_WENO3_benchmark1",
+                         setting_name="COL1D_2DGRM_transport_1comp_WENO3_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
                          time_integrator=time_integrator_2dgrm
                          ),
                 partial(refine_discretization_2dgrm,
-                         setting_name="GRM2D_transport_1comp_WENO3nonEq_benchmark1",
+                         setting_name="COL1D_2DGRM_transport_1comp_WENO3nonEq_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
                          time_integrator=time_integrator_2dgrm
                          ),
                 partial(refine_discretization_2dgrm,
-                         setting_name="GRM2D_transport_1comp_KOREN_benchmark1",
+                         setting_name="COL1D_2DGRM_transport_1comp_KOREN_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
                          time_integrator=time_integrator_2dgrm
                          ),
                 partial(refine_discretization_2dgrm,
-                         setting_name="GRM2D_transport_1comp_KORENnonEq_benchmark1",
+                         setting_name="COL1D_2DGRM_transport_1comp_KORENnonEq_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
                          time_integrator=time_integrator_2dgrm
                          )
