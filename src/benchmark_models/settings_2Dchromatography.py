@@ -190,6 +190,7 @@ def GRM2D_linBnd_benchmark1(
         save_path="C:/Users/jmbr/JupyterNotebooks/",
         file_name=None,
         transport_model=None,
+        npartype=1,
         **kwargs
 ):
 
@@ -211,10 +212,11 @@ def GRM2D_linBnd_benchmark1(
     column.COL_RADIUS = 0.0035
     column.CROSS_SECTION_AREA = np.pi * column.COL_RADIUS**2
 
-    column.NPARTYPE = kwargs.get('npartype', 1)
-    # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
+    column.NPARTYPE = npartype
     column.COL_POROSITY = 0.37
-    column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
+    if column.NPARTYPE > 0:
+        column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
+        # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
 
     column.VELOCITY = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
     column.COL_DISPERSION_AXIAL = 5.75e-8
