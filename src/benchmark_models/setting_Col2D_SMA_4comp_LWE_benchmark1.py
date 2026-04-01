@@ -193,13 +193,11 @@ def get_model(
 from cadet import Cadet
 
 model = Cadet()
-model.install_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\master_fixCoords\aRELEASE"
-
-
+model.install_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master5_fixParCoords_783967a\aRELEASE"
 polyDeg = 5
-axNElem = 8
+axNElem = 16
 radNElem = 2
-parNElem = 8
+parNElem = 20
 
 eps_wall=0.5
 
@@ -212,11 +210,11 @@ modelName = f"2DLWE_radInlet_epsRc{eps_wall}_DG_P{polyDeg}Z{axNElem}radZ{radNEle
 model.filename = r"C:\Users\jmbr\software/" + modelName + ".h5"
 
 model.save()
-return_data = model.run_simulation()
-print(return_data.return_code)
-print(return_data.error_message)
-model.load()
-model.save()
+# return_data = model.run_simulation()
+# print(return_data.return_code)
+# print(return_data.error_message)
+# model.load()
+# model.save()
 
 
 
