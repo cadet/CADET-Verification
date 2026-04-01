@@ -214,6 +214,7 @@ def fv_benchmark(small_test=False, sensitivities=False):
     ref_LRM = _load_analytical_reference('ref_LRM_dynLin_1comp_benchmark1.h5')
     ref_LRMP = _load_analytical_reference('ref_LRMP_dynLin_1comp_benchmark1.h5')
     ref_GRM = _load_analytical_reference('ref_GRM_dynLin_1comp_benchmark1.h5')
+    ref_GRMsd = _load_analytical_reference('ref_GRMsd_dynLin_1comp_benchmark1.h5')
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -273,7 +274,7 @@ def fv_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * 8 if sensitivities else [False] * 8,
         'ref_files': [
-            [ref_LRM], [ref_LRMP], [ref_GRM], [None],
+            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
             [None], [None], [None], [None]
         ],
         'unit_IDs': [
@@ -330,6 +331,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
     ref_LRM = _load_analytical_reference('ref_LRM_dynLin_1comp_benchmark1.h5')
     ref_LRMP = _load_analytical_reference('ref_LRMP_dynLin_1comp_benchmark1.h5')
     ref_GRM = _load_analytical_reference('ref_GRM_dynLin_1comp_benchmark1.h5')
+    ref_GRMsd = _load_analytical_reference('ref_GRMsd_dynLin_1comp_benchmark1.h5')
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -389,7 +391,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [ref_LRM], [ref_LRMP], [ref_GRM], [None],
+            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
             [None], [None], [None], [None]
         ],
         'unit_IDs': [
