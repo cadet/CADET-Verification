@@ -107,7 +107,8 @@ def test_selected_model_groups(
                 n_jobs=n_jobs,
                 small_test=small_test,
                 output_path=str(output_path) + "/transport",
-                cadet_path=cadet_path
+                cadet_path=cadet_path,
+                reference_data_path=str(Path.cwd()) + '/data/CASEMA_reference'
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/transport")        
