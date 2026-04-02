@@ -1107,6 +1107,7 @@ def run_convergence_analysis_core(
                 commit_hash=commit_hash,
                 sim_names=sim_names[modelIdx][methodIdx] if sim_names is not None else None,
                 refinement_ID=refinement_IDs[modelIdx],
+                transport_model=kwargs.pop('transport_model', None),
                 **kwargs
             )
 
