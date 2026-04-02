@@ -1820,6 +1820,13 @@ def generate_bulkDisc_name(disc):
         is_equidistant = np.allclose(np.diff(grid), np.diff(grid)[0])
         
         suffix = "" if  is_equidistant else "nonEq"
+    elif get_case_insensitive(disc, 'AXIAL_GRID_FACES') is not None:
+        
+        grid = np.array(get_case_insensitive(disc, 'AXIAL_GRID_FACES'))
+        
+        is_equidistant = np.allclose(np.diff(grid), np.diff(grid)[0])
+        
+        suffix = "" if  is_equidistant else "nonEq"
 
     if name == "FV":
         
@@ -2979,7 +2986,7 @@ def convergency_table(method,
             header.append("$N_e^p$")
             table.append(disc[0])
             table.append(disc[1])
-    elif (disc.ndim == 1):   # LRMP, LRM
+    elif (disc.ndim == 1):   # LRMP, LRM, MCT
         nDisc = len(disc)
         table.append(disc)
     else:
@@ -3542,7 +3549,7 @@ def recalculate_results(file_path, model,
     if transport_model is None:
         try:
             transport_model = re.search(
-                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D',
+                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT',
                 model,
                 re.IGNORECASE).group(0)
         except:
