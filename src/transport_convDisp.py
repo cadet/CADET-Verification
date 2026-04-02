@@ -16,8 +16,8 @@ import re
 import src.benchmark_models.setting_COL1D_axial_transport as setting_axial_transport
 import src.benchmark_models.setting_COL1D_radial_transport as setting_radial_transport
 import src.benchmark_models.setting_COL1D_frustum_transport as setting_frustum_transport
-import src.benchmark_models.setting_MCT_transport as setting_MCT_transport
-import src.benchmark_models.setting_2DGRM_transport as setting_2DGRM_transport
+import src.benchmark_models.setting_MCT_transport_2channel as setting_MCT_transport_2channel
+import src.benchmark_models.setting_COL2D_axialTransport_2rad as setting_COL2D_axTransport
 import src.bench_func as bench_func
 import src.bench_configs as bench_configs
 
@@ -494,71 +494,23 @@ def transport_tests(n_jobs, small_test,
         cadet_config_names=cadet_config_names, addition=addition,
         disc_refinement_functions=disc_refinement_functions)
     
-    #%%
 
-    #%% MCT (Multi-Channel Transport) - axial flow transport
+    #%% 2DGRM (General Rate Model 2D) - axial flow transport refinement
 
-    # Reset grid functions to axial (sinusoidal perturbation)
-    spatial_discretization_WENO3NonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
-    spatial_discretization_KORENNonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
+    # reset, 2D models must additionally provide radial discretization and must run their own convergence analysis
+    cadet_configs = []
+    cadet_config_names = []
+    include_sens = []
+    ref_files = []
+    unit_IDs = []
+    which = []
+    ax_methods = []
+    ax_discs = []
+    rad_methods = []
+    rad_discs = []
+    disc_refinement_functions = []
 
-    nNumMethods = 4
-
-    addition = {
-            'cadet_config_jsons': [
-                setting_MCT_transport.get_model()
-            ],
-            'cadet_config_names': [
-                'COL1D_MCT_transport_1comp_benchmark1'
-            ],
-            'include_sens': [False],
-            'ref_files': [[None] * nNumMethods],
-            'unit_IDs': ['001'],
-            'which': ['outlet'],
-            'ax_methods': [[0] * nNumMethods],
-            'ax_discs': [[
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3)
-            ]],
-            'disc_refinement_functions' : [[
-                partial(refine_discretization,
-                         setting_name="COL1D_MCT_transport_1comp_WENO3_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
-                         time_integrator=time_integrator,
-
-                         ),
-                partial(refine_discretization,
-                         setting_name="COL1D_MCT_transport_1comp_WENO3nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
-                         time_integrator=time_integrator,
-
-                         ),
-                partial(refine_discretization,
-                         setting_name="COL1D_MCT_transport_1comp_KOREN_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
-                         time_integrator=time_integrator,
-
-                         ),
-                partial(refine_discretization,
-                         setting_name="COL1D_MCT_transport_1comp_KORENnonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
-                         time_integrator=time_integrator,
-
-                         )
-                ]]
-        }
-
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        ax_methods=ax_methods, ax_discs=ax_discs,
-        cadet_config_names=cadet_config_names, addition=addition,
-        disc_refinement_functions = disc_refinement_functions)
-
-    #%% 2DGRM (General Rate Model 2D) - axial flow transport
-
-    def refine_discretization_2dgrm(config_data, disc_idx, setting_name,
+    def refine_discretization_col2d(config_data, disc_idx, setting_name,
                               spatial_discretization,
                               time_integrator=None,
                               unit_id = '001',
@@ -581,6 +533,7 @@ def transport_tests(n_jobs, small_test,
             {k: v for k, v in spatial_discretization.items() if k not in {'NonEq', 'grid_function'}}
             )
         config_data['input']['model']['unit_' + unit_id]['discretization']['NCOL'] = nCol
+        config_data['input']['model']['unit_' + unit_id]['discretization']['NRAD'] = 2 # remains constant
 
         config_name = convergence.generate_1D_name(setting_name, 0, nCol)
 
@@ -608,10 +561,10 @@ def transport_tests(n_jobs, small_test,
 
     addition = {
             'cadet_config_jsons': [
-                setting_2DGRM_transport.get_model()
+                setting_COL2D_axTransport.get_model()
             ],
             'cadet_config_names': [
-                'COL1D_2DGRM_transport_1comp_benchmark1'
+                'COL2D_transport_1comp_benchmark1'
             ],
             'include_sens': [False],
             'ref_files': [[None] * nNumMethods],
@@ -619,31 +572,129 @@ def transport_tests(n_jobs, small_test,
             'which': ['outlet'],
             'ax_methods': [[0] * nNumMethods],
             'ax_discs': [[
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3)
+                bench_func.disc_list(8, 7 if not small_test else 3),
+                bench_func.disc_list(8, 7 if not small_test else 3),
+                bench_func.disc_list(8, 7 if not small_test else 3),
+                bench_func.disc_list(8, 7 if not small_test else 3)
+            ]],
+            'rad_methods': [[0] * nNumMethods],
+            'rad_discs': [[
+                [2] * 7 if not small_test else [2]* 3,
+                [2] * 7 if not small_test else [2]* 3,
+                [2] * 7 if not small_test else [2]* 3,
+                [2] * 7 if not small_test else [2]* 3
             ]],
             'disc_refinement_functions' : [[
-                partial(refine_discretization_2dgrm,
-                         setting_name="COL1D_2DGRM_transport_1comp_WENO3_benchmark1",
+                partial(refine_discretization_col2d,
+                         setting_name="COL2D_transport_1comp_WENO3_axbenchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
                          time_integrator=time_integrator_2dgrm
                          ),
-                partial(refine_discretization_2dgrm,
-                         setting_name="COL1D_2DGRM_transport_1comp_WENO3nonEq_benchmark1",
+                partial(refine_discretization_col2d,
+                         setting_name="COL2D_transport_1comp_WENO3nonEq_axbenchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
                          time_integrator=time_integrator_2dgrm
                          ),
-                partial(refine_discretization_2dgrm,
-                         setting_name="COL1D_2DGRM_transport_1comp_KOREN_benchmark1",
+                partial(refine_discretization_col2d,
+                         setting_name="COL2D_transport_1comp_KOREN_axbenchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
                          time_integrator=time_integrator_2dgrm
                          ),
-                partial(refine_discretization_2dgrm,
-                         setting_name="COL1D_2DGRM_transport_1comp_KORENnonEq_benchmark1",
+                partial(refine_discretization_col2d,
+                         setting_name="COL2D_transport_1comp_KORENnonEq_axbenchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
                          time_integrator=time_integrator_2dgrm
+                         )
+                ]]
+        }
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods=ax_methods, ax_discs=ax_discs,
+        rad_methods=rad_methods, rad_discs=rad_discs,
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions = disc_refinement_functions)
+    
+    bench_func.run_convergence_analysis(
+        output_path=output_path,
+        cadet_path=cadet_path,
+        cadet_configs=cadet_configs,
+        cadet_config_names=cadet_config_names,
+        include_sens=include_sens,
+        ref_files=ref_files,
+        unit_IDs=unit_IDs,
+        which=which,
+        ax_methods=ax_methods,
+        ax_discs=ax_discs,
+        rad_methods=rad_methods,
+        rad_discs=rad_discs,
+        n_jobs=n_jobs,
+        rerun_sims=False,
+        disc_refinement_functions = disc_refinement_functions
+    )
+    
+    
+    #%% MCT (Multi-Channel Transport) - axial flow transport
+
+    # reset, MCT must run its own convergence analysis to handle DOF calculation via transport model specification
+    cadet_configs = []
+    cadet_config_names = []
+    include_sens = []
+    ref_files = []
+    unit_IDs = []
+    which = []
+    ax_methods = []
+    ax_discs = []
+    disc_refinement_functions = []
+
+    # Reset grid functions to axial (sinusoidal perturbation)
+    spatial_discretization_WENO3NonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
+    spatial_discretization_KORENNonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
+
+    nNumMethods = 4
+
+    addition = {
+            'cadet_config_jsons': [
+                setting_MCT_transport_2channel.get_model()
+            ],
+            'cadet_config_names': [
+                'MCT_transport_1comp_benchmark1'
+            ],
+            'include_sens': [False],
+            'ref_files': [[None] * nNumMethods],
+            'unit_IDs': ['001'],
+            'which': ['outlet'],
+            'ax_methods': [[0] * nNumMethods],
+            'ax_discs': [[
+                bench_func.disc_list(8, 8 if not small_test else 3),
+                bench_func.disc_list(8, 8 if not small_test else 3),
+                bench_func.disc_list(8, 8 if not small_test else 3),
+                bench_func.disc_list(8, 8 if not small_test else 3)
+            ]],
+            'disc_refinement_functions' : [[
+                partial(refine_discretization,
+                         setting_name="MCT_transport_1comp_WENO3_benchmark1",
+                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
+                         time_integrator=time_integrator,
+
+                         ),
+                partial(refine_discretization,
+                         setting_name="MCT_transport_1comp_WENO3nonEq_benchmark1",
+                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
+                         time_integrator=time_integrator,
+
+                         ),
+                partial(refine_discretization,
+                         setting_name="MCT_transport_1comp_KOREN_benchmark1",
+                         spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
+                         time_integrator=time_integrator,
+
+                         ),
+                partial(refine_discretization,
+                         setting_name="MCT_transport_1comp_KORENnonEq_benchmark1",
+                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
+                         time_integrator=time_integrator,
+
                          )
                 ]]
         }
@@ -667,5 +718,6 @@ def transport_tests(n_jobs, small_test,
         ax_discs=ax_discs,
         n_jobs=n_jobs,
         rerun_sims=True,
-        disc_refinement_functions = disc_refinement_functions
+        disc_refinement_functions = disc_refinement_functions,
+        transport_model="MCT"
     )

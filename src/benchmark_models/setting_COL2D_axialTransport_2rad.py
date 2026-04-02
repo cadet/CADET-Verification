@@ -40,7 +40,7 @@ def get_model():
     m.input.model.unit_000.sec_001.cube_coeff  = [0.0]
 
     column = m.input.model.unit_001
-    column.unit_type = 'GENERAL_RATE_MODEL_2D'
+    column.unit_type = 'COLUMN_MODEL_2D'
     column.ncomp = 1
     column.npartype = 1
     column.col_length = 1.0
@@ -55,7 +55,7 @@ def get_model():
 
     disc = column.discretization
     disc.USE_ANALYTIC_JACOBIAN = 1
-    disc.NRAD = 3
+    disc.NRAD = 2
     disc.RADIAL_DISC_TYPE = 'EQUIDISTANT'
     disc.GS_TYPE = 1
     disc.MAX_KRYLOV = 0
@@ -64,10 +64,11 @@ def get_model():
     disc.PAR_DISC_TYPE = ['EQUIDISTANT']
 
     par = column.particle_type_000
-    par.has_film_diffusion = 1
-    par.has_pore_diffusion = 0
+    par.has_film_diffusion = 1 # only grm implemented for FV
+    par.has_pore_diffusion = 1
     par.has_surface_diffusion = 0
-    par.film_diffusion = 1e-4
+    par.film_diffusion = 0.0
+    par.pore_diffusion = 0.0
     par.par_porosity = 0.5
     par.par_radius = 4.5e-5
     par.nbound = [0]
