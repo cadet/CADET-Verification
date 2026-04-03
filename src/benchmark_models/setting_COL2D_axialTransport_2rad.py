@@ -76,7 +76,6 @@ def get_model():
     disc.MAX_KRYLOV = 0
     disc.MAX_RESTARTS = 10
     disc.SCHUR_SAFETY = 1e-8
-    disc.PAR_DISC_TYPE = ['EQUIDISTANT']
 
     par = column.particle_type_000
     par.has_film_diffusion = 1 # only grm implemented for FV
@@ -95,6 +94,7 @@ def get_model():
     par_disc = par.discretization
     par_disc.SPATIAL_METHOD = 'FV'
     par_disc.NCELLS = 1
+    par_disc.PAR_DISC_TYPE = ['EQUIDISTANT']
 
     m.input.model.unit_002.unit_type = 'OUTLET'
     m.input.model.unit_002.ncomp = 1

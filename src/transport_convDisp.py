@@ -558,6 +558,7 @@ def transport_tests(n_jobs, small_test,
         }
 
     nNumMethods = 4
+    numRefinements = 7 if not small_test else 3
 
     addition = {
             'cadet_config_jsons': [
@@ -572,17 +573,17 @@ def transport_tests(n_jobs, small_test,
             'which': ['outlet'],
             'ax_methods': [[0] * nNumMethods],
             'ax_discs': [[
-                bench_func.disc_list(8, 7 if not small_test else 3),
-                bench_func.disc_list(8, 7 if not small_test else 3),
-                bench_func.disc_list(8, 7 if not small_test else 3),
-                bench_func.disc_list(8, 7 if not small_test else 3)
+                bench_func.disc_list(8, numRefinements),
+                bench_func.disc_list(8, numRefinements),
+                bench_func.disc_list(8, numRefinements),
+                bench_func.disc_list(8, numRefinements)
             ]],
             'rad_methods': [[0] * nNumMethods],
             'rad_discs': [[
-                [2] * 7 if not small_test else [2]* 3,
-                [2] * 7 if not small_test else [2]* 3,
-                [2] * 7 if not small_test else [2]* 3,
-                [2] * 7 if not small_test else [2]* 3
+                [2] * numRefinements,
+                [2] * numRefinements,
+                [2] * numRefinements,
+                [2] * numRefinements,
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization_col2d,
@@ -629,7 +630,7 @@ def transport_tests(n_jobs, small_test,
         rad_methods=rad_methods,
         rad_discs=rad_discs,
         n_jobs=n_jobs,
-        rerun_sims=False,
+        rerun_sims=True,
         disc_refinement_functions = disc_refinement_functions
     )
     
@@ -652,6 +653,7 @@ def transport_tests(n_jobs, small_test,
     spatial_discretization_KORENNonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
 
     nNumMethods = 4
+    numRefinements = 8 if not small_test else 3
 
     addition = {
             'cadet_config_jsons': [
@@ -666,10 +668,10 @@ def transport_tests(n_jobs, small_test,
             'which': ['outlet'],
             'ax_methods': [[0] * nNumMethods],
             'ax_discs': [[
-                bench_func.disc_list(8, 8 if not small_test else 3),
-                bench_func.disc_list(8, 8 if not small_test else 3),
-                bench_func.disc_list(8, 8 if not small_test else 3),
-                bench_func.disc_list(8, 8 if not small_test else 3)
+                bench_func.disc_list(8, numRefinements),
+                bench_func.disc_list(8, numRefinements),
+                bench_func.disc_list(8, numRefinements),
+                bench_func.disc_list(8, numRefinements)
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
