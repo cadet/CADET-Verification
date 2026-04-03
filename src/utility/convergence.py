@@ -1831,10 +1831,7 @@ def generate_bulkDisc_name(disc):
     if name == "FV":
         
         if get_case_insensitive(disc, 'RECONSTRUCTION') == "WENO":
-            if get_case_insensitive(disc['weno'], 'WENO_ORDER') == 3:
-                return name + suffix
-            else:
-                return name + "WENO" + str(get_case_insensitive(disc['weno'], 'WENO_ORDER')) + suffix
+            return name + "WENO" + str(get_case_insensitive(disc['weno'], 'WENO_ORDER')) + suffix
         else:
             if get_case_insensitive(disc, 'RECONSTRUCTION') is None:
                  return name + suffix
