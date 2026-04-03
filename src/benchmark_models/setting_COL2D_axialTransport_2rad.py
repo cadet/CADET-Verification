@@ -13,13 +13,28 @@ def get_model():
 
     m = Dict()
 
+    nrad = 2
+    col_radius = 0.01
+    col_porosity = 0.4
+    velocity = 0.01
+
+    # Build per-port connections with flow rates proportional to
+    # the annular cross-section area of each equidistant radial zone.
+    deltaR = col_radius / nrad
+    connections = []
+    rL = 0.0
+    for rad in range(nrad):
+        rR = rL + deltaR
+        area = np.pi * (rR**2 - rL**2)
+        flow = area * col_porosity * velocity
+        connections += [0.0, 1.0, 0.0, float(rad), -1.0, -1.0, flow]
+        connections += [1.0, 2.0, float(rad), 0.0, -1.0, -1.0, flow]
+        rL = rR
+
     m.input.model.nunits = 3
     m.input.model.connections.connections_include_ports = 1
     m.input.model.connections.nswitches = 1
-    m.input.model.connections.switch_000.connections = [
-        0.0, 1.0, 0.0, 0.0, -1.0, -1.0, 1.0,
-        1.0, 2.0, 0.0, 0.0, -1.0, -1.0, 1.0,
-    ]
+    m.input.model.connections.switch_000.connections = connections
     m.input.model.connections.switch_000.section = 0
 
     m.input.model.solver.gs_type = 1
@@ -44,18 +59,18 @@ def get_model():
     column.ncomp = 1
     column.npartype = 1
     column.col_length = 1.0
-    column.col_radius = 0.01
-    column.cross_section_area = 3.14159265358979e-4
+    column.col_radius = col_radius
+    column.cross_section_area = np.pi * col_radius**2
     column.col_dispersion_axial = [1e-4]
     column.col_dispersion_radial = [1e-6]
-    column.col_porosity = 0.4
-    column.velocity = 0.01
+    column.col_porosity = col_porosity
+    column.velocity = velocity
     column.init_c = [0.0]
     column.par_type_volfrac = 1.0
 
     disc = column.discretization
     disc.USE_ANALYTIC_JACOBIAN = 1
-    disc.NRAD = 2
+    disc.NRAD = nrad
     disc.RADIAL_DISC_TYPE = 'EQUIDISTANT'
     disc.GS_TYPE = 1
     disc.MAX_KRYLOV = 0
