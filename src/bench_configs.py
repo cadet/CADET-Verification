@@ -11,8 +11,10 @@ github project.
 import os
 import json
 import copy
+from pathlib import Path
 
 import src.bench_func as bench_func
+import src.utility.convergence as convergence
 
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
@@ -23,6 +25,11 @@ from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
 from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
+
+# %% Analytical reference data paths
+_chromatography_ref_path_ = str(
+    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference' / 'chromatography'
+)
 
 # %% benchmark templates
 
@@ -195,7 +202,19 @@ def run_benchmark(
 # %% FV benchmark configuration used in CADET-Core tests
 
 
+def _load_analytical_reference(filename):
+    """Load pre-computed analytical reference from CADET-Core_reference/chromatography."""
+    ref_file = os.path.join(_chromatography_ref_path_, filename)
+    return convergence.get_solution(ref_file, unit='unit_001', which='outlet')
+
+
 def fv_benchmark(small_test=False, sensitivities=False):
+
+    # Load analytical references for linear 1-component benchmarks
+    ref_LRM = _load_analytical_reference('ref_LRM_dynLin_1comp_benchmark1.h5')
+    ref_LRMP = _load_analytical_reference('ref_LRMP_dynLin_1comp_benchmark1.h5')
+    ref_GRM = _load_analytical_reference('ref_GRM_dynLin_1comp_benchmark1.h5')
+    ref_GRMsd = _load_analytical_reference('ref_GRMsd_dynLin_1comp_benchmark1.h5')
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -255,7 +274,8 @@ def fv_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * 8 if sensitivities else [False] * 8,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None], [None]
+            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
+            [None], [None], [None], [None]
         ],
         'unit_IDs': [
             '001', '001', '001', '001', '000', '000', '000', '001'
@@ -306,6 +326,12 @@ def fv_benchmark(small_test=False, sensitivities=False):
 def dg_benchmark(small_test=False, sensitivities=False):
 
     n_settings = 8
+
+    # Load analytical references for linear 1-component benchmarks
+    ref_LRM = _load_analytical_reference('ref_LRM_dynLin_1comp_benchmark1.h5')
+    ref_LRMP = _load_analytical_reference('ref_LRMP_dynLin_1comp_benchmark1.h5')
+    ref_GRM = _load_analytical_reference('ref_GRM_dynLin_1comp_benchmark1.h5')
+    ref_GRMsd = _load_analytical_reference('ref_GRMsd_dynLin_1comp_benchmark1.h5')
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -365,7 +391,8 @@ def dg_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None], [None]
+            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
+            [None], [None], [None], [None]
         ],
         'unit_IDs': [
             '001', '001', '001', '001', '000', '000', '000', '001'
