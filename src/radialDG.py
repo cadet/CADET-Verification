@@ -81,8 +81,14 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
     def refine_DG(config_data, disc_idx, setting_name,
                   polyDeg, node_type='CGL',
                   nelem_start=2, time_integrator=None,
-                  unit_id='001', **kwargs):
-        """Refinement function for radial DG: doubles nElem at each step."""
+                  unit_id='001',
+                  par_nelem_start=None, par_polyDeg=None,
+                  **kwargs):
+        """Refinement function for radial DG: doubles nElem at each step.
+
+        For GRM models, par_nelem_start and par_polyDeg control particle
+        discretization refinement (PAR_NELEM doubles alongside bulk NELEM).
+        """
 
         config_data = copy.deepcopy(config_data)
 
@@ -104,6 +110,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
         disc['NELEM'] = nElem
 
         unit_cfg['node_type'] = node_type
+
+        # Refine particle discretization for GRM (doubles PAR_NELEM alongside bulk)
+        if par_nelem_start is not None and 'particle_type_000' in unit_cfg:
+            par_disc = unit_cfg['particle_type_000']['discretization']
+            par_disc['PAR_NELEM'] = par_nelem_start * 2**disc_idx
+            if par_polyDeg is not None:
+                par_disc['PAR_POLYDEG'] = par_polyDeg
 
         config_name = convergence.generate_1D_name(setting_name, polyDeg, nElem)
 
@@ -474,17 +487,18 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
     n_disc_FV_2 = 17 if not small_test else 4  # 4,8,...,262144
 
     # TODO: SMA configs temporarily disabled — IDA_ERR_FAIL at coarse grids
+    # For GRM configs, is_grm=True triggers particle refinement (PAR_NELEM doubles with NELEM)
     configs_2 = [
-        # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ)
-        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator),
-        # (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator),
-        (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator),
-        # (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator),
-        (setting_DG_LRMP_lin_var, 'radLRMP_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator),
-        # (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator),
+        # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm)
+        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
+        # (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
+        (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
+        # (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
+        (setting_DG_LRMP_lin_var, 'radLRMP_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
+        # (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
     ]
 
-    for setting_mod, prefix, poly_degs, n_disc_DG, ti in configs_2:
+    for setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm in configs_2:
         base_model = setting_mod.get_model()
 
         # DG methods
@@ -510,7 +524,9 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                          polyDeg=polyDeg,
                          node_type='CGL',
                          nelem_start=1,
-                         time_integrator=ti)]
+                         time_integrator=ti,
+                         par_nelem_start=1 if is_grm else None,
+                         par_polyDeg=3 if is_grm else None)]
                 for name, polyDeg in methods
             ],
         }
