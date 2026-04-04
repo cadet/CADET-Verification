@@ -89,7 +89,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install numpy scipy matplotlib h5py addict joblib cadet-python
+          pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
 
       - name: Run radial DG verification
         run: |
