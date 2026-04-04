@@ -53,6 +53,31 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
     # ---- Refinement functions ----
 
+    # Map from particle configuration to radial unit type.
+    # RADIAL_COLUMN_MODEL_1D only works for DG with npartype=0 (pure transport).
+    # For DG with particles, the builder expects dedicated radial unit types
+    # and selects DG/FV variant based on SPATIAL_METHOD in discretization.
+    _RADIAL_UNIT_TYPE_MAP = {
+        'EQUILIBRIUM_PARTICLE': 'RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES',
+        'HOMOGENEOUS_PARTICLE': 'RADIAL_LUMPED_RATE_MODEL_WITH_PORES',
+        'GENERAL_RATE_PARTICLE': 'RADIAL_GENERAL_RATE_MODEL',
+    }
+
+    def _get_particle_type(unit_cfg):
+        """Determine particle type string from unit config flags."""
+        if unit_cfg.get('npartype', 0) == 0:
+            return None
+        pt = unit_cfg.get('particle_type_000', {})
+        film = pt.get('has_film_diffusion', 0)
+        pore = pt.get('has_pore_diffusion', 0)
+        surf = pt.get('has_surface_diffusion', 0)
+        if film and pore:
+            return 'GENERAL_RATE_PARTICLE'
+        elif film:
+            return 'HOMOGENEOUS_PARTICLE'
+        else:
+            return 'EQUILIBRIUM_PARTICLE'
+
     def refine_DG(config_data, disc_idx, setting_name,
                   polyDeg, node_type='CGL',
                   nelem_start=2, time_integrator=None,
@@ -66,12 +91,19 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
         nElem = nelem_start * 2**disc_idx
 
-        disc = config_data['input']['model']['unit_' + unit_id]['discretization']
+        unit_cfg = config_data['input']['model']['unit_' + unit_id]
+
+        # Switch to dedicated radial unit type if the model has particles
+        ptype = _get_particle_type(unit_cfg)
+        if ptype is not None and ptype in _RADIAL_UNIT_TYPE_MAP:
+            unit_cfg['unit_type'] = _RADIAL_UNIT_TYPE_MAP[ptype]
+
+        disc = unit_cfg['discretization']
         disc['SPATIAL_METHOD'] = 'DG'
         disc['POLYDEG'] = polyDeg
         disc['NELEM'] = nElem
 
-        config_data['input']['model']['unit_' + unit_id]['node_type'] = node_type
+        unit_cfg['node_type'] = node_type
 
         config_name = convergence.generate_1D_name(setting_name, polyDeg, nElem)
 
@@ -95,7 +127,14 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
         nCol = nCol_start * 2**disc_idx
 
-        disc = config_data['input']['model']['unit_' + unit_id]['discretization']
+        unit_cfg = config_data['input']['model']['unit_' + unit_id]
+
+        # Switch to dedicated radial unit type if the model has particles
+        ptype = _get_particle_type(unit_cfg)
+        if ptype is not None and ptype in _RADIAL_UNIT_TYPE_MAP:
+            unit_cfg['unit_type'] = _RADIAL_UNIT_TYPE_MAP[ptype]
+
+        disc = unit_cfg['discretization']
         disc['SPATIAL_METHOD'] = 'FV'
         disc['NCOL'] = nCol
         disc['RECONSTRUCTION'] = 'WENO'
@@ -154,7 +193,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
         'include_sens': [False] * len(methods_0p1),
         'ref_files': [[None] for _ in methods_0p1],
         'unit_IDs': ['001'] * len(methods_0p1),
-        'which': ['bulk'] * len(methods_0p1),
+        'which': ['outlet'] * len(methods_0p1),
         'idas_abstol': [[None] for _ in methods_0p1],
         'ax_methods': [[p] for _, p in methods_0p1],
         'ax_discs': [[bench_func.disc_list(1, n_disc_DG_0p1)] for _ in methods_0p1],
@@ -254,8 +293,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
         cadet_config_names=cadet_config_names, addition=addition,
         disc_refinement_functions=disc_refinement_functions)
 
-    # FV WENO3: nCells 1,2,4,...,32768 (16 levels from 1)
-    n_disc_FV_0 = 16 if not small_test else 4
+    # FV WENO3: nCells 4,8,16,...,32768 (WENO3 requires >= 4 cells)
+    n_disc_FV_0 = 14 if not small_test else 4
 
     addition_fv = {
         'cadet_config_jsons': [base_model_transport],
@@ -266,13 +305,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
         'which': ['outlet'],
         'idas_abstol': [[None]],
         'ax_methods': [[0]],
-        'ax_discs': [[bench_func.disc_list(1, n_disc_FV_0)]],
+        'ax_discs': [[bench_func.disc_list(4, n_disc_FV_0)]],
         'par_methods': [[None]],
         'par_discs': [[None]],
         'disc_refinement_functions': [
             [partial(refine_FV_WENO3,
                      setting_name='radCol1D_FV_WENO3_transport_1comp',
-                     nCol_start=1,
+                     nCol_start=4,
                      equivolume=True,
                      time_integrator=time_integrator)]
         ],
@@ -330,41 +369,20 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
     base_model_LRM_lin = setting_DG_LRM_lin.get_model()
 
-    # Generate reference filename: CGL P6, 512 cells
-    ref_name_bm1 = convergence.generate_1D_name(
-        'radCol1D_DG_CGL_LRM_lin_1comp_ref', 6, 512 if not small_test else 8)
-    ref_file_bm1 = str(output_path) + '/' + ref_name_bm1
-
-    # Reference run (CGL P6/512)
-    addition_ref = {
-        'cadet_config_jsons': [base_model_LRM_lin],
-        'cadet_config_names': ['radCol1D_DG_CGL_LRM_lin_1comp_ref'],
-        'include_sens': [False],
-        'ref_files': [[None]],
-        'unit_IDs': ['001'],
-        'which': ['outlet'],
-        'idas_abstol': [[None]],
-        'ax_methods': [[6 if not small_test else 3]],
-        'ax_discs': [[[512 if not small_test else 8]]],
-        'par_methods': [[None]],
-        'par_discs': [[None]],
-        'disc_refinement_functions': [
-            [partial(refine_DG,
-                     setting_name='radCol1D_DG_CGL_LRM_lin_1comp_ref',
-                     polyDeg=6 if not small_test else 3,
-                     node_type='CGL',
-                     nelem_start=512 if not small_test else 8,
-                     time_integrator=time_integrator)]
-        ],
-    }
-
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        ax_methods, ax_discs,
-        par_methods=par_methods, par_discs=par_discs,
-        idas_abstol=idas_abstol,
-        cadet_config_names=cadet_config_names, addition=addition_ref,
-        disc_refinement_functions=disc_refinement_functions)
+    # Generate reference simulation directly (CGL P6/512 or P3/8 for small_test)
+    ref_polyDeg_bm1 = 6 if not small_test else 3
+    ref_nElem_bm1 = 512 if not small_test else 8
+    ref_model_bm1 = refine_DG(
+        base_model_LRM_lin, 0,
+        setting_name='radCol1D_DG_CGL_LRM_lin_1comp_ref',
+        polyDeg=ref_polyDeg_bm1,
+        node_type='CGL',
+        nelem_start=ref_nElem_bm1,
+        time_integrator=time_integrator)
+    ref_model_bm1.run()
+    # ref_files entries are just the filename (convergence prepends output_path)
+    ref_file_bm1 = convergence.generate_1D_name(
+        'radCol1D_DG_CGL_LRM_lin_1comp_ref', ref_polyDeg_bm1, ref_nElem_bm1)
 
     # CGL and LGL test runs, all referencing the CGL P6/512 file
     for node_type in ['CGL', 'LGL']:
@@ -440,41 +458,19 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
     base_model_LRM_SMA = setting_DG_LRM_SMA.get_model()
 
-    # Generate reference filename: CGL P5, 64 cells
-    ref_name_bm2 = convergence.generate_1D_name(
-        'radCol1D_DG_CGL_LRM_SMA_4comp_ref', 5, 64 if not small_test else 8)
-    ref_file_bm2 = str(output_path) + '/' + ref_name_bm2
-
-    # Reference run (CGL P5/64)
-    addition_ref2 = {
-        'cadet_config_jsons': [base_model_LRM_SMA],
-        'cadet_config_names': ['radCol1D_DG_CGL_LRM_SMA_4comp_ref'],
-        'include_sens': [False],
-        'ref_files': [[None]],
-        'unit_IDs': ['001'],
-        'which': ['outlet'],
-        'idas_abstol': [[None]],
-        'ax_methods': [[5 if not small_test else 3]],
-        'ax_discs': [[[64 if not small_test else 8]]],
-        'par_methods': [[None]],
-        'par_discs': [[None]],
-        'disc_refinement_functions': [
-            [partial(refine_DG,
-                     setting_name='radCol1D_DG_CGL_LRM_SMA_4comp_ref',
-                     polyDeg=5 if not small_test else 3,
-                     node_type='CGL',
-                     nelem_start=64 if not small_test else 8,
-                     time_integrator=time_integrator)]
-        ],
-    }
-
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        ax_methods, ax_discs,
-        par_methods=par_methods, par_discs=par_discs,
-        idas_abstol=idas_abstol,
-        cadet_config_names=cadet_config_names, addition=addition_ref2,
-        disc_refinement_functions=disc_refinement_functions)
+    # Generate reference simulation directly (CGL P5/64 or P3/8 for small_test)
+    ref_polyDeg_bm2 = 5 if not small_test else 3
+    ref_nElem_bm2 = 64 if not small_test else 8
+    ref_model_bm2 = refine_DG(
+        base_model_LRM_SMA, 0,
+        setting_name='radCol1D_DG_CGL_LRM_SMA_4comp_ref',
+        polyDeg=ref_polyDeg_bm2,
+        node_type='CGL',
+        nelem_start=ref_nElem_bm2,
+        time_integrator=time_integrator)
+    ref_model_bm2.run()
+    ref_file_bm2 = convergence.generate_1D_name(
+        'radCol1D_DG_CGL_LRM_SMA_4comp_ref', ref_polyDeg_bm2, ref_nElem_bm2)
 
     # CGL and LGL test runs
     for node_type in ['CGL', 'LGL']:
@@ -491,7 +487,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
             'which': ['outlet'] * len(methods_2),
             'idas_abstol': [[None] for _ in methods_2],
             'ax_methods': [[p] for _, p in methods_2],
-            'ax_discs': [[bench_func.disc_list(1, n_disc_DG_1)] for _ in methods_2],
+            'ax_discs': [[bench_func.disc_list(8, n_disc_DG_1)] for _ in methods_2],
             'par_methods': [[None] for _ in methods_2],
             'par_discs': [[None] for _ in methods_2],
             'disc_refinement_functions': [
@@ -499,7 +495,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                          setting_name=name,
                          polyDeg=polyDeg,
                          node_type=node_type,
-                         nelem_start=1,
+                         nelem_start=8,
                          time_integrator=time_integrator)]
                 for name, polyDeg in methods_2
             ],
@@ -557,7 +553,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
     poly_degs_LRM = list(range(1, 6)) if not small_test else [3, 4]
     n_disc_DG_LRM = 10 if not small_test else 4
 
-    n_disc_FV_2 = 19 if not small_test else 4  # 1,2,4,...,262144
+    n_disc_FV_2 = 17 if not small_test else 4  # 4,8,...,262144
 
     configs_2 = [
         # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ)
@@ -619,13 +615,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
             'which': ['outlet'],
             'idas_abstol': [[None]],
             'ax_methods': [[0]],
-            'ax_discs': [[bench_func.disc_list(1, n_disc_FV_2)]],
+            'ax_discs': [[bench_func.disc_list(4, n_disc_FV_2)]],
             'par_methods': [[None]],
             'par_discs': [[None]],
             'disc_refinement_functions': [
                 [partial(refine_FV_WENO3,
                          setting_name=fv_name,
-                         nCol_start=1,
+                         nCol_start=4,
                          equivolume=True,
                          time_integrator=ti)]
             ],
@@ -677,7 +673,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
     poly_degs_3 = [3, 4, 5] if not small_test else [3]
     n_disc_DG_3 = 11 if not small_test else 4  # 1,2,4,...,1024
-    n_disc_FV_3 = 19 if not small_test else 4  # 1,2,4,...,262144
+    n_disc_FV_3 = 17 if not small_test else 4  # 4,8,...,262144
 
     for D0, label in [(1e-4, 'D1e4'), (1e-5, 'D1e5')]:
         base_model_lang = setting_DG_LRM_lang.get_model(D0=D0)
@@ -729,13 +725,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
             'which': ['outlet'],
             'idas_abstol': [[None]],
             'ax_methods': [[0]],
-            'ax_discs': [[bench_func.disc_list(1, n_disc_FV_3)]],
+            'ax_discs': [[bench_func.disc_list(4, n_disc_FV_3)]],
             'par_methods': [[None]],
             'par_discs': [[None]],
             'disc_refinement_functions': [
                 [partial(refine_FV_WENO3,
                          setting_name=fv_name,
-                         nCol_start=1,
+                         nCol_start=4,
                          equivolume=True,
                          time_integrator=time_integrator)]
             ],
