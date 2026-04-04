@@ -95,6 +95,7 @@ jobs:
         run: |
           cd "${VERIFICATION_DIR}"
           export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
           python -c "
           import sys
           sys.path.insert(0, '.')
