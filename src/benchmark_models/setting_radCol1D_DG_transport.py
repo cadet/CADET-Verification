@@ -51,6 +51,7 @@ def get_model():
     col.npartype = 0
     col.col_radius_inner = 0.01
     col.col_radius_outer = 0.1
+    col.col_porosity = 1.0
     col.total_porosity = 1.0
     col.col_dispersion = [1e-6]
     col.velocity_coeff = 5e-5
