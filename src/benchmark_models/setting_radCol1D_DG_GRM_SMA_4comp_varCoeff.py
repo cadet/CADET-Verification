@@ -112,6 +112,10 @@ def get_model():
     pt.adsorption.sma_nu = [0.0, 4.7, 5.29, 3.7]
     pt.adsorption.sma_sigma = [0.0, 11.83, 10.6, 10.0]
 
+    # Particle discretization (required for GRM DG)
+    pt.discretization.PAR_POLYDEG = 3
+    pt.discretization.PAR_NELEM = 1
+
     col.discretization.USE_ANALYTIC_JACOBIAN = 1
 
     # Outlet

@@ -101,6 +101,10 @@ def get_model():
     pt.adsorption.lin_ka = [3.55]
     pt.adsorption.lin_kd = [0.1]
 
+    # Particle discretization (required for GRM DG)
+    pt.discretization.PAR_POLYDEG = 3
+    pt.discretization.PAR_NELEM = 1
+
     col.discretization.USE_ANALYTIC_JACOBIAN = 1
 
     # Outlet
