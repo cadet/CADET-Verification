@@ -42,7 +42,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
         'ABSTOL': 1e-12, 'RELTOL': 1e-10, 'ALGTOL': 1e-10,
         'USE_MODIFIED_NEWTON': False,
         'INIT_STEP_SIZE': 1e-6,
-        'MAX_STEPS': 1000000
+        'MAX_STEPS': 5000000
     }
 
     # ---- Helper: equivolume radial grid ----
