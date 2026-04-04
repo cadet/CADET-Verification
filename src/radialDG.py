@@ -82,12 +82,12 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                   polyDeg, node_type='CGL',
                   nelem_start=2, time_integrator=None,
                   unit_id='001',
-                  par_nelem_start=None, par_polyDeg=None,
+                  refine_par=False,
                   **kwargs):
         """Refinement function for radial DG: doubles nElem at each step.
 
-        For GRM models, par_nelem_start and par_polyDeg control particle
-        discretization refinement (PAR_NELEM doubles alongside bulk NELEM).
+        For GRM models, set refine_par=True to scale pore discretization
+        with bulk: PAR_POLYDEG = max(1, nCells // 4), PAR_NELEM = 1.
         """
 
         config_data = copy.deepcopy(config_data)
@@ -111,12 +111,11 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
         unit_cfg['node_type'] = node_type
 
-        # Refine particle discretization for GRM (doubles PAR_NELEM alongside bulk)
-        if par_nelem_start is not None and 'particle_type_000' in unit_cfg:
+        # Scale pore discretization with bulk (CADET-Julia convention)
+        if refine_par and 'particle_type_000' in unit_cfg:
             par_disc = unit_cfg['particle_type_000']['discretization']
-            par_disc['PAR_NELEM'] = par_nelem_start * 2**disc_idx
-            if par_polyDeg is not None:
-                par_disc['PAR_POLYDEG'] = par_polyDeg
+            par_disc['PAR_POLYDEG'] = max(1, nElem // 4)
+            par_disc['PAR_NELEM'] = 1
 
         config_name = convergence.generate_1D_name(setting_name, polyDeg, nElem)
 
@@ -515,7 +514,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
             'which': ['outlet'] * len(methods),
             'idas_abstol': [[None] for _ in methods],
             'ax_methods': [[p] for _, p in methods],
-            'ax_discs': [[bench_func.disc_list(1, n_disc_DG)] for _ in methods],
+            'ax_discs': [[bench_func.disc_list(4, n_disc_DG)] for _ in methods],
             'par_methods': [[None] for _ in methods],
             'par_discs': [[None] for _ in methods],
             'disc_refinement_functions': [
@@ -523,10 +522,9 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                          setting_name=name,
                          polyDeg=polyDeg,
                          node_type='CGL',
-                         nelem_start=1,
+                         nelem_start=4,
                          time_integrator=ti,
-                         par_nelem_start=1 if is_grm else None,
-                         par_polyDeg=3 if is_grm else None)]
+                         refine_par=is_grm)]
                 for name, polyDeg in methods
             ],
         }
