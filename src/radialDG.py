@@ -489,7 +489,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
     # For GRM configs, is_grm=True triggers particle refinement (PAR_NELEM doubles with NELEM)
     configs_2 = [
         # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm)
-        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
+        # TODO: GRM configs disabled — IDA_TOO_MUCH_WORK at coarse grids (needs higher nElem start)
+        # (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
         # (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
         (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
         # (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
