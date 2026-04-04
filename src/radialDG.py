@@ -39,6 +39,14 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
     # ---- Shared time integrator settings ----
 
     time_integrator = {
+        'ABSTOL': 1e-10, 'RELTOL': 1e-8, 'ALGTOL': 1e-10,
+        'USE_MODIFIED_NEWTON': False,
+        'INIT_STEP_SIZE': 1e-10,
+        'MAX_STEPS': 10000000
+    }
+
+    # Stricter tolerances for non-stiff models (Study 0, Study 1 BM1 linear)
+    time_integrator_strict = {
         'ABSTOL': 1e-12, 'RELTOL': 1e-10, 'ALGTOL': 1e-10,
         'USE_MODIFIED_NEWTON': False,
         'INIT_STEP_SIZE': 1e-6,
@@ -217,7 +225,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                      polyDeg=polyDeg,
                      node_type='CGL',
                      nelem_start=1,
-                     time_integrator=time_integrator)]
+                     time_integrator=time_integrator_strict)]
             for name, polyDeg in methods_0p1
         ],
     }
@@ -292,7 +300,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                      polyDeg=polyDeg,
                      node_type='CGL',
                      nelem_start=2,
-                     time_integrator=time_integrator)]
+                     time_integrator=time_integrator_strict)]
             for name, polyDeg in methods_0p2
         ],
     }
@@ -325,7 +333,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                      setting_name='radCol1D_FV_WENO3_transport_1comp',
                      nCol_start=4,
                      equivolume=True,
-                     time_integrator=time_integrator)]
+                     time_integrator=time_integrator_strict)]
         ],
     }
 
@@ -390,7 +398,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
         polyDeg=ref_polyDeg_bm1,
         node_type='CGL',
         nelem_start=ref_nElem_bm1,
-        time_integrator=time_integrator)
+        time_integrator=time_integrator_strict)
     ref_model_bm1.run()
     # ref_files entries are just the filename (convergence prepends output_path)
     ref_file_bm1 = convergence.generate_1D_name(
@@ -420,7 +428,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                          polyDeg=polyDeg,
                          node_type=node_type,
                          nelem_start=1,
-                         time_integrator=time_integrator)]
+                         time_integrator=time_integrator_strict)]
                 for name, polyDeg in methods_1
             ],
         }
@@ -453,9 +461,89 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
     )
 
     # --- Benchmark 2: rLRM, 4 comp, SMA kinetic ---
-    # TODO: SMA 4-comp on radial DG LRM fails with IDA_ERR_FAIL at coarse grids.
-    #       Needs investigation (consistent init / stiffness issue).
-    print("  [SKIP] Study 1 BM2 (SMA 4-comp) — solver fails at coarse grids"
+
+    cadet_configs = []
+    cadet_config_names = []
+    include_sens = []
+    ref_files = []
+    unit_IDs = []
+    which = []
+    idas_abstol = []
+    ax_methods = []
+    ax_discs = []
+    par_methods = []
+    par_discs = []
+    disc_refinement_functions = []
+
+    base_model_LRM_SMA = setting_DG_LRM_SMA.get_model()
+
+    # Reference: CGL P6/512 or P3/8 for small_test
+    ref_polyDeg_bm2 = 6 if not small_test else 3
+    ref_nElem_bm2 = 512 if not small_test else 8
+    ref_model_bm2 = refine_DG(
+        base_model_LRM_SMA, 0,
+        setting_name='radCol1D_DG_CGL_LRM_SMA_4comp_ref',
+        polyDeg=ref_polyDeg_bm2,
+        node_type='CGL',
+        nelem_start=ref_nElem_bm2,
+        time_integrator=time_integrator)
+    ref_model_bm2.run()
+    ref_file_bm2 = convergence.generate_1D_name(
+        'radCol1D_DG_CGL_LRM_SMA_4comp_ref', ref_polyDeg_bm2, ref_nElem_bm2)
+
+    for node_type in ['CGL', 'LGL']:
+        methods_bm2 = []
+        for p in poly_degs_1:
+            methods_bm2.append((f'radCol1D_DG_{node_type}_LRM_SMA_4comp_P{p}', p))
+
+        addition = {
+            'cadet_config_jsons': [base_model_LRM_SMA] * len(methods_bm2),
+            'cadet_config_names': [name for name, _ in methods_bm2],
+            'include_sens': [False] * len(methods_bm2),
+            'ref_files': [[ref_file_bm2] for _ in methods_bm2],
+            'unit_IDs': ['001'] * len(methods_bm2),
+            'which': ['outlet'] * len(methods_bm2),
+            'idas_abstol': [[None] for _ in methods_bm2],
+            'ax_methods': [[p] for _, p in methods_bm2],
+            'ax_discs': [[bench_func.disc_list(1, n_disc_DG_1)] for _ in methods_bm2],
+            'par_methods': [[None] for _ in methods_bm2],
+            'par_discs': [[None] for _ in methods_bm2],
+            'disc_refinement_functions': [
+                [partial(refine_DG,
+                         setting_name=name,
+                         polyDeg=polyDeg,
+                         node_type=node_type,
+                         nelem_start=1,
+                         time_integrator=time_integrator)]
+                for name, polyDeg in methods_bm2
+            ],
+        }
+
+        bench_configs.add_benchmark(
+            cadet_configs, include_sens, ref_files, unit_IDs, which,
+            ax_methods, ax_discs,
+            par_methods=par_methods, par_discs=par_discs,
+            idas_abstol=idas_abstol,
+            cadet_config_names=cadet_config_names, addition=addition,
+            disc_refinement_functions=disc_refinement_functions)
+
+    bench_func.run_convergence_analysis(
+        output_path=output_path,
+        cadet_path=cadet_path,
+        cadet_configs=cadet_configs,
+        cadet_config_names=cadet_config_names,
+        include_sens=include_sens,
+        ref_files=ref_files,
+        unit_IDs=unit_IDs,
+        which=which,
+        ax_methods=ax_methods,
+        ax_discs=ax_discs,
+        par_methods=par_methods,
+        par_discs=par_discs,
+        idas_abstol=idas_abstol,
+        n_jobs=n_jobs,
+        rerun_sims=True,
+        disc_refinement_functions=disc_refinement_functions
     )
 
     # ===========================================================================
@@ -485,21 +573,21 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
 
     n_disc_FV_2 = 17 if not small_test else 4  # 4,8,...,262144
 
-    # TODO: SMA configs temporarily disabled — IDA_ERR_FAIL at coarse grids
-    # For GRM configs, is_grm=True triggers particle refinement (PAR_NELEM doubles with NELEM)
     configs_2 = [
         # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm)
-        # TODO: GRM configs disabled — IDA_TOO_MUCH_WORK at coarse grids (needs higher nElem start)
-        # (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
-        # (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
+        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
+        (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator, True),
         (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
-        # (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
+        (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
         (setting_DG_LRMP_lin_var, 'radLRMP_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
-        # (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
+        (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False),
     ]
 
     for setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm in configs_2:
         base_model = setting_mod.get_model()
+
+        # GRM starts at nElem=8 to avoid stiffness issues at very coarse grids
+        nelem_start_2 = 8 if is_grm else 4
 
         # DG methods
         methods = []
@@ -515,7 +603,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
             'which': ['outlet'] * len(methods),
             'idas_abstol': [[None] for _ in methods],
             'ax_methods': [[p] for _, p in methods],
-            'ax_discs': [[bench_func.disc_list(4, n_disc_DG)] for _ in methods],
+            'ax_discs': [[bench_func.disc_list(nelem_start_2, n_disc_DG)] for _ in methods],
             'par_methods': [[None] for _ in methods],
             'par_discs': [[None] for _ in methods],
             'disc_refinement_functions': [
@@ -523,7 +611,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path):
                          setting_name=name,
                          polyDeg=polyDeg,
                          node_type='CGL',
-                         nelem_start=4,
+                         nelem_start=nelem_start_2,
                          time_integrator=ti,
                          refine_par=is_grm)]
                 for name, polyDeg in methods
