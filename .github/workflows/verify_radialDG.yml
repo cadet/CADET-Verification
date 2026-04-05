@@ -1,0 +1,125 @@
+name: Verify Radial DG
+
+on:
+  workflow_dispatch:
+    inputs:
+      cadet_core_repo:
+        description: "CADET-Core repo (owner/name)"
+        required: true
+        default: "Yuvraj2710/CADET-Core"
+      cadet_core_branch:
+        description: "CADET-Core branch to build"
+        required: true
+        default: "DGRadialFeature-backup2"
+      small_test:
+        description: "Run small test only"
+        required: true
+        default: "true"
+
+jobs:
+  verify-radialDG:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      CADET_SRC: ${{ github.workspace }}/cadet-core
+      CADET_BUILD: ${{ github.workspace }}/cadet-build
+      CADET_INSTALL: ${{ github.workspace }}/cadet-install
+      VERIFICATION_DIR: ${{ github.workspace }}/verification
+
+    steps:
+      - name: Checkout CADET-Verification
+        uses: actions/checkout@v6
+        with:
+          path: verification
+
+      - name: Checkout CADET-Core
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.inputs.cadet_core_repo }}
+          ref: ${{ github.event.inputs.cadet_core_branch }}
+          submodules: true
+          path: cadet-core
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            gcc-14 g++-14 \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60
+
+      - name: Build Eigen
+        run: |
+          git clone https://gitlab.com/libeigen/eigen.git
+          cd eigen
+          git fetch origin
+          git checkout --detach origin/5.0
+          cmake -S . -B build \
+            -DCMAKE_INSTALL_PREFIX="${CADET_INSTALL}" \
+            -DEIGEN_BUILD_BLAS=OFF \
+            -DEIGEN_BUILD_LAPACK=OFF \
+            -DBUILD_TESTING=OFF
+          cmake --install build
+
+      - name: Build CADET-Core
+        run: |
+          cmake -E make_directory "${CADET_BUILD}"
+          cmake -E make_directory "${CADET_INSTALL}"
+          cd "${CADET_BUILD}"
+          cmake \
+            -DCMAKE_INSTALL_PREFIX="${CADET_INSTALL}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DEIGEN3_DIR="${CADET_INSTALL}/eigen" \
+            "${CADET_SRC}" \
+            -DENABLE_TESTS=OFF
+          make install -j$(nproc)
+
+      - name: Verify CADET binary
+        run: |
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          ${CADET_INSTALL}/bin/cadet-cli --version
+
+      - name: Install Python dependencies
+        run: |
+          pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+
+      - name: Run radial DG verification
+        run: |
+          cd "${VERIFICATION_DIR}"
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from pathlib import Path
+          import src.radialDG as radialDG
+          import src.utility.convergence as convergence
+
+          small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
+          output_path = Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'
+          cadet_path = '${CADET_INSTALL}'
+
+          radialDG.radialDG_tests(
+              n_jobs=-1,
+              small_test=small_test,
+              output_path=str(output_path),
+              cadet_path=cadet_path
+          )
+          print('Verification complete!')
+          "
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radialDG-results
+          path: verification/output/test_cadet-core/radialDG/
+          retention-days: 30
