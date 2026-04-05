@@ -10,7 +10,7 @@ on:
       cadet_core_branch:
         description: "CADET-Core branch to build"
         required: true
-        default: "DGRadialFeature-backup"
+        default: "DGRadialFeature-backup2"
       small_test:
         description: "Run small test only"
         required: true
