@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study2_configs=None, study2_methods=None, study3_dispersions=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -619,8 +619,9 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
         # DG methods
         if _run_dg:
+            _poly_degs = [p for p in poly_degs if study2_polydegs is None or p in study2_polydegs]
             methods = []
-            for p in poly_degs:
+            for p in _poly_degs:
                 methods.append((f'{prefix}_P{p}', p))
 
             addition = {

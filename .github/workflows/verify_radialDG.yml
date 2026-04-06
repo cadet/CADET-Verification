@@ -185,8 +185,9 @@ jobs:
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
-  # Study 2 — split into 6 parallel jobs (one per config)
-  # 0: GRM lin, 1: GRM SMA, 2: LRM lin, 3: LRM SMA, 4: LRMP lin, 5: LRMP SMA
+  # Study 2 — split by config x polyDeg (DG only, no FV)
+  # Configs: 0=GRM-lin, 1=GRM-SMA, 2=LRM-lin, 3=LRM-SMA, 4=LRMP-lin, 5=LRMP-SMA
+  # GRM: P1-P4, LRM/LRMP: P1-P5
   run-study2:
     needs: build-cadet
     runs-on: ubuntu-latest
@@ -195,18 +196,40 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { id: 0, name: "GRM-lin-DG", methods: "['DG']" }
-          - { id: 0, name: "GRM-lin-FV", methods: "['FV']" }
-          - { id: 1, name: "GRM-SMA-DG", methods: "['DG']" }
-          - { id: 1, name: "GRM-SMA-FV", methods: "['FV']" }
-          - { id: 2, name: "LRM-lin-DG", methods: "['DG']" }
-          - { id: 2, name: "LRM-lin-FV", methods: "['FV']" }
-          - { id: 3, name: "LRM-SMA-DG", methods: "['DG']" }
-          - { id: 3, name: "LRM-SMA-FV", methods: "['FV']" }
-          - { id: 4, name: "LRMP-lin-DG", methods: "['DG']" }
-          - { id: 4, name: "LRMP-lin-FV", methods: "['FV']" }
-          - { id: 5, name: "LRMP-SMA-DG", methods: "['DG']" }
-          - { id: 5, name: "LRMP-SMA-FV", methods: "['FV']" }
+          # GRM lin (config 0) — P1-P4
+          - { id: 0, polydeg: 1, name: "GRM-lin-P1" }
+          - { id: 0, polydeg: 2, name: "GRM-lin-P2" }
+          - { id: 0, polydeg: 3, name: "GRM-lin-P3" }
+          - { id: 0, polydeg: 4, name: "GRM-lin-P4" }
+          # GRM SMA (config 1) — P1-P4
+          - { id: 1, polydeg: 1, name: "GRM-SMA-P1" }
+          - { id: 1, polydeg: 2, name: "GRM-SMA-P2" }
+          - { id: 1, polydeg: 3, name: "GRM-SMA-P3" }
+          - { id: 1, polydeg: 4, name: "GRM-SMA-P4" }
+          # LRM lin (config 2) — P1-P5
+          - { id: 2, polydeg: 1, name: "LRM-lin-P1" }
+          - { id: 2, polydeg: 2, name: "LRM-lin-P2" }
+          - { id: 2, polydeg: 3, name: "LRM-lin-P3" }
+          - { id: 2, polydeg: 4, name: "LRM-lin-P4" }
+          - { id: 2, polydeg: 5, name: "LRM-lin-P5" }
+          # LRM SMA (config 3) — P1-P5
+          - { id: 3, polydeg: 1, name: "LRM-SMA-P1" }
+          - { id: 3, polydeg: 2, name: "LRM-SMA-P2" }
+          - { id: 3, polydeg: 3, name: "LRM-SMA-P3" }
+          - { id: 3, polydeg: 4, name: "LRM-SMA-P4" }
+          - { id: 3, polydeg: 5, name: "LRM-SMA-P5" }
+          # LRMP lin (config 4) — P1-P5
+          - { id: 4, polydeg: 1, name: "LRMP-lin-P1" }
+          - { id: 4, polydeg: 2, name: "LRMP-lin-P2" }
+          - { id: 4, polydeg: 3, name: "LRMP-lin-P3" }
+          - { id: 4, polydeg: 4, name: "LRMP-lin-P4" }
+          - { id: 4, polydeg: 5, name: "LRMP-lin-P5" }
+          # LRMP SMA (config 5) — P1-P5
+          - { id: 5, polydeg: 1, name: "LRMP-SMA-P1" }
+          - { id: 5, polydeg: 2, name: "LRMP-SMA-P2" }
+          - { id: 5, polydeg: 3, name: "LRMP-SMA-P3" }
+          - { id: 5, polydeg: 4, name: "LRMP-SMA-P4" }
+          - { id: 5, polydeg: 5, name: "LRMP-SMA-P5" }
     defaults:
       run:
         shell: bash -l {0}
@@ -253,7 +276,7 @@ jobs:
         run: |
           pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
 
-      - name: Run Study 2 config ${{ matrix.config.name }}
+      - name: Run Study 2 — ${{ matrix.config.name }}
         if: steps.check.outputs.skip == 'false'
         run: |
           cd "${VERIFICATION_DIR}"
@@ -275,9 +298,10 @@ jobs:
               cadet_path='${CADET_INSTALL}',
               studies=[2],
               study2_configs=[${{ matrix.config.id }}],
-              study2_methods=${{ matrix.config.methods }}
+              study2_methods=['DG'],
+              study2_polydegs=[${{ matrix.config.polydeg }}]
           )
-          print('Study 2 config ${{ matrix.config.name }} complete!')
+          print('Study 2 ${{ matrix.config.name }} complete!')
           "
 
       - name: Upload results
