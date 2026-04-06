@@ -11,10 +11,6 @@ References
 ----------
 - Qamar et al., "Analytical solutions and moment analysis of general rate
   model for linear liquid chromatography", Chem. Eng. Sci. 107 (2014) 192-205
-- Miyabe, "Moment equations for chromatography based on Langmuir type
-  reaction kinetics", J. Chromatogr. A 1218 (2011) 6378-6393
-- Javeed et al., "Efficient and accurate numerical simulation of nonlinear
-  chromatographic processes", Comput. Chem. Eng. 35 (2011) 2294-2305
 
 """
 
@@ -254,6 +250,18 @@ def compute_analytical_outlet(
     return result
 
 
+LRM_BENCHMARK_PARAMS = {
+    'velocity': 1.0 / 30.0,
+    'col_dispersion': 1e-4,
+    'col_length': 1.0,
+    'total_porosity': 0.6,
+    'ka': 1.0,
+    'kd': 1.0,
+    'c_in': 1.0,
+    't_inj': 10.0,
+}
+
+
 def get_LRM_analytical_reference(solution_times, dps=50):
     """Analytical reference for the LRM benchmark (setting_Col1D_linLRM_1comp_benchmark1).
 
@@ -265,17 +273,22 @@ def get_LRM_analytical_reference(solution_times, dps=50):
     - ka = 1.0, kd = 1.0 (kinetic)
     - Pulse inlet: c=1.0 from t=0 to t=10
     """
-    params = {
-        'velocity': 1.0 / 30.0,
-        'col_dispersion': 1e-4,
-        'col_length': 1.0,
-        'total_porosity': 0.6,
-        'ka': 1.0,
-        'kd': 1.0,
-        'c_in': 1.0,
-        't_inj': 10.0,
-    }
-    return compute_analytical_outlet('LRM', params, solution_times, dps=dps)
+    return compute_analytical_outlet('LRM', LRM_BENCHMARK_PARAMS, solution_times, dps=dps)
+
+
+LRMP_BENCHMARK_PARAMS = {
+    'velocity': 5.75e-4,
+    'col_dispersion': 5.75e-8,
+    'col_length': 0.014,
+    'col_porosity': 0.37,
+    'par_porosity': 0.75,
+    'film_diffusion': 6.9e-6,
+    'par_radius': 4.5e-5,
+    'ka': 3.55,
+    'kd': 0.1,
+    'c_in': 1.0,
+    't_inj': 10.0,
+}
 
 
 def get_LRMP_analytical_reference(solution_times, dps=50):
@@ -292,20 +305,24 @@ def get_LRMP_analytical_reference(solution_times, dps=50):
     - ka = 3.55, kd = 0.1 (kinetic)
     - Pulse inlet: c=1.0 from t=0 to t=10
     """
-    params = {
-        'velocity': 5.75e-4,
-        'col_dispersion': 5.75e-8,
-        'col_length': 0.014,
-        'col_porosity': 0.37,
-        'par_porosity': 0.75,
-        'film_diffusion': 6.9e-6,
-        'par_radius': 4.5e-5,
-        'ka': 3.55,
-        'kd': 0.1,
-        'c_in': 1.0,
-        't_inj': 10.0,
-    }
-    return compute_analytical_outlet('LRMP', params, solution_times, dps=dps)
+    return compute_analytical_outlet('LRMP', LRMP_BENCHMARK_PARAMS, solution_times, dps=dps)
+
+
+GRM_BENCHMARK_PARAMS = {
+    'velocity': 5.75e-4,
+    'col_dispersion': 5.75e-8,
+    'col_length': 0.014,
+    'col_porosity': 0.37,
+    'par_porosity': 0.75,
+    'film_diffusion': 6.9e-6,
+    'par_radius': 4.5e-5,
+    'pore_diffusion': 6.07e-11,
+    'surface_diffusion': 0.0,
+    'ka': 3.55,
+    'kd': 0.1,
+    'c_in': 1.0,
+    't_inj': 10.0,
+}
 
 
 def get_GRM_analytical_reference(solution_times, surface_diffusion=0.0, dps=50):
@@ -323,19 +340,5 @@ def get_GRM_analytical_reference(solution_times, surface_diffusion=0.0, dps=50):
     - ka = 3.55, kd = 0.1 (kinetic)
     - Pulse inlet: c=1.0 from t=0 to t=10
     """
-    params = {
-        'velocity': 5.75e-4,
-        'col_dispersion': 5.75e-8,
-        'col_length': 0.014,
-        'col_porosity': 0.37,
-        'par_porosity': 0.75,
-        'film_diffusion': 6.9e-6,
-        'par_radius': 4.5e-5,
-        'pore_diffusion': 6.07e-11,
-        'surface_diffusion': surface_diffusion,
-        'ka': 3.55,
-        'kd': 0.1,
-        'c_in': 1.0,
-        't_inj': 10.0,
-    }
+    params = dict(GRM_BENCHMARK_PARAMS, surface_diffusion=surface_diffusion)
     return compute_analytical_outlet('GRM', params, solution_times, dps=dps)

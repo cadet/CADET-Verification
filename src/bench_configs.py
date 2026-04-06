@@ -28,7 +28,7 @@ from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
 
 # %% Analytical reference data paths
 _chromatography_ref_path_ = str(
-    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference' / 'chromatography'
+    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Verification_reference' / 'chromatography'
 )
 
 # %% benchmark templates
@@ -203,7 +203,7 @@ def run_benchmark(
 
 
 def _load_analytical_reference(filename):
-    """Load pre-computed analytical reference from CADET-Core_reference/chromatography."""
+    """Load pre-computed analytical reference from CADET-Verification_reference/chromatography."""
     ref_file = os.path.join(_chromatography_ref_path_, filename)
     return convergence.get_solution(ref_file, unit='unit_001', which='outlet')
 
