@@ -167,15 +167,11 @@ jobs:
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
-  # Study 1 — split by polyDeg (BM1 + BM2 run together per polyDeg)
-  run-study1:
+  # Study 1 — reference computation (BM1 + BM2 refs)
+  run-study1-ref:
     needs: build-cadet
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    strategy:
-      fail-fast: false
-      matrix:
-        polydeg: [1, 2, 3, 4, 5]
     defaults:
       run:
         shell: bash -l {0}
@@ -221,6 +217,93 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
 
+      - name: Compute Study 1 references
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd "${VERIFICATION_DIR}"
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from pathlib import Path
+          import src.radialDG as radialDG
+          small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
+          radialDG.radialDG_tests(
+              n_jobs=-1, small_test=small_test,
+              output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
+              cadet_path='${CADET_INSTALL}', studies=[1],
+              study1_ref_only=True)
+          "
+
+      - name: Upload reference results
+        if: always() && steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: radialDG-study1-ref
+          path: verification/output/test_cadet-core/radialDG/
+          retention-days: 1
+
+  # Study 1 — split by polyDeg (BM1 + BM2 run together per polyDeg)
+  run-study1:
+    needs: run-study1-ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        polydeg: [1, 2, 3, 4, 5]
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      CADET_INSTALL: ${{ github.workspace }}/cadet-install
+      VERIFICATION_DIR: ${{ github.workspace }}/verification
+
+    steps:
+      - name: Check if study should run
+        id: check
+        run: |
+          STUDIES="${{ github.event.inputs.studies }}"
+          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "1"; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout CADET-Verification
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v6
+        with:
+          path: verification
+
+      - name: Download CADET install
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: cadet-install
+          path: cadet-install/
+
+      - name: Download Study 1 references
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: radialDG-study1-ref
+          path: verification/output/test_cadet-core/radialDG/
+
+      - name: Install runtime libraries
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev libtbb-dev libsuperlu-dev
+
+      - name: Fix permissions
+        if: steps.check.outputs.skip == 'false'
+        run: chmod +x ${CADET_INSTALL}/bin/cadet-cli
+
+      - name: Install Python dependencies
+        if: steps.check.outputs.skip == 'false'
+        run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+
       - name: Run Study 1 P${{ matrix.polydeg }}
         if: steps.check.outputs.skip == 'false'
         run: |
@@ -236,7 +319,8 @@ jobs:
               n_jobs=-1, small_test=small_test,
               output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
               cadet_path='${CADET_INSTALL}', studies=[1],
-              study1_polydegs=[${{ matrix.polydeg }}])
+              study1_polydegs=[${{ matrix.polydeg }}],
+              study1_skip_ref=True)
           "
 
       - name: Upload results
@@ -462,7 +546,7 @@ jobs:
           retention-days: 30
 
   merge-results:
-    needs: [run-study0, run-study1, run-study2, run-study3]
+    needs: [run-study0, run-study1-ref, run-study1, run-study2, run-study3]
     if: always()
     runs-on: ubuntu-latest
     steps:

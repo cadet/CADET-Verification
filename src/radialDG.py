@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -414,21 +414,45 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
     base_model_LRM_lin = setting_DG_LRM_lin.get_model()
 
-    # Generate reference simulation directly (CGL P6/512 or P3/8 for small_test)
+    # Reference simulations (CGL P6/512 or P3/8 for small_test)
     ref_polyDeg_bm1 = 6 if not small_test else 3
     ref_nElem_bm1 = 512 if not small_test else 8
-    ref_model_bm1 = refine_DG(
-        base_model_LRM_lin, 0,
-        setting_name='radCol1D_DG_CGL_LRM_lin_1comp_ref',
-        polyDeg=ref_polyDeg_bm1,
-        node_type='CGL',
-        nelem_start=ref_nElem_bm1,
-        time_integrator=time_integrator_strict)
-    if _run(1):
+    ref_file_bm1 = convergence.generate_1D_name(
+        'radCol1D_DG_CGL_LRM_lin_1comp_ref', ref_polyDeg_bm1, ref_nElem_bm1)
+
+    base_model_LRM_SMA = setting_DG_LRM_SMA.get_model()
+    ref_polyDeg_bm2 = 6 if not small_test else 3
+    ref_nElem_bm2 = 512 if not small_test else 8
+    ref_file_bm2 = convergence.generate_1D_name(
+        'radCol1D_DG_CGL_LRM_SMA_4comp_ref', ref_polyDeg_bm2, ref_nElem_bm2)
+
+    # Compute references (skip if study1_skip_ref=True, i.e. ref files already exist)
+    if _run(1) and not study1_skip_ref:
       try:
+        ref_model_bm1 = refine_DG(
+            base_model_LRM_lin, 0,
+            setting_name='radCol1D_DG_CGL_LRM_lin_1comp_ref',
+            polyDeg=ref_polyDeg_bm1, node_type='CGL',
+            nelem_start=ref_nElem_bm1,
+            time_integrator=time_integrator_strict)
         ref_model_bm1.run()
-        ref_file_bm1 = convergence.generate_1D_name(
-            'radCol1D_DG_CGL_LRM_lin_1comp_ref', ref_polyDeg_bm1, ref_nElem_bm1)
+        print("  Study 1 BM1 reference computed.")
+
+        ref_model_bm2 = refine_DG(
+            base_model_LRM_SMA, 0,
+            setting_name='radCol1D_DG_CGL_LRM_SMA_4comp_ref',
+            polyDeg=ref_polyDeg_bm2, node_type='CGL',
+            nelem_start=ref_nElem_bm2,
+            time_integrator=time_integrator_strict)
+        ref_model_bm2.run()
+        print("  Study 1 BM2 reference computed.")
+      except Exception:
+        print(f"\n*** Study 1 REF FAILED ***\n{traceback.format_exc()}")
+
+    # If ref_only, skip the test runs
+    if _run(1) and not study1_ref_only:
+      # --- Benchmark 1: rLRM, 1 comp, Linear rapid-eq ---
+      try:
         for node_type in ['CGL', 'LGL']:
             methods_1 = []
             for p in poly_degs_1:
@@ -483,38 +507,22 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
       except Exception:
         print(f"\n*** Study 1 BM1 FAILED ***\n{traceback.format_exc()}")
 
-    # --- Benchmark 2: rLRM, 4 comp, SMA kinetic ---
+      # --- Benchmark 2: rLRM, 4 comp, SMA kinetic ---
 
-    cadet_configs = []
-    cadet_config_names = []
-    include_sens = []
-    ref_files = []
-    unit_IDs = []
-    which = []
-    idas_abstol = []
-    ax_methods = []
-    ax_discs = []
-    par_methods = []
-    par_discs = []
-    disc_refinement_functions = []
+      cadet_configs = []
+      cadet_config_names = []
+      include_sens = []
+      ref_files = []
+      unit_IDs = []
+      which = []
+      idas_abstol = []
+      ax_methods = []
+      ax_discs = []
+      par_methods = []
+      par_discs = []
+      disc_refinement_functions = []
 
-    base_model_LRM_SMA = setting_DG_LRM_SMA.get_model()
-
-    # Reference: CGL P6/512 or P3/8 for small_test
-    ref_polyDeg_bm2 = 6 if not small_test else 3
-    ref_nElem_bm2 = 512 if not small_test else 8
-    ref_model_bm2 = refine_DG(
-        base_model_LRM_SMA, 0,
-        setting_name='radCol1D_DG_CGL_LRM_SMA_4comp_ref',
-        polyDeg=ref_polyDeg_bm2,
-        node_type='CGL',
-        nelem_start=ref_nElem_bm2,
-        time_integrator=time_integrator_strict)
-    if _run(1):
       try:
-        ref_model_bm2.run()
-        ref_file_bm2 = convergence.generate_1D_name(
-            'radCol1D_DG_CGL_LRM_SMA_4comp_ref', ref_polyDeg_bm2, ref_nElem_bm2)
         for node_type in ['CGL', 'LGL']:
             methods_bm2 = []
             for p in poly_degs_1:
