@@ -71,10 +71,14 @@ def run_simulation_in_verification(model, cadet_path):
     if cadet_path is not None:
         model[0].install_path = cadet_path
     model[0].save()
-    data = model[0].run_simulation()
-    if not data.return_code == 0:
+    try:
+        data = model[0].run_simulation()
+        if not data.return_code == 0:
+            sim_name = model[0].filename
+            print(f"\n*** Simulation FAILED: {sim_name}\n    {data.error_message}")
+    except Exception as e:
         sim_name = model[0].filename
-        raise Exception(f"simulation failed for {sim_name}\n with {data.error_message} \n and LOG: {data.log}")
+        print(f"\n*** Simulation CRASHED: {sim_name}\n    {e}")
 
 
 def create_object_from_database(
@@ -1094,22 +1098,26 @@ def run_convergence_analysis_core(
             print('\n Method: ', ax_methods[modelIdx][methodIdx], '\n')
             # print('Reference: ', ref_files[modelIdx][methodIdx], '\n')
 
-            result_name = generate_convergence_data(
-                database_path, cadet_config_jsons[modelIdx],
-                ax_method=ax_methods[modelIdx][methodIdx], ax_disc=ax_discs[modelIdx][methodIdx],
-                rad_method=rad_method, rad_disc=rad_disc,
-                par_method=par_method, par_disc=par_disc,
-                output_path=output_path,
-                write_result=1, ref_file=ref_files[modelIdx][methodIdx],
-                which=which[modelIdx], unitID=unit_IDs[modelIdx],
-                sens_included=include_sens[modelIdx],
-                write_sens=True,
-                commit_hash=commit_hash,
-                sim_names=sim_names[modelIdx][methodIdx] if sim_names is not None else None,
-                refinement_ID=refinement_IDs[modelIdx],
-                transport_model=kwargs.pop('transport_model', None),
-                **kwargs
-            )
+            try:
+                result_name = generate_convergence_data(
+                    database_path, cadet_config_jsons[modelIdx],
+                    ax_method=ax_methods[modelIdx][methodIdx], ax_disc=ax_discs[modelIdx][methodIdx],
+                    rad_method=rad_method, rad_disc=rad_disc,
+                    par_method=par_method, par_disc=par_disc,
+                    output_path=output_path,
+                    write_result=1, ref_file=ref_files[modelIdx][methodIdx],
+                    which=which[modelIdx], unitID=unit_IDs[modelIdx],
+                    sens_included=include_sens[modelIdx],
+                    write_sens=True,
+                    commit_hash=commit_hash,
+                    sim_names=sim_names[modelIdx][methodIdx] if sim_names is not None else None,
+                    refinement_ID=refinement_IDs[modelIdx],
+                    transport_model=kwargs.pop('transport_model', None),
+                    **kwargs
+                )
+            except Exception as e:
+                print(f"\n*** Convergence analysis FAILED for {cadet_config_jsons[modelIdx]} method {ax_methods[modelIdx][methodIdx]}: {e}")
+                result_name = None
 
             if methodIdx == 0:
                 result_names.append(result_name)
