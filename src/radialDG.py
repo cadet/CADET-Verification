@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None, fv_start_ncol=None, fv_n_disc=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -333,7 +333,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
         disc_refinement_functions=disc_refinement_functions)
 
     # FV WENO3: nCells 4,8,16,...,32768 (WENO3 requires >= 4 cells)
-    n_disc_FV_0 = 14 if not small_test else 4
+    _fv_start_0 = fv_start_ncol if fv_start_ncol is not None else 4
+    _fv_n_0 = fv_n_disc if fv_n_disc is not None else (14 if not small_test else 4)
 
     addition_fv = {
         'cadet_config_jsons': [base_model_transport],
@@ -344,13 +345,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
         'which': ['outlet'],
         'idas_abstol': [[None]],
         'ax_methods': [[0]],
-        'ax_discs': [[bench_func.disc_list(4, n_disc_FV_0)]],
+        'ax_discs': [[bench_func.disc_list(_fv_start_0, _fv_n_0)]],
         'par_methods': [[None]],
         'par_discs': [[None]],
         'disc_refinement_functions': [
             [partial(refine_FV_WENO3,
                      setting_name='radCol1D_FV_WENO3_transport_1comp',
-                     nCol_start=4,
+                     nCol_start=_fv_start_0,
                      equivolume=True,
                      time_integrator=time_integrator_strict)]
         ],
@@ -603,7 +604,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     poly_degs_LRM = list(range(1, 6)) if not small_test else [1, 2]
     n_disc_DG_LRM = 10 if not small_test else 4
 
-    n_disc_FV_2 = 17 if not small_test else 4  # 4,8,...,262144
+    _fv_start_2 = fv_start_ncol if fv_start_ncol is not None else 4
+    n_disc_FV_2 = fv_n_disc if fv_n_disc is not None else (17 if not small_test else 4)
 
     configs_2 = [
         # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm)
@@ -668,6 +670,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
         # FV WENO3 equivolume reference
         if _run_fv:
+            _fv_start_2_cfg = fv_start_ncol if fv_start_ncol is not None else nelem_start_2
             fv_name = f'{prefix.replace("_DG_", "_FV_WENO3_")}'
             addition_fv = {
                 'cadet_config_jsons': [base_model],
@@ -678,13 +681,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 'which': ['outlet'],
                 'idas_abstol': [[None]],
                 'ax_methods': [[0]],
-                'ax_discs': [[bench_func.disc_list(nelem_start_2, n_disc_FV_2)]],
+                'ax_discs': [[bench_func.disc_list(_fv_start_2_cfg, n_disc_FV_2)]],
                 'par_methods': [[None]],
                 'par_discs': [[None]],
                 'disc_refinement_functions': [
                     [partial(refine_FV_WENO3,
                              setting_name=fv_name,
-                             nCol_start=nelem_start_2,
+                             nCol_start=_fv_start_2_cfg,
                              equivolume=True,
                              time_integrator=ti)]
                 ],
@@ -743,81 +746,87 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     if study3_polydegs is not None:
         poly_degs_3 = [p for p in poly_degs_3 if p in study3_polydegs]
     n_disc_DG_3 = 11 if not small_test else 4  # 1,2,4,...,1024
-    n_disc_FV_3 = 17 if not small_test else 4  # 4,8,...,262144
+    _fv_start_3 = fv_start_ncol if fv_start_ncol is not None else 4
+    n_disc_FV_3 = fv_n_disc if fv_n_disc is not None else (17 if not small_test else 4)
 
     _disp_cases = [(1e-4, 'D1e4'), (1e-5, 'D1e5')]
     if study3_dispersions is not None:
         _disp_cases = [_disp_cases[i] for i in study3_dispersions if i < len(_disp_cases)]
 
+    _run_dg_3 = study2_methods is None or 'DG' in study2_methods
+    _run_fv_3 = study2_methods is None or 'FV' in study2_methods
+
     for D0, label in _disp_cases:
         base_model_lang = setting_DG_LRM_lang.get_model(D0=D0)
 
         # DG methods
-        methods_3 = []
-        for p in poly_degs_3:
-            methods_3.append((f'radLRM_DG_lang_2comp_{label}_P{p}', p))
+        if _run_dg_3 and poly_degs_3:
+            methods_3 = []
+            for p in poly_degs_3:
+                methods_3.append((f'radLRM_DG_lang_2comp_{label}_P{p}', p))
 
-        addition = {
-            'cadet_config_jsons': [base_model_lang] * len(methods_3),
-            'cadet_config_names': [name for name, _ in methods_3],
-            'include_sens': [False] * len(methods_3),
-            'ref_files': [[None] for _ in methods_3],
-            'unit_IDs': ['001'] * len(methods_3),
-            'which': ['outlet'] * len(methods_3),
-            'idas_abstol': [[None] for _ in methods_3],
-            'ax_methods': [[p] for _, p in methods_3],
-            'ax_discs': [[bench_func.disc_list(1, n_disc_DG_3)] for _ in methods_3],
-            'par_methods': [[None] for _ in methods_3],
-            'par_discs': [[None] for _ in methods_3],
-            'disc_refinement_functions': [
-                [partial(refine_DG,
-                         setting_name=name,
-                         polyDeg=polyDeg,
-                         node_type='CGL',
-                         nelem_start=1,
-                         time_integrator=time_integrator_strict)]
-                for name, polyDeg in methods_3
-            ],
-        }
+            addition = {
+                'cadet_config_jsons': [base_model_lang] * len(methods_3),
+                'cadet_config_names': [name for name, _ in methods_3],
+                'include_sens': [False] * len(methods_3),
+                'ref_files': [[None] for _ in methods_3],
+                'unit_IDs': ['001'] * len(methods_3),
+                'which': ['outlet'] * len(methods_3),
+                'idas_abstol': [[None] for _ in methods_3],
+                'ax_methods': [[p] for _, p in methods_3],
+                'ax_discs': [[bench_func.disc_list(1, n_disc_DG_3)] for _ in methods_3],
+                'par_methods': [[None] for _ in methods_3],
+                'par_discs': [[None] for _ in methods_3],
+                'disc_refinement_functions': [
+                    [partial(refine_DG,
+                             setting_name=name,
+                             polyDeg=polyDeg,
+                             node_type='CGL',
+                             nelem_start=1,
+                             time_integrator=time_integrator_strict)]
+                    for name, polyDeg in methods_3
+                ],
+            }
 
-        bench_configs.add_benchmark(
-            cadet_configs, include_sens, ref_files, unit_IDs, which,
-            ax_methods, ax_discs,
-            par_methods=par_methods, par_discs=par_discs,
-            idas_abstol=idas_abstol,
-            cadet_config_names=cadet_config_names, addition=addition,
-            disc_refinement_functions=disc_refinement_functions)
+            bench_configs.add_benchmark(
+                cadet_configs, include_sens, ref_files, unit_IDs, which,
+                ax_methods, ax_discs,
+                par_methods=par_methods, par_discs=par_discs,
+                idas_abstol=idas_abstol,
+                cadet_config_names=cadet_config_names, addition=addition,
+                disc_refinement_functions=disc_refinement_functions)
 
-        # FV WENO3 equivolume reference: nCells 1,2,4,...,262144
-        fv_name = f'radLRM_FV_WENO3_lang_2comp_{label}'
-        addition_fv = {
-            'cadet_config_jsons': [base_model_lang],
-            'cadet_config_names': [fv_name],
-            'include_sens': [False],
-            'ref_files': [[None]],
-            'unit_IDs': ['001'],
-            'which': ['outlet'],
-            'idas_abstol': [[None]],
-            'ax_methods': [[0]],
-            'ax_discs': [[bench_func.disc_list(4, n_disc_FV_3)]],
-            'par_methods': [[None]],
-            'par_discs': [[None]],
-            'disc_refinement_functions': [
-                [partial(refine_FV_WENO3,
-                         setting_name=fv_name,
-                         nCol_start=4,
-                         equivolume=True,
-                         time_integrator=time_integrator_strict)]
-            ],
-        }
+        # FV WENO3 equivolume
+        if _run_fv_3:
+            fv_name = f'radLRM_FV_WENO3_lang_2comp_{label}'
+            addition_fv = {
+                'cadet_config_jsons': [base_model_lang],
+                'cadet_config_names': [fv_name],
+                'include_sens': [False],
+                'ref_files': [[None]],
+                'unit_IDs': ['001'],
+                'which': ['outlet'],
+                'idas_abstol': [[None]],
+                'ax_methods': [[0]],
+                'ax_discs': [[bench_func.disc_list(_fv_start_3, n_disc_FV_3)]],
+                'par_methods': [[None]],
+                'par_discs': [[None]],
+                'disc_refinement_functions': [
+                    [partial(refine_FV_WENO3,
+                             setting_name=fv_name,
+                             nCol_start=_fv_start_3,
+                             equivolume=True,
+                             time_integrator=time_integrator_strict)]
+                ],
+            }
 
-        bench_configs.add_benchmark(
-            cadet_configs, include_sens, ref_files, unit_IDs, which,
-            ax_methods, ax_discs,
-            par_methods=par_methods, par_discs=par_discs,
-            idas_abstol=idas_abstol,
-            cadet_config_names=cadet_config_names, addition=addition_fv,
-            disc_refinement_functions=disc_refinement_functions)
+            bench_configs.add_benchmark(
+                cadet_configs, include_sens, ref_files, unit_IDs, which,
+                ax_methods, ax_discs,
+                par_methods=par_methods, par_discs=par_discs,
+                idas_abstol=idas_abstol,
+                cadet_config_names=cadet_config_names, addition=addition_fv,
+                disc_refinement_functions=disc_refinement_functions)
 
     if _run(3):
         try:
