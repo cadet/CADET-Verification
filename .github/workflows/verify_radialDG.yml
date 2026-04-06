@@ -92,19 +92,11 @@ jobs:
           path: cadet-install/
           retention-days: 1
 
-  # Studies 0, 1, 3 — one job each
-  run-study:
+  # Study 0 — single job
+  run-study0:
     needs: build-cadet
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { study: 0, name: "study-0", extra_args: "" }
-          - { study: 1, name: "study-1", extra_args: "" }
-          - { study: 3, name: "study-3-D1e4", extra_args: ", study3_dispersions=[0]" }
-          - { study: 3, name: "study-3-D1e5", extra_args: ", study3_dispersions=[1]" }
     defaults:
       run:
         shell: bash -l {0}
@@ -117,8 +109,7 @@ jobs:
         id: check
         run: |
           STUDIES="${{ github.event.inputs.studies }}"
-          STUDY=${{ matrix.study }}
-          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "$STUDY"; then
+          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "0"; then
             echo "skip=false" >> $GITHUB_OUTPUT
           else
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -149,39 +140,197 @@ jobs:
 
       - name: Install Python dependencies
         if: steps.check.outputs.skip == 'false'
-        run: |
-          pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+        run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
 
-      - name: Run Study ${{ matrix.study }}
+      - name: Run Study 0
         if: steps.check.outputs.skip == 'false'
         run: |
           cd "${VERIFICATION_DIR}"
           export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
           export PATH=${CADET_INSTALL}/bin:$PATH
           python -c "
-          import sys
-          sys.path.insert(0, '.')
+          import sys; sys.path.insert(0, '.')
           from pathlib import Path
           import src.radialDG as radialDG
-
           small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
-          output_path = Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'
-
           radialDG.radialDG_tests(
-              n_jobs=-1,
-              small_test=small_test,
-              output_path=str(output_path),
-              cadet_path='${CADET_INSTALL}',
-              studies=[${{ matrix.study }}]${{ matrix.extra_args }}
-          )
-          print('Study ${{ matrix.study }} complete!')
+              n_jobs=-1, small_test=small_test,
+              output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
+              cadet_path='${CADET_INSTALL}', studies=[0])
           "
 
       - name: Upload results
         if: always() && steps.check.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: radialDG-results-${{ matrix.name }}
+          name: radialDG-results-study-0
+          path: verification/output/test_cadet-core/radialDG/
+          retention-days: 30
+
+  # Study 1 — split by polyDeg (BM1 + BM2 run together per polyDeg)
+  run-study1:
+    needs: build-cadet
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        polydeg: [1, 2, 3, 4, 5]
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      CADET_INSTALL: ${{ github.workspace }}/cadet-install
+      VERIFICATION_DIR: ${{ github.workspace }}/verification
+
+    steps:
+      - name: Check if study should run
+        id: check
+        run: |
+          STUDIES="${{ github.event.inputs.studies }}"
+          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "1"; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout CADET-Verification
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v6
+        with:
+          path: verification
+
+      - name: Download CADET install
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: cadet-install
+          path: cadet-install/
+
+      - name: Install runtime libraries
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev libtbb-dev libsuperlu-dev
+
+      - name: Fix permissions
+        if: steps.check.outputs.skip == 'false'
+        run: chmod +x ${CADET_INSTALL}/bin/cadet-cli
+
+      - name: Install Python dependencies
+        if: steps.check.outputs.skip == 'false'
+        run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+
+      - name: Run Study 1 P${{ matrix.polydeg }}
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd "${VERIFICATION_DIR}"
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from pathlib import Path
+          import src.radialDG as radialDG
+          small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
+          radialDG.radialDG_tests(
+              n_jobs=-1, small_test=small_test,
+              output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
+              cadet_path='${CADET_INSTALL}', studies=[1],
+              study1_polydegs=[${{ matrix.polydeg }}])
+          "
+
+      - name: Upload results
+        if: always() && steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: radialDG-results-study1-P${{ matrix.polydeg }}
+          path: verification/output/test_cadet-core/radialDG/
+          retention-days: 30
+
+  # Study 3 — split by polyDeg x dispersion
+  run-study3:
+    needs: build-cadet
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { polydeg: 3, disp_idx: 0, name: "P3-D1e4" }
+          - { polydeg: 3, disp_idx: 1, name: "P3-D1e5" }
+          - { polydeg: 4, disp_idx: 0, name: "P4-D1e4" }
+          - { polydeg: 4, disp_idx: 1, name: "P4-D1e5" }
+          - { polydeg: 5, disp_idx: 0, name: "P5-D1e4" }
+          - { polydeg: 5, disp_idx: 1, name: "P5-D1e5" }
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      CADET_INSTALL: ${{ github.workspace }}/cadet-install
+      VERIFICATION_DIR: ${{ github.workspace }}/verification
+
+    steps:
+      - name: Check if study should run
+        id: check
+        run: |
+          STUDIES="${{ github.event.inputs.studies }}"
+          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "3"; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout CADET-Verification
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v6
+        with:
+          path: verification
+
+      - name: Download CADET install
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: cadet-install
+          path: cadet-install/
+
+      - name: Install runtime libraries
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev libtbb-dev libsuperlu-dev
+
+      - name: Fix permissions
+        if: steps.check.outputs.skip == 'false'
+        run: chmod +x ${CADET_INSTALL}/bin/cadet-cli
+
+      - name: Install Python dependencies
+        if: steps.check.outputs.skip == 'false'
+        run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+
+      - name: Run Study 3 ${{ matrix.name }}
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd "${VERIFICATION_DIR}"
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from pathlib import Path
+          import src.radialDG as radialDG
+          small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
+          radialDG.radialDG_tests(
+              n_jobs=-1, small_test=small_test,
+              output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
+              cadet_path='${CADET_INSTALL}', studies=[3],
+              study3_dispersions=[${{ matrix.disp_idx }}],
+              study3_polydegs=[${{ matrix.polydeg }}])
+          "
+
+      - name: Upload results
+        if: always() && steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: radialDG-results-study3-${{ matrix.name }}
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
@@ -313,7 +462,7 @@ jobs:
           retention-days: 30
 
   merge-results:
-    needs: [run-study, run-study2]
+    needs: [run-study0, run-study1, run-study2, run-study3]
     if: always()
     runs-on: ubuntu-latest
     steps:

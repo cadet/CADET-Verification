@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -408,6 +408,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     disc_refinement_functions = []
 
     poly_degs_1 = list(range(1, 6)) if not small_test else [1, 2]
+    if study1_polydegs is not None:
+        poly_degs_1 = [p for p in poly_degs_1 if p in study1_polydegs]
     n_disc_DG_1 = 10 if not small_test else 4  # 1,2,4,...,512
 
     base_model_LRM_lin = setting_DG_LRM_lin.get_model()
@@ -730,6 +732,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     disc_refinement_functions = []
 
     poly_degs_3 = [3, 4, 5] if not small_test else [1, 2]
+    if study3_polydegs is not None:
+        poly_degs_3 = [p for p in poly_degs_3 if p in study3_polydegs]
     n_disc_DG_3 = 11 if not small_test else 4  # 1,2,4,...,1024
     n_disc_FV_3 = 17 if not small_test else 4  # 4,8,...,262144
 
