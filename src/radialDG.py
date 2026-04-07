@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None, fv_start_ncol=None, fv_n_disc=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_node_types=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None, fv_start_ncol=None, fv_n_disc=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -478,71 +478,79 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
     # ===========================================================================
     #  Study 1: CGL vs LGL node comparison
+    #  Reference: single finest FV WENO3 equivolume simulation
     # ===========================================================================
-
-    # --- Benchmark 1: rLRM, 1 comp, Linear rapid-eq ---
-    # Reference: CGL P6, 512 cells
-
-    cadet_configs = []
-    cadet_config_names = []
-    include_sens = []
-    ref_files = []
-    unit_IDs = []
-    which = []
-    idas_abstol = []
-    ax_methods = []
-    ax_discs = []
-    par_methods = []
-    par_discs = []
-    disc_refinement_functions = []
 
     poly_degs_1 = list(range(1, 6)) if not small_test else [1, 2]
     if study1_polydegs is not None:
         poly_degs_1 = [p for p in poly_degs_1 if p in study1_polydegs]
-    n_disc_DG_1 = 10 if not small_test else 4  # 1,2,4,...,512
+    node_types_1 = study1_node_types if study1_node_types is not None else ['CGL', 'LGL']
+
+    # Per-polyDeg refinement levels: avoid running past the FV reference floor.
+    # DG outlet converges at rate ~2k+1.  Floor hit at nElem ~ floor^(-1/(2k+1)).
+    # Include 2-3 extra levels to show the plateau clearly.
+    if not small_test:
+        # BM1 floor ~1e-10 (131K FV cells)
+        _n_disc_bm1 = {1: 10, 2: 10, 3: 8, 4: 7, 5: 6}
+        # BM2 floor ~1e-7  (32K FV cells)
+        _n_disc_bm2 = {1: 10, 2: 9, 3: 7, 4: 6, 5: 5}
+    else:
+        _n_disc_bm1 = {p: 4 for p in range(1, 6)}
+        _n_disc_bm2 = {p: 4 for p in range(1, 6)}
 
     base_model_LRM_lin = setting_DG_LRM_lin.get_model()
-
-    # Reference simulations (CGL P6/512 or P3/8 for small_test)
-    ref_polyDeg_bm1 = 6 if not small_test else 3
-    ref_nElem_bm1 = 512 if not small_test else 8
-    ref_file_bm1 = convergence.generate_1D_name(
-        'radCol1D_DG_CGL_LRM_lin_1comp_ref', ref_polyDeg_bm1, ref_nElem_bm1)
-
     base_model_LRM_SMA = setting_DG_LRM_SMA.get_model()
-    ref_polyDeg_bm2 = 6 if not small_test else 3
-    ref_nElem_bm2 = 512 if not small_test else 8
-    ref_file_bm2 = convergence.generate_1D_name(
-        'radCol1D_DG_CGL_LRM_SMA_4comp_ref', ref_polyDeg_bm2, ref_nElem_bm2)
 
-    # Compute references (skip if study1_skip_ref=True, i.e. ref files already exist)
+    # FV WENO3 reference: only the single finest simulation, not a full sweep
+    _fv_ncol_bm1 = 131072 if not small_test else 32
+    fv_name_bm1 = 'radCol1D_FV_WENO3_LRM_lin_1comp'
+    ref_file_bm1 = convergence.generate_1D_name(fv_name_bm1, 0, _fv_ncol_bm1)
+
+    _fv_ncol_bm2 = 32768 if not small_test else 32
+    fv_name_bm2 = 'radCol1D_FV_WENO3_LRM_SMA_4comp'
+    ref_file_bm2 = convergence.generate_1D_name(fv_name_bm2, 0, _fv_ncol_bm2)
+
+    # Compute FV references (skip if study1_skip_ref=True, e.g. downloaded from artifact)
     if _run(1) and not study1_skip_ref:
       try:
-        ref_model_bm1 = refine_DG(
+        fv_ref_model_bm1 = refine_FV_WENO3(
             base_model_LRM_lin, 0,
-            setting_name='radCol1D_DG_CGL_LRM_lin_1comp_ref',
-            polyDeg=ref_polyDeg_bm1, node_type='CGL',
-            nelem_start=ref_nElem_bm1,
+            setting_name=fv_name_bm1,
+            nCol_start=_fv_ncol_bm1,
+            equivolume=True,
             time_integrator=time_integrator_strict)
-        ref_model_bm1.run()
-        print("  Study 1 BM1 reference computed.")
+        fv_ref_model_bm1.run()
+        print(f"  Study 1 BM1 FV reference computed ({_fv_ncol_bm1} cells).")
 
-        ref_model_bm2 = refine_DG(
+        fv_ref_model_bm2 = refine_FV_WENO3(
             base_model_LRM_SMA, 0,
-            setting_name='radCol1D_DG_CGL_LRM_SMA_4comp_ref',
-            polyDeg=ref_polyDeg_bm2, node_type='CGL',
-            nelem_start=ref_nElem_bm2,
-            time_integrator=time_integrator_strict)
-        ref_model_bm2.run()
-        print("  Study 1 BM2 reference computed.")
+            setting_name=fv_name_bm2,
+            nCol_start=_fv_ncol_bm2,
+            equivolume=True,
+            time_integrator=time_integrator)
+        fv_ref_model_bm2.run()
+        print(f"  Study 1 BM2 FV reference computed ({_fv_ncol_bm2} cells).")
       except Exception:
-        print(f"\n*** Study 1 REF FAILED ***\n{traceback.format_exc()}")
+        print(f"\n*** Study 1 FV REF FAILED ***\n{traceback.format_exc()}")
 
-    # If ref_only, skip the test runs
+    # --- Benchmark 1: rLRM, 1 comp, Linear rapid-eq ---
+
     if _run(1) and not study1_ref_only:
-      # --- Benchmark 1: rLRM, 1 comp, Linear rapid-eq ---
+      cadet_configs = []
+      cadet_config_names = []
+      include_sens = []
+      ref_files = []
+      unit_IDs = []
+      which = []
+      idas_abstol = []
+      ax_methods = []
+      ax_discs = []
+      par_methods = []
+      par_discs = []
+      disc_refinement_functions = []
+
       try:
-        for node_type in ['CGL', 'LGL']:
+        for node_type in node_types_1:
             methods_1 = []
             for p in poly_degs_1:
                 methods_1.append((f'radCol1D_DG_{node_type}_LRM_lin_1comp_P{p}', p))
@@ -555,7 +563,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 'which': ['outlet'] * len(methods_1),
                 'idas_abstol': [[None] for _ in methods_1],
                 'ax_methods': [[p] for _, p in methods_1],
-                'ax_discs': [[bench_func.disc_list(1, n_disc_DG_1)] for _ in methods_1],
+                'ax_discs': [[bench_func.disc_list(1, _n_disc_bm1[p])] for _, p in methods_1],
                 'par_methods': [[None] for _ in methods_1],
                 'par_discs': [[None] for _ in methods_1],
                 'disc_refinement_functions': [
@@ -575,6 +583,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 idas_abstol=idas_abstol,
                 cadet_config_names=cadet_config_names, addition=addition,
                 disc_refinement_functions=disc_refinement_functions)
+
         bench_func.run_convergence_analysis(
             output_path=output_path,
             cadet_path=cadet_path,
@@ -596,8 +605,9 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
       except Exception:
         print(f"\n*** Study 1 BM1 FAILED ***\n{traceback.format_exc()}")
 
-      # --- Benchmark 2: rLRM, 4 comp, SMA kinetic ---
+    # --- Benchmark 2: rLRM, 4 comp, SMA kinetic ---
 
+    if _run(1) and not study1_ref_only:
       cadet_configs = []
       cadet_config_names = []
       include_sens = []
@@ -612,7 +622,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
       disc_refinement_functions = []
 
       try:
-        for node_type in ['CGL', 'LGL']:
+        for node_type in node_types_1:
             methods_bm2 = []
             for p in poly_degs_1:
                 methods_bm2.append((f'radCol1D_DG_{node_type}_LRM_SMA_4comp_P{p}', p))
@@ -625,7 +635,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 'which': ['outlet'] * len(methods_bm2),
                 'idas_abstol': [[None] for _ in methods_bm2],
                 'ax_methods': [[p] for _, p in methods_bm2],
-                'ax_discs': [[bench_func.disc_list(1, n_disc_DG_1)] for _ in methods_bm2],
+                'ax_discs': [[bench_func.disc_list(1, _n_disc_bm2[p])] for _, p in methods_bm2],
                 'par_methods': [[None] for _ in methods_bm2],
                 'par_discs': [[None] for _ in methods_bm2],
                 'disc_refinement_functions': [
@@ -634,7 +644,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                              polyDeg=polyDeg,
                              node_type=node_type,
                              nelem_start=1,
-                             time_integrator=time_integrator_strict)]
+                             time_integrator=time_integrator)]
                     for name, polyDeg in methods_bm2
                 ],
             }
@@ -645,6 +655,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 idas_abstol=idas_abstol,
                 cadet_config_names=cadet_config_names, addition=addition,
                 disc_refinement_functions=disc_refinement_functions)
+
         bench_func.run_convergence_analysis(
             output_path=output_path,
             cadet_path=cadet_path,

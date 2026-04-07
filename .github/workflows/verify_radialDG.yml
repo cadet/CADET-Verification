@@ -159,7 +159,7 @@ jobs:
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
-  # Study 1 — reference computation
+  # Study 1 — FV WENO3 reference computation (BM1: 131K cells, BM2: 32K cells)
   run-study1-ref:
     needs: build-cadet
     runs-on: ubuntu-latest
@@ -202,7 +202,7 @@ jobs:
       - name: Install Python dependencies
         if: steps.check.outputs.skip == 'false'
         run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
-      - name: Compute Study 1 references
+      - name: Compute Study 1 FV references
         if: steps.check.outputs.skip == 'false'
         run: |
           cd "${VERIFICATION_DIR}"
@@ -227,7 +227,7 @@ jobs:
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 1
 
-  # Study 1 — split by polyDeg
+  # Study 1 — DG split by polyDeg × node type (CGL/LGL)
   run-study1:
     needs: run-study1-ref
     runs-on: ubuntu-latest
@@ -236,6 +236,7 @@ jobs:
       fail-fast: false
       matrix:
         polydeg: [1, 2, 3, 4, 5]
+        node_type: [CGL, LGL]
     defaults:
       run:
         shell: bash -l {0}
@@ -263,7 +264,7 @@ jobs:
         with:
           name: cadet-install
           path: cadet-install/
-      - name: Download Study 1 references
+      - name: Download Study 1 FV references
         if: steps.check.outputs.skip == 'false'
         uses: actions/download-artifact@v4
         with:
@@ -280,7 +281,7 @@ jobs:
       - name: Install Python dependencies
         if: steps.check.outputs.skip == 'false'
         run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
-      - name: Run Study 1 P${{ matrix.polydeg }}
+      - name: Run Study 1 ${{ matrix.node_type }} P${{ matrix.polydeg }}
         if: steps.check.outputs.skip == 'false'
         run: |
           cd "${VERIFICATION_DIR}"
@@ -296,13 +297,14 @@ jobs:
               output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
               cadet_path='${CADET_INSTALL}', studies=[1],
               study1_polydegs=[${{ matrix.polydeg }}],
+              study1_node_types=['${{ matrix.node_type }}'],
               study1_skip_ref=True)
           "
       - name: Upload results
         if: always() && steps.check.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: radialDG-results-study1-P${{ matrix.polydeg }}
+          name: radialDG-results-study1-${{ matrix.node_type }}-P${{ matrix.polydeg }}
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
