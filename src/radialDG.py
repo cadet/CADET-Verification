@@ -727,18 +727,114 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     if study2_configs is not None:
         configs_2 = [configs_2[i] for i in study2_configs if i < len(configs_2)]
 
-    for setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm in configs_2:
+    # Start at nElem=8 to avoid stiffness issues at very coarse grids
+    nelem_start_2 = 8
+
+    # --- Phase 1: Run FV WENO3 sweep (self-convergence) for all configs ---
+
+    fv_configs = []
+    fv_config_names = []
+    fv_include_sens = []
+    fv_ref_files = []
+    fv_unit_IDs = []
+    fv_which = []
+    fv_idas_abstol = []
+    fv_ax_methods = []
+    fv_ax_discs = []
+    fv_par_methods = []
+    fv_par_discs = []
+    fv_disc_refinement_functions = []
+
+    # Track finest FV filename per config for DG reference
+    fv_finest_names = {}
+
+    for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm) in enumerate(configs_2):
         base_model = setting_mod.get_model()
+        _fv_start_2_cfg = fv_start_ncol if fv_start_ncol is not None else nelem_start_2
+        fv_name = f'{prefix.replace("_DG_", "_FV_WENO3_")}'
 
-        # Start at nElem=8 to avoid stiffness issues at very coarse grids
-        nelem_start_2 = 8
+        # Compute finest FV cell count and generate reference filename
+        finest_ncol = _fv_start_2_cfg * 2**(n_disc_FV_2 - 1)
+        fv_finest_names[cfg_idx] = convergence.generate_1D_name(
+            fv_name, 0, finest_ncol)
 
-        _run_dg = study2_methods is None or 'DG' in study2_methods
-        _run_fv = study2_methods is None or 'FV' in study2_methods
+        addition_fv = {
+            'cadet_config_jsons': [base_model],
+            'cadet_config_names': [fv_name],
+            'include_sens': [False],
+            'ref_files': [[None]],
+            'unit_IDs': ['001'],
+            'which': ['outlet'],
+            'idas_abstol': [[None]],
+            'ax_methods': [[0]],
+            'ax_discs': [[bench_func.disc_list(_fv_start_2_cfg, n_disc_FV_2)]],
+            'par_methods': [[None]],
+            'par_discs': [[None]],
+            'disc_refinement_functions': [
+                [partial(refine_FV_WENO3,
+                         setting_name=fv_name,
+                         nCol_start=_fv_start_2_cfg,
+                         equivolume=True,
+                         time_integrator=ti)]
+            ],
+        }
 
-        # DG methods
-        if _run_dg:
+        bench_configs.add_benchmark(
+            fv_configs, fv_include_sens, fv_ref_files, fv_unit_IDs, fv_which,
+            fv_ax_methods, fv_ax_discs,
+            par_methods=fv_par_methods, par_discs=fv_par_discs,
+            idas_abstol=fv_idas_abstol,
+            cadet_config_names=fv_config_names, addition=addition_fv,
+            disc_refinement_functions=fv_disc_refinement_functions)
+
+    if _run(2):
+      try:
+        # Run all FV sweeps in parallel
+        print("\n--- Study 2: Phase 1 — FV WENO3 reference sweep ---")
+        bench_func.run_convergence_analysis(
+            output_path=output_path,
+            cadet_path=cadet_path,
+            cadet_configs=fv_configs,
+            cadet_config_names=fv_config_names,
+            include_sens=fv_include_sens,
+            ref_files=fv_ref_files,
+            unit_IDs=fv_unit_IDs,
+            which=fv_which,
+            ax_methods=fv_ax_methods,
+            ax_discs=fv_ax_discs,
+            par_methods=fv_par_methods,
+            par_discs=fv_par_discs,
+            idas_abstol=fv_idas_abstol,
+            n_jobs=n_jobs,
+            rerun_sims=True,
+            disc_refinement_functions=fv_disc_refinement_functions
+        )
+
+        # --- Phase 2: Run DG sweep with finest FV as reference ---
+
+        print("\n--- Study 2: Phase 2 — DG convergence against FV reference ---")
+
+        for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm) in enumerate(configs_2):
+            base_model = setting_mod.get_model()
+            ref_file = fv_finest_names[cfg_idx]
+
             _poly_degs = [p for p in poly_degs if study2_polydegs is None or p in study2_polydegs]
+            if not _poly_degs:
+                continue
+
+            dg_configs = []
+            dg_config_names = []
+            dg_include_sens = []
+            dg_ref_files = []
+            dg_unit_IDs = []
+            dg_which = []
+            dg_idas_abstol = []
+            dg_ax_methods = []
+            dg_ax_discs = []
+            dg_par_methods = []
+            dg_par_discs = []
+            dg_disc_refinement_functions = []
+
             methods = []
             for p in _poly_degs:
                 methods.append((f'{prefix}_P{p}', p))
@@ -747,7 +843,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 'cadet_config_jsons': [base_model] * len(methods),
                 'cadet_config_names': [name for name, _ in methods],
                 'include_sens': [False] * len(methods),
-                'ref_files': [[None] for _ in methods],
+                'ref_files': [[ref_file] for _ in methods],
                 'unit_IDs': ['001'] * len(methods),
                 'which': ['outlet'] * len(methods),
                 'idas_abstol': [[None] for _ in methods],
@@ -768,67 +864,33 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
             }
 
             bench_configs.add_benchmark(
-                cadet_configs, include_sens, ref_files, unit_IDs, which,
-                ax_methods, ax_discs,
-                par_methods=par_methods, par_discs=par_discs,
-                idas_abstol=idas_abstol,
-                cadet_config_names=cadet_config_names, addition=addition,
-                disc_refinement_functions=disc_refinement_functions)
+                dg_configs, dg_include_sens, dg_ref_files, dg_unit_IDs, dg_which,
+                dg_ax_methods, dg_ax_discs,
+                par_methods=dg_par_methods, par_discs=dg_par_discs,
+                idas_abstol=dg_idas_abstol,
+                cadet_config_names=dg_config_names, addition=addition,
+                disc_refinement_functions=dg_disc_refinement_functions)
 
-        # FV WENO3 equivolume reference
-        if _run_fv:
-            _fv_start_2_cfg = fv_start_ncol if fv_start_ncol is not None else nelem_start_2
-            fv_name = f'{prefix.replace("_DG_", "_FV_WENO3_")}'
-            addition_fv = {
-                'cadet_config_jsons': [base_model],
-                'cadet_config_names': [fv_name],
-                'include_sens': [False],
-                'ref_files': [[None]],
-                'unit_IDs': ['001'],
-                'which': ['outlet'],
-                'idas_abstol': [[None]],
-                'ax_methods': [[0]],
-                'ax_discs': [[bench_func.disc_list(_fv_start_2_cfg, n_disc_FV_2)]],
-                'par_methods': [[None]],
-                'par_discs': [[None]],
-                'disc_refinement_functions': [
-                    [partial(refine_FV_WENO3,
-                             setting_name=fv_name,
-                             nCol_start=_fv_start_2_cfg,
-                             equivolume=True,
-                             time_integrator=ti)]
-                ],
-            }
-
-            bench_configs.add_benchmark(
-                cadet_configs, include_sens, ref_files, unit_IDs, which,
-                ax_methods, ax_discs,
-            par_methods=par_methods, par_discs=par_discs,
-            idas_abstol=idas_abstol,
-            cadet_config_names=cadet_config_names, addition=addition_fv,
-            disc_refinement_functions=disc_refinement_functions)
-
-    if _run(2):
-        try:
             bench_func.run_convergence_analysis(
                 output_path=output_path,
                 cadet_path=cadet_path,
-                cadet_configs=cadet_configs,
-                cadet_config_names=cadet_config_names,
-                include_sens=include_sens,
-                ref_files=ref_files,
-                unit_IDs=unit_IDs,
-                which=which,
-                ax_methods=ax_methods,
-                ax_discs=ax_discs,
-                par_methods=par_methods,
-                par_discs=par_discs,
-                idas_abstol=idas_abstol,
+                cadet_configs=dg_configs,
+                cadet_config_names=dg_config_names,
+                include_sens=dg_include_sens,
+                ref_files=dg_ref_files,
+                unit_IDs=dg_unit_IDs,
+                which=dg_which,
+                ax_methods=dg_ax_methods,
+                ax_discs=dg_ax_discs,
+                par_methods=dg_par_methods,
+                par_discs=dg_par_discs,
+                idas_abstol=dg_idas_abstol,
                 n_jobs=n_jobs,
                 rerun_sims=True,
-                disc_refinement_functions=disc_refinement_functions
+                disc_refinement_functions=dg_disc_refinement_functions
             )
-        except Exception:
+
+      except Exception:
             print(f"\n*** Study 2 FAILED ***\n{traceback.format_exc()}")
 
     #
