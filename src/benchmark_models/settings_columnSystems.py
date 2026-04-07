@@ -91,7 +91,7 @@ def SMB_model1(nelem, polydeg, exactInt):
 
     # Polynomial order
     smb_model.model.unit_004.discretization.POLYDEG = polydeg
-    smb_model.model.unit_004.discretization.EXACT_INTEGRATION = exactInt
+    smb_model.model.unit_004.discretization.POLYNOMIAL_INTEGRATION_TYPE = exactInt
 
     smb_model.model.unit_004.discretization.par_disc_type = 'EQUIDISTANT_PAR'
     smb_model.model.unit_004.discretization.use_analytic_jacobian = 1
@@ -376,7 +376,7 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Polynomial order
     Cyclic_model.root.input.model.unit_001.discretization.POLYDEG = polydeg
-    Cyclic_model.root.input.model.unit_001.discretization.EXACT_INTEGRATION = exactInt
+    Cyclic_model.root.input.model.unit_001.discretization.POLYNOMIAL_INTEGRATION_TYPE = exactInt
 
     Cyclic_model.root.input.model.unit_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     Cyclic_model.root.input.model.unit_001.discretization.USE_ANALYTIC_JACOBIAN = 1
@@ -532,7 +532,7 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Polynomial order
     Acyclic_model.root.input.model.unit_002.discretization.POLYDEG = polydeg
-    Acyclic_model.root.input.model.unit_002.discretization.EXACT_INTEGRATION = exactInt
+    Acyclic_model.root.input.model.unit_002.discretization.POLYNOMIAL_INTEGRATION_TYPE = exactInt
 
     Acyclic_model.root.input.model.unit_002.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     Acyclic_model.root.input.model.unit_002.discretization.USE_ANALYTIC_JACOBIAN = 1

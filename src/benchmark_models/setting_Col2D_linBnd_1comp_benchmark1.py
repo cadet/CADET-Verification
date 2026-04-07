@@ -42,7 +42,7 @@ def get_model(
 
     # Spatial discretization of interstitial / bulk volume
     column.discretization.spatial_method = 'DG'
-    column.discretization.exact_integration = 1
+    column.discretization.POLYNOMIAL_INTEGRATION_TYPE = 1
     if column_resolution == '2D':
         column.discretization.AX_POLYDEG = kwargs.get('axP', polyDeg)
         column.discretization.AX_NELEM = axNElem

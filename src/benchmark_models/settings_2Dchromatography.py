@@ -305,7 +305,7 @@ def GRM2D_linBnd_benchmark1(
         else:
             column.discretization.POLYDEG = axMethod
             column.discretization.NELEM = axNElem
-            column.discretization.EXACT_INTEGRATION = 1
+            column.discretization.POLYNOMIAL_INTEGRATION_TYPE = 1
     else:
         column.discretization.SPATIAL_METHOD = "FV"
         column.discretization.NCOL = axNElem

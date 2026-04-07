@@ -1841,7 +1841,7 @@ def generate_bulkDisc_name(disc):
           
         # todo once implemented: non-eq
         
-        exInt = False if get_case_insensitive(disc, "EXACT_INTEGRATION") is None else get_case_insensitive(disc, "EXACT_INTEGRATION")
+        exInt = False if get_case_insensitive(disc, "POLYNOMIAL_INTEGRATION_TYPE") is None else get_case_insensitive(disc, "POLYNOMIAL_INTEGRATION_TYPE")
         name = "exIntDG" if exInt else "DG" # "cDG"
         
         polyDeg = get_case_insensitive(disc, "POLYDEG")
