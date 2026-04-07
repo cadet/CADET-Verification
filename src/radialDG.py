@@ -342,9 +342,9 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
         cadet_config_names=cadet_config_names, addition=addition,
         disc_refinement_functions=disc_refinement_functions)
 
-    # FV WENO3: nCells 4,8,16,...,32768 (WENO3 requires >= 4 cells)
+    # FV WENO3: nCells 4,8,16,...,131072 (WENO3 requires >= 4 cells)
     _fv_start_0 = fv_start_ncol if fv_start_ncol is not None else 4
-    _fv_n_0 = fv_n_disc if fv_n_disc is not None else (14 if not small_test else 4)
+    _fv_n_0 = fv_n_disc if fv_n_disc is not None else (16 if not small_test else 4)
 
     addition_fv = {
         'cadet_config_jsons': [base_model_transport],
