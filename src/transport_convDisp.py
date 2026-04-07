@@ -510,6 +510,11 @@ def transport_tests(n_jobs, small_test,
     rad_discs = []
     disc_refinement_functions = []
 
+
+    # Reset grid functions to axial (sinusoidal perturbation)
+    spatial_discretization_WENO3NonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
+    spatial_discretization_KORENNonEq['grid_function'] = partial(grid_sinusoidal_perturbation, alpha=0.3)
+
     def refine_discretization_col2d(config_data, disc_idx, setting_name,
                               spatial_discretization,
                               time_integrator=None,
