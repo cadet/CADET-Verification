@@ -13,18 +13,18 @@ import matplotlib.pyplot as plt
 
 from cadet import Cadet
 
-def get_model(cadet_path, output_path, run_simulation, plot_result): 
+def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_result): 
 
     ## set up
     injection_volume = 1e-6         ## m^3
     
-    elution_pH_start = 5.5
-    elution_pH_end = 3.3
+    elution_pH_start = 0.1 if use_ion_conc else 5.5
+    elution_pH_end = 0.5 if use_ion_conc else 3.3
     
     elution_start_volume = 8.66e-6  ## m^3
     gradient_length = 10            ## CV
     
-    simulation_end_time = 1300
+    simulation_end_time = 8000 if use_ion_conc else 1300
     Q = 3.5 /(6e7)                  ## volumetric flow rate m^3/s
     elution_start_time = elution_start_volume/Q
     
@@ -96,10 +96,15 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.unit_001.particle_type_000.adsorption.act_kd = [1.0, 1.0]                                            ## s^-1
     model.root.input.model.unit_001.particle_type_000.adsorption.act_qmax = [1e-10, Q_max/protein_MW/(1.0-total_porosity),]     ##  mol/m^3 solid phase mg/ml=kg/m^3 / 150 kg/mol = 1/150 mol/m^3
     
+    model.root.input.model.unit_001.particle_type_000.adsorption.act_use_ion_conc = use_ion_conc
+    if use_ion_conc:   
+        model.root.input.model.unit_001.particle_type_000.adsorption.act_cmid_a = [0, 0.2, ]
+        model.root.input.model.unit_001.particle_type_000.adsorption.act_cmid_g = [0, 0.38, ]
+    else:
+        model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaA = [0, 2.07, ]
+        model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaG = [0, 5.29, ]
     model.root.input.model.unit_001.particle_type_000.adsorption.act_etaA = [0, 1.81,  ]
-    model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaA = [0, 2.07, ]
     model.root.input.model.unit_001.particle_type_000.adsorption.act_etaG = [0, 2.28, ]
-    model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaG = [0, 5.29, ]
 
     model.root.input.model.unit_001.particle_type_000.init_cp = [elution_pH_start, 0.0]
     model.root.input.model.unit_001.particle_type_000.init_cs = [0.0, 0.0]
