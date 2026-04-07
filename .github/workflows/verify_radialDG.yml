@@ -159,8 +159,8 @@ jobs:
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
-  # Study 1 — FV WENO3 reference computation (BM1: 131K cells, BM2: 32K cells)
-  run-study1-ref:
+  # Study 1 — FV WENO3 reference BM1 (131K cells)
+  run-study1-ref-bm1:
     needs: build-cadet
     runs-on: ubuntu-latest
     timeout-minutes: 360
@@ -202,7 +202,7 @@ jobs:
       - name: Install Python dependencies
         if: steps.check.outputs.skip == 'false'
         run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
-      - name: Compute Study 1 FV references
+      - name: Compute Study 1 FV reference BM1
         if: steps.check.outputs.skip == 'false'
         run: |
           cd "${VERIFICATION_DIR}"
@@ -217,19 +217,89 @@ jobs:
               n_jobs=-1, small_test=small_test,
               output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
               cadet_path='${CADET_INSTALL}', studies=[1],
-              study1_ref_only=True)
+              study1_ref_only=True,
+              study1_benchmarks=[1])
           "
       - name: Upload reference results
         if: always() && steps.check.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: radialDG-study1-ref
+          name: radialDG-study1-ref-bm1
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 1
 
-  # Study 1 — DG split by polyDeg × node type (CGL/LGL)
-  run-study1:
-    needs: run-study1-ref
+  # Study 1 — FV WENO3 reference BM2 (32K cells)
+  run-study1-ref-bm2:
+    needs: build-cadet
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      CADET_INSTALL: ${{ github.workspace }}/cadet-install
+      VERIFICATION_DIR: ${{ github.workspace }}/verification
+    steps:
+      - name: Check if study should run
+        id: check
+        run: |
+          STUDIES="${{ github.event.inputs.studies }}"
+          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "1"; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout CADET-Verification
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v6
+        with:
+          path: verification
+      - name: Download CADET install
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: cadet-install
+          path: cadet-install/
+      - name: Install runtime libraries
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev libtbb-dev libsuperlu-dev
+      - name: Fix permissions
+        if: steps.check.outputs.skip == 'false'
+        run: chmod +x ${CADET_INSTALL}/bin/cadet-cli
+      - name: Install Python dependencies
+        if: steps.check.outputs.skip == 'false'
+        run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+      - name: Compute Study 1 FV reference BM2
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd "${VERIFICATION_DIR}"
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from pathlib import Path
+          import src.radialDG as radialDG
+          small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
+          radialDG.radialDG_tests(
+              n_jobs=-1, small_test=small_test,
+              output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
+              cadet_path='${CADET_INSTALL}', studies=[1],
+              study1_ref_only=True,
+              study1_benchmarks=[2])
+          "
+      - name: Upload reference results
+        if: always() && steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: radialDG-study1-ref-bm2
+          path: verification/output/test_cadet-core/radialDG/
+          retention-days: 1
+
+  # Study 1 BM1 DG — starts as soon as BM1 FV ref is done
+  run-study1-bm1:
+    needs: run-study1-ref-bm1
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:
@@ -264,11 +334,11 @@ jobs:
         with:
           name: cadet-install
           path: cadet-install/
-      - name: Download Study 1 FV references
+      - name: Download BM1 FV reference
         if: steps.check.outputs.skip == 'false'
         uses: actions/download-artifact@v4
         with:
-          name: radialDG-study1-ref
+          name: radialDG-study1-ref-bm1
           path: verification/output/test_cadet-core/radialDG/
       - name: Install runtime libraries
         if: steps.check.outputs.skip == 'false'
@@ -281,7 +351,7 @@ jobs:
       - name: Install Python dependencies
         if: steps.check.outputs.skip == 'false'
         run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
-      - name: Run Study 1 ${{ matrix.node_type }} P${{ matrix.polydeg }}
+      - name: Run Study 1 BM1 ${{ matrix.node_type }} P${{ matrix.polydeg }}
         if: steps.check.outputs.skip == 'false'
         run: |
           cd "${VERIFICATION_DIR}"
@@ -298,13 +368,96 @@ jobs:
               cadet_path='${CADET_INSTALL}', studies=[1],
               study1_polydegs=[${{ matrix.polydeg }}],
               study1_node_types=['${{ matrix.node_type }}'],
+              study1_benchmarks=[1],
               study1_skip_ref=True)
           "
       - name: Upload results
         if: always() && steps.check.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: radialDG-results-study1-${{ matrix.node_type }}-P${{ matrix.polydeg }}
+          name: radialDG-results-study1-bm1-${{ matrix.node_type }}-P${{ matrix.polydeg }}
+          path: verification/output/test_cadet-core/radialDG/
+          retention-days: 30
+
+  # Study 1 BM2 DG — starts as soon as BM2 FV ref is done
+  run-study1-bm2:
+    needs: run-study1-ref-bm2
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        polydeg: [1, 2, 3, 4, 5]
+        node_type: [CGL, LGL]
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      CADET_INSTALL: ${{ github.workspace }}/cadet-install
+      VERIFICATION_DIR: ${{ github.workspace }}/verification
+    steps:
+      - name: Check if study should run
+        id: check
+        run: |
+          STUDIES="${{ github.event.inputs.studies }}"
+          if [ "$STUDIES" = "all" ] || echo "$STUDIES" | grep -qw "1"; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Checkout CADET-Verification
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/checkout@v6
+        with:
+          path: verification
+      - name: Download CADET install
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: cadet-install
+          path: cadet-install/
+      - name: Download BM2 FV reference
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: radialDG-study1-ref-bm2
+          path: verification/output/test_cadet-core/radialDG/
+      - name: Install runtime libraries
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev libtbb-dev libsuperlu-dev
+      - name: Fix permissions
+        if: steps.check.outputs.skip == 'false'
+        run: chmod +x ${CADET_INSTALL}/bin/cadet-cli
+      - name: Install Python dependencies
+        if: steps.check.outputs.skip == 'false'
+        run: pip install numpy scipy matplotlib h5py addict joblib cadet-python pytest pandas
+      - name: Run Study 1 BM2 ${{ matrix.node_type }} P${{ matrix.polydeg }}
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cd "${VERIFICATION_DIR}"
+          export LD_LIBRARY_PATH=${CADET_INSTALL}/lib:$LD_LIBRARY_PATH
+          export PATH=${CADET_INSTALL}/bin:$PATH
+          python -c "
+          import sys; sys.path.insert(0, '.')
+          from pathlib import Path
+          import src.radialDG as radialDG
+          small_test = ${{ github.event.inputs.small_test == 'true' && 'True' || 'False' }}
+          radialDG.radialDG_tests(
+              n_jobs=-1, small_test=small_test,
+              output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
+              cadet_path='${CADET_INSTALL}', studies=[1],
+              study1_polydegs=[${{ matrix.polydeg }}],
+              study1_node_types=['${{ matrix.node_type }}'],
+              study1_benchmarks=[2],
+              study1_skip_ref=True)
+          "
+      - name: Upload results
+        if: always() && steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: radialDG-results-study1-bm2-${{ matrix.node_type }}-P${{ matrix.polydeg }}
           path: verification/output/test_cadet-core/radialDG/
           retention-days: 30
 
@@ -684,7 +837,7 @@ jobs:
           retention-days: 30
 
   merge-results:
-    needs: [run-study0, run-study1-ref, run-study1, run-study2-dg, run-study2-fv, run-study3-dg, run-study3-fv]
+    needs: [run-study0, run-study1-ref-bm1, run-study1-bm1, run-study1-ref-bm2, run-study1-bm2, run-study2-dg, run-study2-fv, run-study3-dg, run-study3-fv]
     if: always()
     runs-on: ubuntu-latest
     steps:

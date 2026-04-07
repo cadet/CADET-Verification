@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_node_types=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None, fv_start_ncol=None, fv_n_disc=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_node_types=None, study1_benchmarks=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None, fv_start_ncol=None, fv_n_disc=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -510,32 +510,40 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     fv_name_bm2 = 'radCol1D_FV_WENO3_LRM_SMA_4comp'
     ref_file_bm2 = convergence.generate_1D_name(fv_name_bm2, 0, _fv_ncol_bm2)
 
+    _run_bm1 = study1_benchmarks is None or 1 in study1_benchmarks
+    _run_bm2 = study1_benchmarks is None or 2 in study1_benchmarks
+
     # Compute FV references (skip if study1_skip_ref=True, e.g. downloaded from artifact)
     if _run(1) and not study1_skip_ref:
-      try:
-        fv_ref_model_bm1 = refine_FV_WENO3(
-            base_model_LRM_lin, 0,
-            setting_name=fv_name_bm1,
-            nCol_start=_fv_ncol_bm1,
-            equivolume=True,
-            time_integrator=time_integrator_strict)
-        fv_ref_model_bm1.run()
-        print(f"  Study 1 BM1 FV reference computed ({_fv_ncol_bm1} cells).")
+      if _run_bm1:
+        try:
+          fv_ref_model_bm1 = refine_FV_WENO3(
+              base_model_LRM_lin, 0,
+              setting_name=fv_name_bm1,
+              nCol_start=_fv_ncol_bm1,
+              equivolume=True,
+              time_integrator=time_integrator_strict)
+          fv_ref_model_bm1.run()
+          print(f"  Study 1 BM1 FV reference computed ({_fv_ncol_bm1} cells).")
+        except Exception:
+          print(f"\n*** Study 1 BM1 FV REF FAILED ***\n{traceback.format_exc()}")
 
-        fv_ref_model_bm2 = refine_FV_WENO3(
-            base_model_LRM_SMA, 0,
-            setting_name=fv_name_bm2,
-            nCol_start=_fv_ncol_bm2,
-            equivolume=True,
-            time_integrator=time_integrator)
-        fv_ref_model_bm2.run()
-        print(f"  Study 1 BM2 FV reference computed ({_fv_ncol_bm2} cells).")
-      except Exception:
-        print(f"\n*** Study 1 FV REF FAILED ***\n{traceback.format_exc()}")
+      if _run_bm2:
+        try:
+          fv_ref_model_bm2 = refine_FV_WENO3(
+              base_model_LRM_SMA, 0,
+              setting_name=fv_name_bm2,
+              nCol_start=_fv_ncol_bm2,
+              equivolume=True,
+              time_integrator=time_integrator)
+          fv_ref_model_bm2.run()
+          print(f"  Study 1 BM2 FV reference computed ({_fv_ncol_bm2} cells).")
+        except Exception:
+          print(f"\n*** Study 1 BM2 FV REF FAILED ***\n{traceback.format_exc()}")
 
     # --- Benchmark 1: rLRM, 1 comp, Linear rapid-eq ---
 
-    if _run(1) and not study1_ref_only:
+    if _run(1) and not study1_ref_only and _run_bm1:
       cadet_configs = []
       cadet_config_names = []
       include_sens = []
@@ -607,7 +615,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
     # --- Benchmark 2: rLRM, 4 comp, SMA kinetic ---
 
-    if _run(1) and not study1_ref_only:
+    if _run(1) and not study1_ref_only and _run_bm2:
       cadet_configs = []
       cadet_config_names = []
       include_sens = []
