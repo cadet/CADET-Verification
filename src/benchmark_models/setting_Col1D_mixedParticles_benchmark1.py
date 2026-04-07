@@ -54,7 +54,7 @@ def get_model(spatial_method_bulk, spatial_method_particle):
     model.input.model.unit_001.discretization.SPATIAL_METHOD = spatial_method_bulk
     model.input.model.unit_001.discretization.POLYDEG = 3
     model.input.model.unit_001.discretization.NELEM = 5
-    model.input.model.unit_001.discretization.EXACT_INTEGRATION = 0
+    model.input.model.unit_001.discretization.POLYNOMIAL_INTEGRATION_TYPE = 0
     
     
     # Particles
