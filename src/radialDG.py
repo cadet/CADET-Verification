@@ -92,6 +92,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                   nelem_start=2, time_integrator=None,
                   unit_id='001',
                   refine_par=False,
+                  only_return_name=False,
                   **kwargs):
         """Refinement function for radial DG: doubles nElem at each step.
 
@@ -99,12 +100,18 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
         with bulk: PAR_POLYDEG = max(1, nCells // 4), PAR_NELEM = 1.
         """
 
+        nElem = nelem_start * 2**disc_idx
+        config_name = convergence.generate_1D_name(setting_name, polyDeg, nElem)
+
+        if only_return_name:
+            if output_path is not None:
+                return str(output_path) + '/' + config_name
+            return config_name
+
         config_data = copy.deepcopy(config_data)
 
         if time_integrator is not None:
             config_data['input']['solver']['time_integrator'] = time_integrator
-
-        nElem = nelem_start * 2**disc_idx
 
         unit_cfg = config_data['input']['model']['unit_' + unit_id]
 
@@ -126,8 +133,6 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
             par_disc['PAR_POLYDEG'] = max(1, nElem // 4)
             par_disc['PAR_NELEM'] = 1
 
-        config_name = convergence.generate_1D_name(setting_name, polyDeg, nElem)
-
         model = Cadet(install_path=cadet_path)
         model.root.input = config_data['input']
         if output_path is not None:
@@ -138,15 +143,22 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     def refine_FV_WENO3(config_data, disc_idx, setting_name,
                         nCol_start=8, equivolume=True,
                         time_integrator=None,
-                        unit_id='001', **kwargs):
+                        unit_id='001', only_return_name=False,
+                        **kwargs):
         """Refinement function for radial FV WENO3: doubles nCol at each step."""
+
+        nCol = nCol_start * 2**disc_idx
+        config_name = convergence.generate_1D_name(setting_name, 0, nCol)
+
+        if only_return_name:
+            if output_path is not None:
+                return str(output_path) + '/' + config_name
+            return config_name
 
         config_data = copy.deepcopy(config_data)
 
         if time_integrator is not None:
             config_data['input']['solver']['time_integrator'] = time_integrator
-
-        nCol = nCol_start * 2**disc_idx
 
         unit_cfg = config_data['input']['model']['unit_' + unit_id]
 
@@ -181,8 +193,6 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
             r0 = unit['col_radius_inner']
             r1 = unit['col_radius_outer']
             disc['GRID_FACES'] = grid_radial_equivolume(r0, r1, nCol).tolist()
-
-        config_name = convergence.generate_1D_name(setting_name, 0, nCol)
 
         model = Cadet(install_path=cadet_path)
         model.root.input = config_data['input']
@@ -387,6 +397,84 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
             )
         except Exception:
             print(f"\n*** Study 0 Part 2 FAILED ***\n{traceback.format_exc()}")
+
+    # ===========================================================================
+    #  Study 0, Part 3: DG convergence against FV WENO3 reference (no new sims)
+    # ===========================================================================
+
+    # Reuses simulation files from Part 2.  Only recomputes convergence tables
+    # with the finest FV WENO3 simulation as the reference instead of DG self-ref.
+
+    fv_finest_ncol_0 = _fv_start_0 * 2**(_fv_n_0 - 1)
+    fv_ref_file_0 = convergence.generate_1D_name(
+        'radCol1D_FV_WENO3_transport_1comp', 0, fv_finest_ncol_0)
+
+    cadet_configs_0p3 = []
+    cadet_config_names_0p3 = []
+    include_sens_0p3 = []
+    ref_files_0p3 = []
+    unit_IDs_0p3 = []
+    which_0p3 = []
+    idas_abstol_0p3 = []
+    ax_methods_0p3 = []
+    ax_discs_0p3 = []
+    par_methods_0p3 = []
+    par_discs_0p3 = []
+    disc_refinement_functions_0p3 = []
+
+    addition_0p3 = {
+        'cadet_config_jsons': [base_model_transport] * len(methods_0p2),
+        'cadet_config_names': [f'{name}_FVref' for name, _ in methods_0p2],
+        'include_sens': [False] * len(methods_0p2),
+        'ref_files': [[fv_ref_file_0] for _ in methods_0p2],
+        'unit_IDs': ['001'] * len(methods_0p2),
+        'which': ['outlet'] * len(methods_0p2),
+        'idas_abstol': [[None] for _ in methods_0p2],
+        'ax_methods': [[p] for _, p in methods_0p2],
+        'ax_discs': [[bench_func.disc_list(2, n_disc_DG_0p2)] for _ in methods_0p2],
+        'par_methods': [[None] for _ in methods_0p2],
+        'par_discs': [[None] for _ in methods_0p2],
+        'disc_refinement_functions': [
+            [partial(refine_DG,
+                     setting_name=name,
+                     polyDeg=polyDeg,
+                     node_type='CGL',
+                     nelem_start=2,
+                     time_integrator=time_integrator_strict)]
+            for name, polyDeg in methods_0p2
+        ],
+    }
+
+    bench_configs.add_benchmark(
+        cadet_configs_0p3, include_sens_0p3, ref_files_0p3, unit_IDs_0p3,
+        which_0p3, ax_methods_0p3, ax_discs_0p3,
+        par_methods=par_methods_0p3, par_discs=par_discs_0p3,
+        idas_abstol=idas_abstol_0p3,
+        cadet_config_names=cadet_config_names_0p3, addition=addition_0p3,
+        disc_refinement_functions=disc_refinement_functions_0p3)
+
+    if _run(0):
+        try:
+            bench_func.run_convergence_analysis(
+                output_path=output_path,
+                cadet_path=cadet_path,
+                cadet_configs=cadet_configs_0p3,
+                cadet_config_names=cadet_config_names_0p3,
+                include_sens=include_sens_0p3,
+                ref_files=ref_files_0p3,
+                unit_IDs=unit_IDs_0p3,
+                which=which_0p3,
+                ax_methods=ax_methods_0p3,
+                ax_discs=ax_discs_0p3,
+                par_methods=par_methods_0p3,
+                par_discs=par_discs_0p3,
+                idas_abstol=idas_abstol_0p3,
+                n_jobs=n_jobs,
+                rerun_sims=False,
+                disc_refinement_functions=disc_refinement_functions_0p3
+            )
+        except Exception:
+            print(f"\n*** Study 0 Part 3 FAILED ***\n{traceback.format_exc()}")
 
     # ===========================================================================
     #  Study 1: CGL vs LGL node comparison
