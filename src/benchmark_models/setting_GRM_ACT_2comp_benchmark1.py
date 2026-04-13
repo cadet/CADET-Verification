@@ -98,8 +98,8 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
     
     model.root.input.model.unit_001.particle_type_000.adsorption.act_use_ion_conc = use_ion_conc
     if use_ion_conc:   
-        model.root.input.model.unit_001.particle_type_000.adsorption.act_cmid_a = [0, 0.2, ]
-        model.root.input.model.unit_001.particle_type_000.adsorption.act_cmid_g = [0, 0.38, ]
+        model.root.input.model.unit_001.particle_type_000.adsorption.act_cmid_a = [0, 0.1, ]
+        model.root.input.model.unit_001.particle_type_000.adsorption.act_cmid_g = [0, 0.18, ]
     else:
         model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaA = [0, 2.07, ]
         model.root.input.model.unit_001.particle_type_000.adsorption.act_pkaG = [0, 5.29, ]
@@ -120,7 +120,12 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
     model.root.input.model.unit_002.ncomp = 2
     
     model.root.input.solver.sections.nsec = 4
-    model.root.input.solver.sections.section_times = [0.0, injection_volume/Q, elution_start_time, elution_end_time, simulation_end_time]   # s
+    
+    if use_ion_conc:  
+        model.root.input.solver.sections.section_times = [0.0, injection_volume/Q, elution_start_time, elution_end_time*5, simulation_end_time]   # s
+    else:
+        model.root.input.solver.sections.section_times = [0.0, injection_volume/Q, elution_start_time, elution_end_time, simulation_end_time]   # s
+    
     model.root.input.solver.sections.section_continuity = [0,0,0,0]
     
     model.root.input.model.unit_000.sec_000.const_coeff = [elution_pH_start, c_feed,] # mol / m^3       mg/ml = kg/m^3;  1 kda = 1 kg/mol
@@ -134,7 +139,10 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
     model.root.input.model.unit_000.sec_001.cube_coeff = [0.0, 0.0,]
     
     model.root.input.model.unit_000.sec_002.const_coeff = [elution_pH_start, 0.0] # mol / m^3
-    model.root.input.model.unit_000.sec_002.lin_coeff = [-(elution_pH_start-elution_pH_end)/(elution_end_time - elution_start_time), 0.0, ]
+    if use_ion_conc:
+        model.root.input.model.unit_000.sec_002.lin_coeff = [-(elution_pH_start-elution_pH_end)/(elution_end_time*5 - elution_start_time), 0.0, ]
+    else: 
+        model.root.input.model.unit_000.sec_002.lin_coeff = [-(elution_pH_start-elution_pH_end)/(elution_end_time - elution_start_time), 0.0, ]
     model.root.input.model.unit_000.sec_002.quad_coeff = [0.0, 0.0,]
     model.root.input.model.unit_000.sec_002.cube_coeff = [0.0, 0.0,]
     
@@ -203,8 +211,12 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
             ax.set_ylabel(r'Protein/mAU')
             
             ax_ph = ax.twinx()
-            ax_ph.plot(time/60*Q*6e7, pH_outlet, label='pH')
-            ax_ph.set_ylabel('pH')
+            if use_ion_conc:
+                ax_ph.plot(time/60*Q*6e7, pH_outlet, label='Na+')
+                ax_ph.set_ylabel('Na+ Concentration, M')
+            else:
+                ax_ph.plot(time/60*Q*6e7, pH_outlet, label='pH')
+                ax_ph.set_ylabel('pH')
             plt.title('ACT binding')
             plt.legend()
             plt.savefig(output_path + '/GRM_ACT_2comp_benchmark1.png')
