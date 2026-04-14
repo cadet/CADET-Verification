@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import src.utility.convergence as convergence
+from src.utility.versionInfo import print_cadet_versions
 
 import src.transport_convDisp as transport_convDisp
 import src.chromatography as chromatography
@@ -38,6 +39,8 @@ sys.path.append(str(Path(".")))
 output_path = Path.cwd() / "output" / "test_cadet-core"
 cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\CADET_v6.0.0-alpha.2\aRELEASE"
 # convergence.get_cadet_path()
+
+print_cadet_versions()
 
 if run_transport_tests:
     transport_convDisp.transport_tests(

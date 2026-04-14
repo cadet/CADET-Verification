@@ -18,6 +18,7 @@ import pytest
 from cadetrdm import ProjectRepo
 
 import src.utility.convergence as convergence
+from src.utility.versionInfo import print_cadet_versions
 
 import src.transport_convDisp as transport_convDisp
 import src.chromatography as chromatography
@@ -101,6 +102,8 @@ def test_selected_model_groups(
     cadet_path = convergence.get_cadet_path()
 
     with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
+
+        print_cadet_versions()        
 
         if run_transport_tests:
             transport_convDisp.transport_tests(
