@@ -12,7 +12,10 @@ The results of the verification studies can be accessed in the [CADET-Verificati
 CADET-Verification must be executed as part of the **CADET-Core release process** and **on demand**, particularly when critical changes are introduced to the simulator.
 For verification runs as part of the CADET-Core release pipeline, the creation of a dedicated release branch in CADET-Verification is recommended, since this eases handling the resulting data later.
 
-To trigger a verification run, manually dispatch the `verify.yml` GitHub Actions workflow. During this process, you must specify the appropriate `pytest` fixtures.
+
+To trigger a verification run, manually dispatch the `verify.yml` GitHub Actions workflow.
+The verification workflow runs in a docker container which is created based on a docker image from the [cadet-suite](https://github.com/cadet/CADET-Core/pkgs/container/cadet-suite). The specific docker image to pull from can be specified in the manual dispatch, otherwise the workflow defaults to the latest tag.
+Additionally, you must specify the appropriate `pytest` fixtures during the manual dispatch.
 For guidance on available parameters and their default values, refer to the `conftest.py` file.
 The input for the workflow for a release verification run might look like this:
 
