@@ -103,7 +103,7 @@ def test_selected_model_groups(
 
     with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
 
-        print_cadet_versions()        
+        print_cadet_versions(cadet_path)
 
         if run_transport_tests:
             transport_convDisp.transport_tests(

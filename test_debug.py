@@ -40,7 +40,7 @@ output_path = Path.cwd() / "output" / "test_cadet-core"
 cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\CADET_v6.0.0-alpha.2\aRELEASE"
 # convergence.get_cadet_path()
 
-print_cadet_versions()
+print_cadet_versions(cadet_path)
 
 if run_transport_tests:
     transport_convDisp.transport_tests(
