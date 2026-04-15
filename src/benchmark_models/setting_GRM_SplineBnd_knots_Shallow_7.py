@@ -73,13 +73,13 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.unit_001.particle_type_000.init_cs = np.array([0.])
     model.root.input.model.unit_001.particle_type_000.init_cp = np.array([0.])
     model.root.input.model.unit_001.particle_type_000.nbound = np.array([1])
-    model.root.input.model.unit_001.particle_type_000.adsorption_model = np.bytes_(b'SPLINE')
+    model.root.input.model.unit_001.particle_type_000.adsorption_model = np.bytes_(b'SPLINE_INTERPOLATION')
     model.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = np.int32(1)
-    model.root.input.model.unit_001.particle_type_000.adsorption.ml_kkin = np.float64(1.0)
-    model.root.input.model.unit_001.particle_type_000.adsorption.spline_model_parameters.c_vals_comp_000 = np.array([
+    model.root.input.model.unit_001.particle_type_000.adsorption.spline_kkin = np.float64(1.0)
+    model.root.input.model.unit_001.particle_type_000.adsorption.cp_vals_comp_000 = np.array([
         0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015 , 3.003003, 6.0
         ])
-    model.root.input.model.unit_001.particle_type_000.adsorption.spline_model_parameters.cs_vals_comp_000_bnd_000 = np.array([
+    model.root.input.model.unit_001.particle_type_000.adsorption.cs_vals_comp_000_bnd_000 = np.array([
         1.29198742, 76.84778516, 110.14325476, 141.59781958, 165.80146634, 181.33282173, 190.23846417
         ])
     model.root.input.model.unit_001.particle_type_000.discretization.spatial_method = np.bytes_(b'FV')
