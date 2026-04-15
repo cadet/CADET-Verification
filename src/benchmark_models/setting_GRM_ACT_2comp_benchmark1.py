@@ -186,7 +186,11 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
     # Solution times
     model.root.input.solver.user_solution_times = np.linspace(0, simulation_end_time, 101)
     
-    model.filename = output_path + '/GRM_ACT_2comp_benchmark1.h5'
+    if use_ion_conc:
+        model.filename = output_path + '/GRM_ACTion_2comp_benchmark1.h5'
+    else:
+        model.filename = output_path + '/GRM_ACTpH_2comp_benchmark1.h5'
+        
     model.save()
     
     if run_simulation:
