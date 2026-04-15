@@ -575,30 +575,27 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          # Coarse FV (4→32768, 14 levels) per config
-          - { id: 0, name: "GRM-lin-FV-coarse",  fv_start: 4,      fv_n: 14 }
-          - { id: 1, name: "GRM-SMA-FV-coarse",  fv_start: 4,      fv_n: 14 }
+          # GRM FV: limited range due to memory constraints
+          #   GRM lin:  128 → 16384 (8 levels)
+          #   GRM SMA:  128 →  4096 (6 levels)
+          - { id: 0, name: "GRM-lin-FV",         fv_start: 128,    fv_n: 8  }
+          - { id: 1, name: "GRM-SMA-FV",         fv_start: 128,    fv_n: 6  }
+          # LRM/LRMP coarse FV (4→32768, 14 levels)
           - { id: 2, name: "LRM-lin-FV-coarse",  fv_start: 4,      fv_n: 14 }
           - { id: 3, name: "LRM-SMA-FV-coarse",  fv_start: 4,      fv_n: 14 }
           - { id: 4, name: "LRMP-lin-FV-coarse", fv_start: 4,      fv_n: 14 }
           - { id: 5, name: "LRMP-SMA-FV-coarse", fv_start: 4,      fv_n: 14 }
-          # Fine FV — 65536
-          - { id: 0, name: "GRM-lin-FV-65K",     fv_start: 65536,  fv_n: 1 }
-          - { id: 1, name: "GRM-SMA-FV-65K",     fv_start: 65536,  fv_n: 1 }
+          # Fine FV — 65536 (LRM/LRMP only)
           - { id: 2, name: "LRM-lin-FV-65K",     fv_start: 65536,  fv_n: 1 }
           - { id: 3, name: "LRM-SMA-FV-65K",     fv_start: 65536,  fv_n: 1 }
           - { id: 4, name: "LRMP-lin-FV-65K",    fv_start: 65536,  fv_n: 1 }
           - { id: 5, name: "LRMP-SMA-FV-65K",    fv_start: 65536,  fv_n: 1 }
-          # Fine FV — 131072
-          - { id: 0, name: "GRM-lin-FV-131K",    fv_start: 131072, fv_n: 1 }
-          - { id: 1, name: "GRM-SMA-FV-131K",    fv_start: 131072, fv_n: 1 }
+          # Fine FV — 131072 (LRM/LRMP only)
           - { id: 2, name: "LRM-lin-FV-131K",    fv_start: 131072, fv_n: 1 }
           - { id: 3, name: "LRM-SMA-FV-131K",    fv_start: 131072, fv_n: 1 }
           - { id: 4, name: "LRMP-lin-FV-131K",   fv_start: 131072, fv_n: 1 }
           - { id: 5, name: "LRMP-SMA-FV-131K",   fv_start: 131072, fv_n: 1 }
-          # Fine FV — 262144
-          - { id: 0, name: "GRM-lin-FV-262K",    fv_start: 262144, fv_n: 1 }
-          - { id: 1, name: "GRM-SMA-FV-262K",    fv_start: 262144, fv_n: 1 }
+          # Fine FV — 262144 (LRM/LRMP only)
           - { id: 2, name: "LRM-lin-FV-262K",    fv_start: 262144, fv_n: 1 }
           - { id: 3, name: "LRM-SMA-FV-262K",    fv_start: 262144, fv_n: 1 }
           - { id: 4, name: "LRMP-lin-FV-262K",   fv_start: 262144, fv_n: 1 }
@@ -737,7 +734,7 @@ jobs:
               n_jobs=-1, small_test=small_test,
               output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
               cadet_path='${CADET_INSTALL}', studies=[3],
-              study2_methods=['DG'],
+              study3_methods=['DG'],
               study3_dispersions=[${{ matrix.disp_idx }}],
               study3_polydegs=[${{ matrix.polydeg }}])
           "
@@ -823,7 +820,7 @@ jobs:
               n_jobs=-1, small_test=small_test,
               output_path=str(Path.cwd() / 'output' / 'test_cadet-core' / 'radialDG'),
               cadet_path='${CADET_INSTALL}', studies=[3],
-              study2_methods=['FV'],
+              study3_methods=['FV'],
               study3_dispersions=[${{ matrix.config.disp_idx }}],
               fv_start_ncol=${{ matrix.config.fv_start }},
               fv_n_disc=${{ matrix.config.fv_n }})

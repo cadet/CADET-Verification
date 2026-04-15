@@ -33,7 +33,7 @@ import src.utility.convergence as convergence
 from cadet import Cadet
 
 
-def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_node_types=None, study1_benchmarks=None, study1_ref_only=False, study1_skip_ref=False, study2_configs=None, study2_methods=None, study2_polydegs=None, study3_dispersions=None, study3_polydegs=None, fv_start_ncol=None, fv_n_disc=None):
+def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, study1_polydegs=None, study1_node_types=None, study1_benchmarks=None, study1_ref_only=False, study1_skip_ref=False, study1_fv_ncol_bm2=None, study2_configs=None, study2_methods=None, study2_polydegs=None, study2_skip_fv=False, study3_dispersions=None, study3_polydegs=None, study3_methods=None, fv_start_ncol=None, fv_n_disc=None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -96,8 +96,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                   **kwargs):
         """Refinement function for radial DG: doubles nElem at each step.
 
-        For GRM models, set refine_par=True to scale pore discretization
-        with bulk: PAR_POLYDEG = max(1, nCells // 4), PAR_NELEM = 1.
+        For GRM models, set refine_par=True to scale particle cells
+        with bulk: NCELLS = max(1, nElem // 4), PAR_POLYDEG = 3 (fixed).
         """
 
         nElem = nelem_start * 2**disc_idx
@@ -125,12 +125,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
         disc['POLYDEG'] = polyDeg
         disc['NELEM'] = nElem
 
-        unit_cfg['node_type'] = node_type
+        unit_cfg['POLYNOMIAL_INTERPOLATION_NODES'] = node_type
 
-        # Scale pore discretization with bulk (CADET-Julia convention)
+        # Scale particle cell count with bulk (fixed PAR_POLYDEG=3)
         if refine_par and 'particle_type_000' in unit_cfg:
             par_disc = unit_cfg['particle_type_000']['discretization']
-            par_disc['PAR_POLYDEG'] = max(1, nElem // 4)
+            par_disc['NCELLS'] = max(1, nElem // 4)
+            par_disc['PAR_POLYDEG'] = 3
             par_disc['PAR_NELEM'] = 1
 
         model = Cadet(install_path=cadet_path)
@@ -143,6 +144,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     def refine_FV_WENO3(config_data, disc_idx, setting_name,
                         nCol_start=8, equivolume=True,
                         time_integrator=None,
+                        refine_par=False,
                         unit_id='001', only_return_name=False,
                         **kwargs):
         """Refinement function for radial FV WENO3: doubles nCol at each step."""
@@ -187,6 +189,13 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
         if pt_disc:
             pt_disc.setdefault('NCELLS', 10)
             pt_disc.setdefault('PAR_DISC_TYPE', 'EQUIDISTANT_PAR')
+
+        # Scale particle cell count with bulk (fixed PAR_POLYDEG=3)
+        if refine_par and 'particle_type_000' in unit_cfg:
+            par_disc = unit_cfg['particle_type_000']['discretization']
+            par_disc['NCELLS'] = max(1, nCol // 4)
+            par_disc['PAR_POLYDEG'] = 3
+            par_disc['PAR_NELEM'] = 1
 
         if equivolume:
             unit = config_data['input']['model']['unit_' + unit_id]
@@ -506,7 +515,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     fv_name_bm1 = 'radCol1D_FV_WENO3_LRM_lin_1comp'
     ref_file_bm1 = convergence.generate_1D_name(fv_name_bm1, 0, _fv_ncol_bm1)
 
-    _fv_ncol_bm2 = 32768 if not small_test else 32
+    _fv_ncol_bm2 = study1_fv_ncol_bm2 if study1_fv_ncol_bm2 is not None else (32768 if not small_test else 32)
     fv_name_bm2 = 'radCol1D_FV_WENO3_LRM_SMA_4comp'
     ref_file_bm2 = convergence.generate_1D_name(fv_name_bm2, 0, _fv_ncol_bm2)
 
@@ -703,9 +712,9 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     par_discs = []
     disc_refinement_functions = []
 
-    # GRM configs: P1-P4, fewer DG refinements
+    # GRM configs: P1-P4, DG from 4 to 128 (6 levels)
     poly_degs_GRM = list(range(1, 5)) if not small_test else [1, 2]
-    n_disc_DG_GRM = 9 if not small_test else 4
+    n_disc_DG_GRM = 6 if not small_test else 4
 
     # LRM/LRMP configs: P1-P5
     poly_degs_LRM = list(range(1, 6)) if not small_test else [1, 2]
@@ -714,21 +723,31 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     _fv_start_2 = fv_start_ncol if fv_start_ncol is not None else 4
     n_disc_FV_2 = fv_n_disc if fv_n_disc is not None else (17 if not small_test else 4)
 
+    # GRM FV crashes at high cell counts (memory), limit FV refinements:
+    #   GRM lin: 128 to 16384 (8 levels from 128)
+    #   GRM SMA: 128 to 4096 (6 levels from 128)
+    n_disc_FV_2_GRM_lin = fv_n_disc if fv_n_disc is not None else (8 if not small_test else 4)
+    n_disc_FV_2_GRM_SMA = fv_n_disc if fv_n_disc is not None else (6 if not small_test else 4)
+
+    # rLRM SMA varCoeff needs consistent_init_mode=5 for FV (IDA_ERR_FAIL at t=0 with mode 1)
+    time_integrator_lrm_sma_fv = copy.deepcopy(time_integrator_strict)
+
     configs_2 = [
-        # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm)
-        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True),
-        (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True),
-        (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False),
-        (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False),
-        (setting_DG_LRMP_lin_var, 'radLRMP_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False),
-        (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False),
+        # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm, n_disc_FV_override, fv_time_integrator_override, consistent_init_mode_fv)
+        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_lin, None, None),
+        (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_SMA, None, None),
+        (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 16, None, None),
+        (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 13, None, 5),
+        (setting_DG_LRMP_lin_var, 'radLRMP_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 15, None, None),
+        (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 15, None, None),
     ]
 
     if study2_configs is not None:
         configs_2 = [configs_2[i] for i in study2_configs if i < len(configs_2)]
 
-    # Start at nElem=8 to avoid stiffness issues at very coarse grids
+    # GRM starts at nElem=4 (to match par refinement), others at 8
     nelem_start_2 = 8
+    nelem_start_2_GRM = 4
 
     # --- Phase 1: Run FV WENO3 sweep (self-convergence) for all configs ---
 
@@ -748,18 +767,28 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     # Track finest FV filename per config for DG reference
     fv_finest_names = {}
 
-    for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm) in enumerate(configs_2):
+    for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm, n_disc_FV_override, fv_ti_override, consistent_init_mode_fv) in enumerate(configs_2):
         base_model = setting_mod.get_model()
-        _fv_start_2_cfg = fv_start_ncol if fv_start_ncol is not None else nelem_start_2
+
+        # Apply consistent_init_mode override for FV if needed
+        if consistent_init_mode_fv is not None:
+            base_model_fv = copy.deepcopy(base_model)
+            base_model_fv['input']['solver']['consistent_init_mode'] = consistent_init_mode_fv
+        else:
+            base_model_fv = base_model
+
+        _fv_start_2_cfg = fv_start_ncol if fv_start_ncol is not None else (128 if is_grm else nelem_start_2)
+        _n_disc_FV_cfg = n_disc_FV_override if n_disc_FV_override is not None else n_disc_FV_2
+        _fv_ti = fv_ti_override if fv_ti_override is not None else ti
         fv_name = f'{prefix.replace("_DG_", "_FV_WENO3_")}'
 
         # Compute finest FV cell count and generate reference filename
-        finest_ncol = _fv_start_2_cfg * 2**(n_disc_FV_2 - 1)
+        finest_ncol = _fv_start_2_cfg * 2**(_n_disc_FV_cfg - 1)
         fv_finest_names[cfg_idx] = convergence.generate_1D_name(
             fv_name, 0, finest_ncol)
 
         addition_fv = {
-            'cadet_config_jsons': [base_model],
+            'cadet_config_jsons': [base_model_fv],
             'cadet_config_names': [fv_name],
             'include_sens': [False],
             'ref_files': [[None]],
@@ -767,7 +796,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
             'which': ['outlet'],
             'idas_abstol': [[None]],
             'ax_methods': [[0]],
-            'ax_discs': [[bench_func.disc_list(_fv_start_2_cfg, n_disc_FV_2)]],
+            'ax_discs': [[bench_func.disc_list(_fv_start_2_cfg, _n_disc_FV_cfg)]],
             'par_methods': [[None]],
             'par_discs': [[None]],
             'disc_refinement_functions': [
@@ -775,7 +804,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                          setting_name=fv_name,
                          nCol_start=_fv_start_2_cfg,
                          equivolume=True,
-                         time_integrator=ti)]
+                         time_integrator=_fv_ti,
+                         refine_par=is_grm)]
             ],
         }
 
@@ -789,33 +819,37 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
     if _run(2):
       try:
-        # Run all FV sweeps in parallel
-        print("\n--- Study 2: Phase 1 — FV WENO3 reference sweep ---")
-        bench_func.run_convergence_analysis(
-            output_path=output_path,
-            cadet_path=cadet_path,
-            cadet_configs=fv_configs,
-            cadet_config_names=fv_config_names,
-            include_sens=fv_include_sens,
-            ref_files=fv_ref_files,
-            unit_IDs=fv_unit_IDs,
-            which=fv_which,
-            ax_methods=fv_ax_methods,
-            ax_discs=fv_ax_discs,
-            par_methods=fv_par_methods,
-            par_discs=fv_par_discs,
-            idas_abstol=fv_idas_abstol,
-            n_jobs=n_jobs,
-            rerun_sims=True,
-            disc_refinement_functions=fv_disc_refinement_functions
-        )
+        if not study2_skip_fv:
+            # Run all FV sweeps in parallel
+            print("\n--- Study 2: Phase 1 — FV WENO3 reference sweep ---")
+            bench_func.run_convergence_analysis(
+                output_path=output_path,
+                cadet_path=cadet_path,
+                cadet_configs=fv_configs,
+                cadet_config_names=fv_config_names,
+                include_sens=fv_include_sens,
+                ref_files=fv_ref_files,
+                unit_IDs=fv_unit_IDs,
+                which=fv_which,
+                ax_methods=fv_ax_methods,
+                ax_discs=fv_ax_discs,
+                par_methods=fv_par_methods,
+                par_discs=fv_par_discs,
+                idas_abstol=fv_idas_abstol,
+                n_jobs=n_jobs,
+                rerun_sims=True,
+                disc_refinement_functions=fv_disc_refinement_functions
+            )
 
         # --- Phase 2: Run DG sweep with finest FV as reference ---
 
         print("\n--- Study 2: Phase 2 — DG convergence against FV reference ---")
 
-        for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm) in enumerate(configs_2):
+        for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm, _nfv, _fvti, _cim) in enumerate(configs_2):
             base_model = setting_mod.get_model()
+            # DG uses consistent_init_mode=1 (mode 5 is only for FV SMA)
+            if _cim is not None:
+                base_model['input']['solver']['consistent_init_mode'] = 1
             ref_file = fv_finest_names[cfg_idx]
 
             _poly_degs = [p for p in poly_degs if study2_polydegs is None or p in study2_polydegs]
@@ -839,6 +873,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
             for p in _poly_degs:
                 methods.append((f'{prefix}_P{p}', p))
 
+            _nelem_start = nelem_start_2_GRM if is_grm else nelem_start_2
             addition = {
                 'cadet_config_jsons': [base_model] * len(methods),
                 'cadet_config_names': [name for name, _ in methods],
@@ -848,7 +883,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                 'which': ['outlet'] * len(methods),
                 'idas_abstol': [[None] for _ in methods],
                 'ax_methods': [[p] for _, p in methods],
-                'ax_discs': [[bench_func.disc_list(nelem_start_2, n_disc_DG)] for _ in methods],
+                'ax_discs': [[bench_func.disc_list(_nelem_start, n_disc_DG)] for _ in methods],
                 'par_methods': [[None] for _ in methods],
                 'par_discs': [[None] for _ in methods],
                 'disc_refinement_functions': [
@@ -856,7 +891,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
                              setting_name=name,
                              polyDeg=polyDeg,
                              node_type='CGL',
-                             nelem_start=nelem_start_2,
+                             nelem_start=_nelem_start,
                              time_integrator=ti,
                              refine_par=is_grm)]
                     for name, polyDeg in methods
@@ -922,8 +957,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     if study3_dispersions is not None:
         _disp_cases = [_disp_cases[i] for i in study3_dispersions if i < len(_disp_cases)]
 
-    _run_dg_3 = study2_methods is None or 'DG' in study2_methods
-    _run_fv_3 = study2_methods is None or 'FV' in study2_methods
+    _run_dg_3 = study3_methods is None or 'DG' in study3_methods
+    _run_fv_3 = study3_methods is None or 'FV' in study3_methods
 
     for D0, label in _disp_cases:
         base_model_lang = setting_DG_LRM_lang.get_model(D0=D0)
