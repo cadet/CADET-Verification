@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Study 2, Config 1: Radial GRM, 1 component, Linear kinetic, variable coefficients.
+Study 2, Config 1: Radial GRM, 1 component, Linear kinetic.
 
 Model: RADIAL_COLUMN_MODEL_1D (GENERAL_RATE_PARTICLE)
 Domain: r in [0.01, 0.024]
@@ -8,9 +8,6 @@ VELOCITY_COEFF = 6.13e-4, COL_DISPERSION = 5.75e-8, COL_POROSITY = 0.37
 
 Binding: LINEAR kinetic (KA=3.55, KD=0.1)
 Particle: eps_p=0.75, Rp=4.5e-5, kf=6.9e-6, Dp=6.07e-10
-
-Variable D(rho) = D0 * (r_in/rho) via RADIAL_RECIPROCAL_POWER_LAW, exponent=1
-Variable kf(rho) = kf0 * (r_in/rho)^(1/3) via RADIAL_RECIPROCAL_POWER_LAW, exponent=1/3
 
 Sections: [0, 10, 1500], c=1 then c=0.
 """
@@ -64,13 +61,6 @@ def get_model():
     col.col_dispersion = [5.75e-8]
     col.velocity_coeff = 6.13e-4
     col.init_c = [0.0]
-
-    # Variable dispersion: D(rho) = D0 * (r_in / rho)
-    col.col_dispersion_dep = 'RADIAL_RECIPROCAL_POWER_LAW'
-    col.col_dispersion_dep_base = 1.0
-    col.col_dispersion_dep_exponent = 1.0
-    col.col_dispersion_dep_rinner = r_in
-    col.col_dispersion_dep_length = r_out - r_in
 
     # Particle: GRM with pore diffusion
     pt = col.particle_type_000

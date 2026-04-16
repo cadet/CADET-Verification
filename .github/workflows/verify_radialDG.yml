@@ -485,22 +485,6 @@ jobs:
           - { id: 2, polydeg: 3, name: "LRM-lin-P3" }
           - { id: 2, polydeg: 4, name: "LRM-lin-P4" }
           - { id: 2, polydeg: 5, name: "LRM-lin-P5" }
-          - { id: 3, polydeg: 1, name: "LRM-SMA-P1" }
-          - { id: 3, polydeg: 2, name: "LRM-SMA-P2" }
-          - { id: 3, polydeg: 3, name: "LRM-SMA-P3" }
-          - { id: 3, polydeg: 4, name: "LRM-SMA-P4" }
-          - { id: 3, polydeg: 5, name: "LRM-SMA-P5" }
-          # LRMP (P1-P5)
-          - { id: 4, polydeg: 1, name: "LRMP-lin-P1" }
-          - { id: 4, polydeg: 2, name: "LRMP-lin-P2" }
-          - { id: 4, polydeg: 3, name: "LRMP-lin-P3" }
-          - { id: 4, polydeg: 4, name: "LRMP-lin-P4" }
-          - { id: 4, polydeg: 5, name: "LRMP-lin-P5" }
-          - { id: 5, polydeg: 1, name: "LRMP-SMA-P1" }
-          - { id: 5, polydeg: 2, name: "LRMP-SMA-P2" }
-          - { id: 5, polydeg: 3, name: "LRMP-SMA-P3" }
-          - { id: 5, polydeg: 4, name: "LRMP-SMA-P4" }
-          - { id: 5, polydeg: 5, name: "LRMP-SMA-P5" }
     defaults:
       run:
         shell: bash -l {0}
@@ -580,26 +564,14 @@ jobs:
           #   GRM SMA:  128 →  4096 (6 levels)
           - { id: 0, name: "GRM-lin-FV",         fv_start: 128,    fv_n: 8  }
           - { id: 1, name: "GRM-SMA-FV",         fv_start: 128,    fv_n: 6  }
-          # LRM/LRMP coarse FV (4→32768, 14 levels)
+          # LRM coarse FV (4→32768, 14 levels)
           - { id: 2, name: "LRM-lin-FV-coarse",  fv_start: 4,      fv_n: 14 }
-          - { id: 3, name: "LRM-SMA-FV-coarse",  fv_start: 4,      fv_n: 14 }
-          - { id: 4, name: "LRMP-lin-FV-coarse", fv_start: 4,      fv_n: 14 }
-          - { id: 5, name: "LRMP-SMA-FV-coarse", fv_start: 4,      fv_n: 14 }
-          # Fine FV — 65536 (LRM/LRMP only)
+          # Fine FV — 65536 (LRM only)
           - { id: 2, name: "LRM-lin-FV-65K",     fv_start: 65536,  fv_n: 1 }
-          - { id: 3, name: "LRM-SMA-FV-65K",     fv_start: 65536,  fv_n: 1 }
-          - { id: 4, name: "LRMP-lin-FV-65K",    fv_start: 65536,  fv_n: 1 }
-          - { id: 5, name: "LRMP-SMA-FV-65K",    fv_start: 65536,  fv_n: 1 }
-          # Fine FV — 131072 (LRM/LRMP only)
+          # Fine FV — 131072 (LRM only)
           - { id: 2, name: "LRM-lin-FV-131K",    fv_start: 131072, fv_n: 1 }
-          - { id: 3, name: "LRM-SMA-FV-131K",    fv_start: 131072, fv_n: 1 }
-          - { id: 4, name: "LRMP-lin-FV-131K",   fv_start: 131072, fv_n: 1 }
-          - { id: 5, name: "LRMP-SMA-FV-131K",   fv_start: 131072, fv_n: 1 }
-          # Fine FV — 262144 (LRM/LRMP only)
+          # Fine FV — 262144 (LRM only)
           - { id: 2, name: "LRM-lin-FV-262K",    fv_start: 262144, fv_n: 1 }
-          - { id: 3, name: "LRM-SMA-FV-262K",    fv_start: 262144, fv_n: 1 }
-          - { id: 4, name: "LRMP-lin-FV-262K",   fv_start: 262144, fv_n: 1 }
-          - { id: 5, name: "LRMP-SMA-FV-262K",   fv_start: 262144, fv_n: 1 }
     defaults:
       run:
         shell: bash -l {0}

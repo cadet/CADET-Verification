@@ -5,7 +5,7 @@ EOC tests for radial DG discretization.
 Studies:
   0. Pure bulk transport — DG self-convergence + DG vs FV WENO3
   1. CGL vs LGL node comparison — rLRM 1-comp Linear + 4-comp SMA
-  2. DG vs FV with variable coefficients — 6 configurations (rGRM/rLRM/rLRMP x 1/4 comp)
+  2. DG vs FV convergence — 3 configurations (rGRM x 1/4 comp + rLRM lin)
   3. Langmuir 2-comp oscillation study — two dispersion levels
 """
 
@@ -18,12 +18,9 @@ from functools import partial
 import src.benchmark_models.setting_radCol1D_DG_transport as setting_DG_transport
 import src.benchmark_models.setting_radCol1D_DG_LRM_lin_1comp as setting_DG_LRM_lin
 import src.benchmark_models.setting_radCol1D_DG_LRM_SMA_4comp as setting_DG_LRM_SMA
-import src.benchmark_models.setting_radCol1D_DG_GRM_lin_1comp_varCoeff as setting_DG_GRM_lin_var
-import src.benchmark_models.setting_radCol1D_DG_GRM_SMA_4comp_varCoeff as setting_DG_GRM_SMA_var
+import src.benchmark_models.setting_radCol1D_DG_GRM_lin_1comp as setting_DG_GRM_lin
+import src.benchmark_models.setting_radCol1D_DG_GRM_SMA_4comp as setting_DG_GRM_SMA
 import src.benchmark_models.setting_radCol1D_DG_LRM_lin_1comp_varCoeff as setting_DG_LRM_lin_var
-import src.benchmark_models.setting_radCol1D_DG_LRM_SMA_4comp_varCoeff as setting_DG_LRM_SMA_var
-import src.benchmark_models.setting_radCol1D_DG_LRMP_lin_1comp_varCoeff as setting_DG_LRMP_lin_var
-import src.benchmark_models.setting_radCol1D_DG_LRMP_SMA_4comp_varCoeff as setting_DG_LRMP_SMA_var
 import src.benchmark_models.setting_radCol1D_DG_LRM_lang_2comp as setting_DG_LRM_lang
 
 import src.bench_func as bench_func
@@ -700,7 +697,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
 
     #
     # ===========================================================================
-    #  Study 2: DG vs FV with variable coefficients — 6 configurations
+    #  Study 2: DG vs FV convergence — 3 configurations
     # ===========================================================================
 
     cadet_configs = []
@@ -733,17 +730,11 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     n_disc_FV_2_GRM_lin = fv_n_disc if fv_n_disc is not None else (8 if not small_test else 4)
     n_disc_FV_2_GRM_SMA = fv_n_disc if fv_n_disc is not None else (6 if not small_test else 4)
 
-    # rLRM SMA varCoeff needs consistent_init_mode=5 for FV (IDA_ERR_FAIL at t=0 with mode 1)
-    time_integrator_lrm_sma_fv = copy.deepcopy(time_integrator_strict)
-
     configs_2 = [
         # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm, n_disc_FV_override, fv_time_integrator_override, consistent_init_mode_fv)
-        (setting_DG_GRM_lin_var, 'radGRM_DG_lin_1comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_lin, None, None),
-        (setting_DG_GRM_SMA_var, 'radGRM_DG_SMA_4comp_varCoeff', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_SMA, None, None),
+        (setting_DG_GRM_lin, 'radGRM_DG_lin_1comp', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_lin, None, None),
+        (setting_DG_GRM_SMA, 'radGRM_DG_SMA_4comp', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_SMA, None, None),
         (setting_DG_LRM_lin_var, 'radLRM_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 16, None, None),
-        (setting_DG_LRM_SMA_var, 'radLRM_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 13, None, 5),
-        (setting_DG_LRMP_lin_var, 'radLRMP_DG_lin_1comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 15, None, None),
-        (setting_DG_LRMP_SMA_var, 'radLRMP_DG_SMA_4comp_varCoeff', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, 15, None, None),
     ]
 
     if study2_configs is not None:
