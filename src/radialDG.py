@@ -954,21 +954,19 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path, studies=None, st
     if study3_polydegs is not None:
         poly_degs_3 = [p for p in poly_degs_3 if p in study3_polydegs]
 
-    # Breuer's thesis discretization ranges (Tables B.10/B.11)
-    # D=1e-4 (more dispersive): DG P3 Z8-Z256, P4 Z8-Z128, P5 Z8-Z128; FV Z64-Z4096
-    # D=1e-5 (less dispersive): DG P3 Z8-Z1024, P4 Z8-Z512, P5 Z8-Z512; FV Z64-Z8192
+    # Breuer's thesis ranges (Tables B.10/B.11) + one extra refinement level
     if not small_test:
         _dg_disc_3 = {
-            'D1e4': {3: [8, 16, 32, 64, 128, 256],
-                     4: [8, 16, 32, 64, 128],
-                     5: [8, 16, 32, 64, 128]},
-            'D1e5': {3: [8, 16, 32, 64, 128, 256, 512, 1024],
-                     4: [8, 16, 32, 64, 128, 256, 512],
-                     5: [8, 16, 32, 64, 128, 256, 512]},
+            'D1e4': {3: [8, 16, 32, 64, 128, 256, 512],
+                     4: [8, 16, 32, 64, 128, 256],
+                     5: [8, 16, 32, 64, 128, 256]},
+            'D1e5': {3: [8, 16, 32, 64, 128, 256, 512, 1024, 2048],
+                     4: [8, 16, 32, 64, 128, 256, 512, 1024],
+                     5: [8, 16, 32, 64, 128, 256, 512, 1024]},
         }
         _fv_disc_3 = {
-            'D1e4': [64, 128, 256, 512, 1024, 2048, 4096],
-            'D1e5': [64, 128, 256, 512, 1024, 2048, 4096, 8192],
+            'D1e4': [64, 128, 256, 512, 1024, 2048, 4096, 8192],
+            'D1e5': [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384],
         }
     else:
         _dg_disc_3 = {
