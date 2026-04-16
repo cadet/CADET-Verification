@@ -9,9 +9,8 @@ Total porosity = 0.4
 Binding: Multi-component Langmuir rapid-eq
   KA=[0.1, 0.05], KD=[1.0, 1.0], QMAX=[10.0, 10.0]
 
-Variable dispersion: D(rho) = D0 * (r_in / rho)
-  via RADIAL_RECIPROCAL_POWER_LAW with exponent=1
-  D0 parameterized (1e-4 or 1e-5)
+Constant dispersion D0 (parameterized: 1e-4 or 1e-5).
+Matches Breuer's thesis Section 5.3 (axial LRM Langmuir oscillation study).
 
 Velocity: v_code = 0.1 * rho_mid
   where rho_mid = sqrt(r_in^2 + 0.5*(r_out^2 - r_in^2))
@@ -76,13 +75,6 @@ def get_model(D0=1e-4):
     col.col_dispersion = [D0] * ncomp
     col.velocity_coeff = v_code
     col.init_c = [0.0] * ncomp
-
-    # Variable dispersion: D(rho) = D0 * (r_in / rho)
-    col.col_dispersion_dep = 'RADIAL_RECIPROCAL_POWER_LAW'
-    col.col_dispersion_dep_base = 1.0
-    col.col_dispersion_dep_exponent = 1.0
-    col.col_dispersion_dep_rinner = r_in
-    col.col_dispersion_dep_length = r_out - r_in
 
     # Binding: Multi-component Langmuir rapid-eq
     col.particle_type_000.has_film_diffusion = 0
