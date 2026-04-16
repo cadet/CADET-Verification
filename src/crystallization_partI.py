@@ -17,7 +17,6 @@ import json
 
 from cadet import Cadet
 
-import src.bench_func as bench_func
 from src.benchmark_models import settings_crystallization
 
 
@@ -49,6 +48,38 @@ def calculate_relative_L1_norm(predicted, analytical, x_grid):
 def get_slope(error):
     return -np.array([np.log2(error[i] / error[i-1]) for i in range (1, len(error))])
 
+def _to_float_list(values):
+    return [float(x) for x in values]
+
+
+def _with_leading_zero(values):
+    values = [float(x) for x in values]
+    return [0.0] + values
+
+
+def _build_solution_payload(grid_key=None, grid_values=None, l1_errors=None, l1_eoc=None, sim_times=None, extra_fields=None):
+    """Build a standardized convergence payload for one solution entry."""
+    payload = {}
+    if grid_key is not None and grid_values is not None:
+        payload[grid_key] = _to_float_list(grid_values)
+    if l1_errors is not None:
+        payload["$L^1$ error"] = _to_float_list(l1_errors)
+    if l1_eoc is not None:
+        payload["$L^1$ EOC"] = _with_leading_zero(l1_eoc)
+    if sim_times is not None:
+        payload["Sim. time"] = _to_float_list(sim_times)
+    if extra_fields:
+        payload.update(extra_fields)
+    return payload
+
+
+def _write_convergence_json(output_file, solutions, method_name="FV"):
+    """Write convergence data in the standardized convergence format."""
+    data = {"convergence": {method_name: solutions}}
+    with open(output_file, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
+
 def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_path): 
     
     ## get ref solution
@@ -58,7 +89,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_p
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"simulation failed")
+            raise Exception(f"{model.filename} simulation failed")
         model.load_from_file()
     
         c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
@@ -87,7 +118,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_p
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"simulation failed")
+            raise Exception(f"{model.filename} simulation failed")
         model.load_from_file() 
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -121,19 +152,17 @@ def CSTR_PBM_growth_EOC_test(small_test, output_path, cadet_path):
     
     print("CSTR_PBM_growth EOC:\n", EOC_c1)
     
-    data = {
-        "convergence" : {
-            "Convergence in internal coordinate": {
-                "Nx" : N_x_test_c1.tolist(),
-                "EOC" : EOC_c1.tolist(),
-                "Sim. time" : simTimes
-                }
-            }
-        }
-    
-    # Write the dictionary to a JSON file
-    with open(str(output_path) + '/CSTR_PBM_growth.json', 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    _write_convergence_json(
+        str(output_path) + '/CSTR_PBM_growth.json',
+        {
+            "outlet": _build_solution_payload(
+                grid_key="$N_e^x$",
+                grid_values=N_x_test_c1,
+                l1_eoc=EOC_c1,
+                sim_times=simTimes,
+            )
+        },
+    )
     
 def CSTR_PBM_growthSizeDep_EOC_test(small_test, output_path, cadet_path):
     
@@ -149,19 +178,17 @@ def CSTR_PBM_growthSizeDep_EOC_test(small_test, output_path, cadet_path):
     
     print("CSTR_PBM_growthSizeDep EOC:\n", EOC_c2)
     
-    data = {
-        "convergence" : {
-            "Convergence in internal coordinate": {
-                "Nx" : N_x_test_c2.tolist(),
-                "EOC" : EOC_c2.tolist(),
-                "Sim. time" : simTimes
-                }
-            }
-        }
-    
-    # Write the dictionary to a JSON file
-    with open(str(output_path) + '/CSTR_PBM_growthSizeDep.json', 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    _write_convergence_json(
+        str(output_path) + '/CSTR_PBM_growthSizeDep.json',
+        {
+            "outlet": _build_solution_payload(
+                grid_key="$N_e^x$",
+                grid_values=N_x_test_c2,
+                l1_eoc=EOC_c2,
+                sim_times=simTimes,
+            )
+        },
+    )
     
 
 def CSTR_PBM_primaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_path):
@@ -179,19 +206,17 @@ def CSTR_PBM_primaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_
     
     print("CSTR_PBM_primaryNucleationAndGrowth EOC:\n", EOC_c3)
     
-    data = {
-        "convergence" : {
-            "Convergence in internal coordinate": {
-                "Nx" : N_x_test_c3.tolist(),
-                "EOC" : EOC_c3.tolist(),
-                "Sim. time" : simTimes
-                }
-            }
-        }
-    
-    # Write the dictionary to a JSON file
-    with open(str(output_path) + '/CSTR_PBM_primaryNucleationAndGrowth.json', 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    _write_convergence_json(
+        str(output_path) + '/CSTR_PBM_primaryNucleationAndGrowth.json',
+        {
+            "outlet": _build_solution_payload(
+                grid_key="$N_e^x$",
+                grid_values=N_x_test_c3,
+                l1_eoc=EOC_c3,
+                sim_times=simTimes,
+            )
+        },
+    )
 
     
 def CSTR_PBM_primarySecondaryNucleationAndGrowth_EOC_test(small_test, output_path, cadet_path):
@@ -209,19 +234,17 @@ def CSTR_PBM_primarySecondaryNucleationAndGrowth_EOC_test(small_test, output_pat
     
     print("CSTR_PBM_primarySecondaryNucleationAndGrowth EOC:\n", EOC_c4)
     
-    data = {
-        "convergence" : {
-            "Convergence in internal coordinate": {
-                "Nx" : N_x_test_c4.tolist(),
-                "EOC" : EOC_c4.tolist(),
-                "Sim. time" : simTimes
-                }
-            }
-        }
-    
-    # Write the dictionary to a JSON file
-    with open(str(output_path) + '/CSTR_PBM_primarySecondaryNucleationAndGrowth.json', 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    _write_convergence_json(
+        str(output_path) + '/CSTR_PBM_primarySecondaryNucleationAndGrowth.json',
+        {
+            "outlet": _build_solution_payload(
+                grid_key="$N_e^x$",
+                grid_values=N_x_test_c4,
+                l1_eoc=EOC_c4,
+                sim_times=simTimes,
+            )
+        },
+    )
     
 
 def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_EOC_test(
@@ -240,19 +263,17 @@ def CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_EOC_test(
     
     print("CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion EOC:\n", EOC_c5)
     
-    data = {
-        "convergence" : {
-            "Convergence in internal coordinate": {
-                "Nx" : N_x_test_c5.tolist(),
-                "EOC" : EOC_c5.tolist(),
-                "Sim. time" : simTimes
-                }
-            }
-        }
-    
-    # Write the dictionary to a JSON file
-    with open(str(output_path) + '/CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion.json', 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    _write_convergence_json(
+        str(output_path) + '/CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion.json',
+        {
+            "outlet": _build_solution_payload(
+                grid_key="$N_e^x$",
+                grid_values=N_x_test_c5,
+                l1_eoc=EOC_c5,
+                sim_times=simTimes,
+            )
+        },
+    )
     
 def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         small_test, output_path, cadet_path):
@@ -294,7 +315,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"simulation failed")
+            raise Exception(f"{model.filename} simulation failed")
         model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -315,6 +336,20 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     
     # Only for extended/long test run, we compute convergence of external and internal coordinate independent of each other
     if small_test:
+        _write_convergence_json(
+            str(output_path) + '/DPFR_PBM_primarySecondaryNucleationGrowth.json',
+            {
+                "joint_refinement": _build_solution_payload(
+                    l1_errors=relative_L1_norms,
+                    l1_eoc=slopes,
+                    sim_times=simTimesIntRefinement,
+                    extra_fields={
+                        "$N_e^x$": _to_float_list(N_x_test_c6),
+                        "$N_e^z$": _to_float_list(N_col_test_c6),
+                    },
+                ),
+            },
+        )
         return
     
     ## EOC, Nx
@@ -326,7 +361,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"simulation failed")
+            raise Exception(f"{model.filename} simulation failed")
         model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -354,7 +389,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"simulation failed")
+            raise Exception(f"{model.filename} simulation failed")
         model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -373,25 +408,32 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
     
     print("DPFR_PBM_primarySecondaryNucleationGrowth L1 normalized error in axial coordinate:\n", relative_L1_norms_Ncol)
     print("DPFR_PBM_primarySecondaryNucleationGrowth EOC in axial direction:\n", slopes_Ncol)
-    data = {
-        "convergence" : {
-        "Convergence in axial direction":
-            {
-            "Ncol" : N_col_test_c6.tolist(),
-            "L1 error normalized by L1 norm of reference" : relative_L1_norms_Ncol,
-            "EOC" : slopes_Ncol.tolist(),
-            "Sim. time" : simTimesAxRefinement
-            },
-        "Convergence in internal coordinate" : {
-            "Nx" : N_x_test_c6.tolist(),
-            "L1 error normalized by L1 norm of reference" : relative_L1_norms_Nx,
-            "EOC" : slopes_Nx.tolist(),
-            "Sim. time" : simTimesIntRefinement
-            }
-        }
-    }
-    
-    # Write the dictionary to a JSON file
-    with open(str(output_path) + '/DPFR_PBM_primarySecondaryNucleationGrowth.json', 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+    _write_convergence_json(
+        str(output_path) + '/DPFR_PBM_primarySecondaryNucleationGrowth.json',
+        {
+            "joint_refinement": _build_solution_payload(
+                l1_errors=relative_L1_norms,
+                l1_eoc=slopes,
+                sim_times=simTimesIntRefinement,
+                extra_fields={
+                    "$N_e^x$": _to_float_list(N_x_test_c6),
+                    "$N_e^z$": _to_float_list(N_col_test_c6),
+                },
+            ),
+            "axial_refinement": _build_solution_payload(
+                grid_key="$N_e^z$",
+                grid_values=N_col_test_c6,
+                l1_errors=relative_L1_norms_Ncol,
+                l1_eoc=slopes_Ncol,
+                sim_times=simTimesAxRefinement,
+            ),
+            "internal_refinement": _build_solution_payload(
+                grid_key="$N_e^x$",
+                grid_values=N_x_test_c6,
+                l1_errors=relative_L1_norms_Nx,
+                l1_eoc=slopes_Nx,
+                sim_times=simTimesIntRefinement,
+            ),
+        },
+    )
 
