@@ -223,7 +223,10 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
                 ax_ph.set_ylabel('pH')
             plt.title('ACT binding')
             plt.legend()
-            plt.savefig(output_path + '/GRM_ACT_2comp_benchmark1.png')
+            if use_ion_conc:
+                plt.savefig(output_path + '/GRM_ACTion_2comp_benchmark1.png')
+            else:
+                plt.savefig(output_path + '/GRM_ACTpH_2comp_benchmark1.png')
             plt.show()
             plt.close()
             
