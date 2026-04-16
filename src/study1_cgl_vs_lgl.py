@@ -186,25 +186,33 @@ def study1_tests(n_jobs, small_test, output_path, cadet_path,
         # Rerun to get minimum wall time
         if n_repeats > 1:
             print(f"\n  Rerunning {n_repeats - 1} more times for minimum wall time...")
+            # Build list of expected file prefixes from current config
+            expected_prefixes = []
+            for nt in node_types_list:
+                for p in poly_degs:
+                    expected_prefixes.append(f'radCol1D_DG_{nt}_transport_1comp_P{p}_DG_P{p}Z')
             study1_files = [
                 f for f in os.listdir(output_path)
-                if f.endswith('.h5') and '_DG_' in f and '_transport_1comp_P' in f
-                and any(f'_DG_{nt}_' in f for nt in node_types_list)
+                if f.endswith('.h5')
+                and any(f.startswith(pfx) for pfx in expected_prefixes)
             ]
             model_rerun = Cadet()
             model_rerun.install_path = cadet_path
             for fname in sorted(study1_files):
-                model_rerun.filename = os.path.join(output_path, fname)
-                model_rerun.load_from_file()
-                best_time = model_rerun.root.meta.time_sim
-                for _ in range(n_repeats - 1):
-                    ret = model_rerun.run_load()
-                    if ret.return_code == 0:
-                        best_time = min(best_time, model_rerun.root.meta.time_sim)
-                model_rerun.load_from_file()
-                model_rerun.root.meta.time_sim = best_time
-                model_rerun.save()
-                print(f"    {fname}: best time = {best_time:.6f}s")
+                try:
+                    model_rerun.filename = os.path.join(output_path, fname)
+                    model_rerun.load_from_file()
+                    best_time = model_rerun.root.meta.time_sim
+                    for _ in range(n_repeats - 1):
+                        ret = model_rerun.run_load()
+                        if ret.return_code == 0:
+                            best_time = min(best_time, model_rerun.root.meta.time_sim)
+                    model_rerun.load_from_file()
+                    model_rerun.root.meta.time_sim = best_time
+                    model_rerun.save()
+                    print(f"    {fname}: best time = {best_time:.6f}s")
+                except Exception as e:
+                    print(f"    {fname}: SKIPPED (error: {e})")
 
             # Recompute convergence tables with best times
             bench_func.run_convergence_analysis(
