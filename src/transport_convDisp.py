@@ -494,6 +494,23 @@ def transport_tests(n_jobs, small_test,
         cadet_config_names=cadet_config_names, addition=addition,
         disc_refinement_functions=disc_refinement_functions)
     
+#%% run 1D tests
+
+    bench_func.run_convergence_analysis(
+        output_path=output_path,
+        cadet_path=cadet_path,
+        cadet_configs=cadet_configs,
+        cadet_config_names=cadet_config_names,
+        include_sens=include_sens,
+        ref_files=ref_files,
+        unit_IDs=unit_IDs,
+        which=which,
+        ax_methods=ax_methods,
+        ax_discs=ax_discs,
+        n_jobs=n_jobs,
+        rerun_sims=True,
+        disc_refinement_functions = disc_refinement_functions
+    )
 
     #%% 2DGRM (General Rate Model 2D) - axial flow transport refinement
 
