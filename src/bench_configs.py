@@ -361,7 +361,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
             'LRM_reqSMA_4comp_benchmark1',
             'LRMP_reqSMA_4comp_benchmark1',
             'GRM_reqSMA_4comp_benchmark1',
-            'GRM_4parTypeLin_4comp_benchmark1'
+            'GRM_2parTypeLin_4comp_benchmark1' if small_test else 'GRM_4parTypeLin_4comp_benchmark1'
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [

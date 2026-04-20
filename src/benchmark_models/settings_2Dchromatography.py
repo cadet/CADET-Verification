@@ -186,11 +186,9 @@ def GRM2D_linBnd_benchmark1(
         radMethod=0, radNElem=3,
         parMethod=0, parNElem=2,
         nRadialZones=1,  # discontinuous radial inlet zones (equidistant)
-        tolerance=1e-12,
         plot=False, run=False,
         save_path="C:/Users/jmbr/JupyterNotebooks/",
         file_name=None,
-        export_json_config=False,
         transport_model=None,
         **kwargs
 ):
@@ -265,7 +263,7 @@ def GRM2D_linBnd_benchmark1(
             column[groupName].discretization.SPATIAL_METHOD = 'DG'
             column[groupName].discretization.PAR_POLYDEG = parMethod
             column[groupName].discretization.PAR_NELEM = parNElem
-        else:
+        elif parMethod == 0:
             column[groupName].discretization.SPATIAL_METHOD = 'FV'
             column[groupName].discretization.NCELLS = parNElem
             column[groupName].discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
@@ -306,7 +304,7 @@ def GRM2D_linBnd_benchmark1(
             column.discretization.POLYDEG = axMethod
             column.discretization.NELEM = axNElem
             column.discretization.POLYNOMIAL_INTEGRATION_TYPE = 1
-    else:
+    elif axMethod == 0:
         column.discretization.SPATIAL_METHOD = "FV"
         column.discretization.NCOL = axNElem
         column.discretization.NRAD = radNElem
@@ -318,7 +316,8 @@ def GRM2D_linBnd_benchmark1(
         column.discretization.MAX_KRYLOV = 0
         column.discretization.MAX_RESTARTS = 10
 
-    column.discretization.USE_ANALYTIC_JACOBIAN = True
+    if axMethod >= 0:
+        column.discretization.USE_ANALYTIC_JACOBIAN = True
     column.discretization.RADIAL_DISC_TYPE = 'EQUIDISTANT'
     column.PORTS = nRadPoints
 
@@ -356,23 +355,24 @@ def GRM2D_linBnd_benchmark1(
         'WRITE_SENS_OUTLET', 0)
 
     # Tolerances for the time integrator
-    model.solver.time_integrator.USE_MODIFIED_NEWTON = kwargs.get(
-        'USE_MODIFIED_NEWTON', 0)
-    model.solver.time_integrator.ABSTOL = 1e-6
-    model.solver.time_integrator.ALGTOL = 1e-10
-    model.solver.time_integrator.RELTOL = 1e-6
-    model.solver.time_integrator.INIT_STEP_SIZE = 1e-6
-    model.solver.time_integrator.MAX_STEPS = 1000000
-
-    # Solver settings
-    model.model.solver.GS_TYPE = 1
-    model.model.solver.MAX_KRYLOV = 0
-    model.model.solver.MAX_RESTARTS = 10
-    model.model.solver.SCHUR_SAFETY = 1e-8
-
-    # Run the simulation on single thread
-    model.solver.NTHREADS = 1
-    model.solver.CONSISTENT_INIT_MODE = 3
+    if axMethod >= 0:
+        model.solver.time_integrator.USE_MODIFIED_NEWTON = kwargs.get(
+            'USE_MODIFIED_NEWTON', 0)
+        model.solver.time_integrator.ABSTOL = 1e-6
+        model.solver.time_integrator.ALGTOL = 1e-10
+        model.solver.time_integrator.RELTOL = 1e-6
+        model.solver.time_integrator.INIT_STEP_SIZE = 1e-6
+        model.solver.time_integrator.MAX_STEPS = 1000000
+    
+        # Solver settings
+        model.model.solver.GS_TYPE = 1
+        model.model.solver.MAX_KRYLOV = 0
+        model.model.solver.MAX_RESTARTS = 10
+        model.model.solver.SCHUR_SAFETY = 1e-8
+    
+        # Run the simulation on single thread
+        model.solver.NTHREADS = 1
+        model.solver.CONSISTENT_INIT_MODE = 3
     
     # Sections
     model.solver.sections.NSEC = 2

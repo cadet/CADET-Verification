@@ -49,7 +49,7 @@ def get_model(
         column.discretization.POLYNOMIAL_INTEGRATION_TYPE = kwargs.get('POLYNOMIAL_INTEGRATION_TYPE', 0)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
-    else:
+    elif spatial_method_bulk == 0:
         column.discretization.SPATIAL_METHOD = "FV"
         column.discretization.NCOL = axNElem
         column.discretization.RECONSTRUCTION = 'WENO'
@@ -60,8 +60,9 @@ def get_model(
         column.discretization.MAX_KRYLOV = 0
         column.discretization.MAX_RESTARTS = 10
         column.discretization.SCHUR_SAFETY = 1.0e-8
-
-    column.discretization.USE_ANALYTIC_JACOBIAN = 1
+    if spatial_method_bulk >= 0:
+        column.discretization.USE_ANALYTIC_JACOBIAN = 1
+    
     column.init_c = [ 0.0 ]
     
     if particle_type in ["HOMOGENEOUS_PARTICLE", "GENERAL_RATE_PARTICLE"]:
@@ -81,7 +82,7 @@ def get_model(
             if 'spatial_method_particle' in kwargs:
                 column.particle_type_000.discretization.SPATIAL_METHOD = kwargs['spatial_method_particle']
             else:
-                raise Exception(f"keyword argument spatial_method_particle needs to be specified for general rate particles")
+                raise Exception("keyword argument spatial_method_particle needs to be specified for general rate particles")
             
             if kwargs.get('surface_diffusion', 0.0) > 0.0:
                 column.particle_type_000.has_surface_diffusion = 1
@@ -93,12 +94,12 @@ def get_model(
                 column.discretization.SPATIAL_METHOD = "DG"
                 column.particle_type_000.discretization.PAR_POLYDEG = kwargs['spatial_method_particle']
                 column.particle_type_000.discretization.PAR_NELEM = parNElem
-            else:
+            elif kwargs['spatial_method_particle'] == 0:
                 column.discretization.SPATIAL_METHOD = "FV"
                 column.particle_type_000.discretization.NCELLS = parNElem
                 column.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
-                
-            column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+            if kwargs['spatial_method_particle'] >= 0:  
+                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
             
         else:
             column.particle_type_000.has_pore_diffusion = 0
@@ -116,23 +117,25 @@ def get_model(
     model.input.model.unit_001 = column
     
     #%% time integration parameters
-    # non-linear solver
-    model.input.model.solver.gs_type = 1
-    model.input.model.solver.max_krylov = 0
-    model.input.model.solver.max_restarts = 10
-    model.input.model.solver.schur_safety = 1e-08
-    # time integration / solver specifics
-    model.input.solver.consistent_init_mode = 1
-    model.input.solver.consistent_init_mode_sens = 3
-    model.input.solver.nthreads = 1
+    if spatial_method_bulk >= 0:
+        # non-linear solver
+        model.input.model.solver.gs_type = 1
+        model.input.model.solver.max_krylov = 0
+        model.input.model.solver.max_restarts = 10
+        model.input.model.solver.schur_safety = 1e-08
+        # time integration / solver specifics
+        model.input.solver.consistent_init_mode = 1
+        model.input.solver.consistent_init_mode_sens = 3
+        model.input.solver.nthreads = 1
+        model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
+        model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-10)
+        model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
+        model.input.solver.time_integrator.MAX_STEPS = 10000
+        model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-10)
+    
     model.input.solver.sections.nsec = 2
     model.input.solver.sections.section_continuity = [ 0 ]
     model.input.solver.sections.section_times = [ 0.0, 10.0, 1500.0 ]
-    model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
-    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-10)
-    model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
-    model.input.solver.time_integrator.MAX_STEPS = 10000
-    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-10)
     model.input.solver.user_solution_times = np.linspace(0.0, 1500.0, 1500*4 + 1)
     
     #%% auxiliary units: inlet and outlet
