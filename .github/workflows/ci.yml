@@ -10,7 +10,7 @@ on:
       docker_image:
         description: "Docker image to use for the verification job"
         required: false
-        default: "ghcr.io/cadet/cadet-suite:master"
+        default: "ghcr.io/cadet/cadet-suite:latest"
       branch:
         description: "Branch or commit SHA to test (only used in manual dispatch)"
         required: false
@@ -23,7 +23,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      DOCKER_IMAGE: ${{ github.event.inputs.docker_image || 'ghcr.io/cadet/cadet-suite:master' }}
+      DOCKER_IMAGE: ${{ github.event.inputs.docker_image || 'ghcr.io/cadet/cadet-suite:latest' }}
       COMMIT_SHA: ${{ github.event.inputs.branch || github.event.pull_request.head.sha || github.sha }}
       PYTEST_ARGS: ""
     steps:
