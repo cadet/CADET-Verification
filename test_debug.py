@@ -33,7 +33,7 @@ run_MCT_tests = False
 run_chromatography_sensitivity_tests = False
 run_chromatography_system_tests = False
 run_crystallization_tests = False
-run_2Dmodels_tests = False
+run_2Dmodels_tests = True
 
 sys.path.append(str(Path(".")))
 output_path = Path.cwd() / "output" / "test_cadet-core"
@@ -47,7 +47,8 @@ if run_transport_tests:
         n_jobs=n_jobs,
         small_test=small_test,
         output_path=str(output_path) + "/transport",
-        cadet_path=cadet_path
+        cadet_path=cadet_path,
+        reference_data_path=str(Path.cwd()) + '/data'
     )
     if delete_h5_files:
         convergence.delete_h5_files(str(output_path) + "/transport")
