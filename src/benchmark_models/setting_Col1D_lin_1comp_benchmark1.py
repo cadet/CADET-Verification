@@ -81,7 +81,7 @@ def get_model(
             if 'spatial_method_particle' in kwargs:
                 column.particle_type_000.discretization.SPATIAL_METHOD = kwargs['spatial_method_particle']
             else:
-                raise Exception(f"keyword argument spatial_method_particle needs to be specified for general rate particles")
+                raise Exception("keyword argument spatial_method_particle needs to be specified for general rate particles")
             
             if kwargs.get('surface_diffusion', 0.0) > 0.0:
                 column.particle_type_000.has_surface_diffusion = 1
