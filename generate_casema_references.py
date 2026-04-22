@@ -33,6 +33,23 @@ GRMlinBnd.save()
 
 subprocess.run([executable_path, GRMlinBnd.filename], check=True)
 
+GRMsdlinBnd = Cadet()
+GRMsdlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
+    spatial_method_bulk=-1, spatial_method_particle=-1,
+    particle_type='GENERAL_RATE_PARTICLE',
+    surface_diffusion=5E-11
+    )
+
+GRMsdlinBnd.root['input'].solver.casema_options  = {
+    "ERROR_THRESHOLD": 1e-20,
+    "NTHREADS": 4
+    }
+
+GRMsdlinBnd.filename = file_path + r"/GRMsd_dynLin_1comp_benchmark1.h5"
+GRMsdlinBnd.save()
+
+subprocess.run([executable_path, GRMsdlinBnd.filename], check=True)
+
 LRMPlinBnd = Cadet()
 LRMPlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
     spatial_method_bulk=-1,
@@ -94,7 +111,7 @@ for small_test in [True, False]:
      }
 
     if small_test:
-        mulParTypeModel.filename = file_path + 'GRM_' + str(mulParTypeModel.root['input'].model.unit_001.npartype) + 'parTypeLin_4comp_benchmark1.h5'
+        mulParTypeModel.filename = file_path + '/GRM_' + str(mulParTypeModel.root['input'].model.unit_001.npartype) + 'parTypeLin_4comp_benchmark1.h5'
     
     mulParTypeModel.save()
     
@@ -109,7 +126,7 @@ acyclicModel.root['input'].solver.casema_options  = {
     "NTHREADS": 4
     }
 
-acyclicModel.filename = file_path + r"/new_acyclicSystem1_LRMP_linBnd_1comp.h5"
+acyclicModel.filename = file_path + r"/acyclicSystem1_LRMP_linBnd_1comp.h5"
 acyclicModel.save()
 
 
@@ -126,7 +143,7 @@ cyclicModel.root['input'].solver.casema_options  = {
     "NTHREADS": 4
     }
 
-cyclicModel.filename = file_path + r"/new_acyclicSystem1_LRMP_linBnd_1comp.h5"
+cyclicModel.filename = file_path + r"/cyclicSystem1_LRMP_linBnd_1comp.h5"
 cyclicModel.save()
 
 
