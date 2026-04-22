@@ -242,6 +242,8 @@ def transport_tests(n_jobs, small_test,
             Cadet object.
         """
 
+        spatial_discretization = copy.deepcopy(spatial_discretization)
+
         # Adjust configuration to desired numerical refinement
         if time_integrator is not None:
             config_data['input']['solver']['time_integrator'] = time_integrator
@@ -326,32 +328,32 @@ def transport_tests(n_jobs, small_test,
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_WENO2_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO2),
+                         spatial_discretization=spatial_discretization_WENO2,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_WENO2nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO2NonEq),
+                         spatial_discretization=spatial_discretization_WENO2NonEq,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_WENO3_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
+                         spatial_discretization=spatial_discretization_WENO3,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_WENO3nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
+                         spatial_discretization=spatial_discretization_WENO3NonEq,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_KOREN_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
+                         spatial_discretization=spatial_discretization_KOREN,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_KORENnonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
+                         spatial_discretization=spatial_discretization_KORENNonEq,
                          time_integrator=time_integrator
                          )
                 ]]
@@ -399,32 +401,32 @@ def transport_tests(n_jobs, small_test,
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_WENO2_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO2),
+                         spatial_discretization=spatial_discretization_WENO2,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_WENO2nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO2NonEq),
+                         spatial_discretization=spatial_discretization_WENO2NonEq,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_WENO3_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
+                         spatial_discretization=spatial_discretization_WENO3,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_WENO3nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
+                         spatial_discretization=spatial_discretization_WENO3NonEq,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_KOREN_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
+                         spatial_discretization=spatial_discretization_KOREN,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_KORENnonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
+                         spatial_discretization=spatial_discretization_KORENNonEq,
                          time_integrator=time_integrator
                          )
                 ]]
@@ -473,32 +475,32 @@ def transport_tests(n_jobs, small_test,
         'disc_refinement_functions': [[
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_WENO2_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_WENO2),
+                    spatial_discretization=spatial_discretization_WENO2,
                     time_integrator=time_integrator
                     ),
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_WENO2nonEq_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_WENO2NonEq),
+                    spatial_discretization=spatial_discretization_WENO2NonEq,
                     time_integrator=time_integrator
                     ),
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_WENO3_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
+                    spatial_discretization=spatial_discretization_WENO3,
                     time_integrator=time_integrator
                     ),
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_WENO3nonEq_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
+                    spatial_discretization=spatial_discretization_WENO3NonEq,
                     time_integrator=time_integrator
                     ),
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_KOREN_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
+                    spatial_discretization=spatial_discretization_KOREN,
                     time_integrator=time_integrator
                     ),
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_KORENnonEq_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
+                    spatial_discretization=spatial_discretization_KORENNonEq,
                     time_integrator=time_integrator
                     )
         ]]
@@ -555,6 +557,8 @@ def transport_tests(n_jobs, small_test,
                               only_return_name=False,
                               **kwargs):
         """Refinement function for 2DGRM: uses AXIAL_GRID_FACES instead of GRID_FACES."""
+
+        spatial_discretization = copy.deepcopy(spatial_discretization)
 
         if time_integrator is not None:
             config_data['input']['solver']['time_integrator'] = time_integrator
@@ -626,22 +630,22 @@ def transport_tests(n_jobs, small_test,
             'disc_refinement_functions' : [[
                 partial(refine_discretization_col2d,
                          setting_name="COL2D_transport_1comp_WENO3_axbenchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
+                         spatial_discretization=spatial_discretization_WENO3,
                          time_integrator=time_integrator_2dgrm
                          ),
                 partial(refine_discretization_col2d,
                          setting_name="COL2D_transport_1comp_WENO3nonEq_axbenchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
+                         spatial_discretization=spatial_discretization_WENO3NonEq,
                          time_integrator=time_integrator_2dgrm
                          ),
                 partial(refine_discretization_col2d,
                          setting_name="COL2D_transport_1comp_KOREN_axbenchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
+                         spatial_discretization=spatial_discretization_KOREN,
                          time_integrator=time_integrator_2dgrm
                          ),
                 partial(refine_discretization_col2d,
                          setting_name="COL2D_transport_1comp_KORENnonEq_axbenchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
+                         spatial_discretization=spatial_discretization_KORENNonEq,
                          time_integrator=time_integrator_2dgrm
                          )
                 ]]
@@ -714,25 +718,25 @@ def transport_tests(n_jobs, small_test,
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
                          setting_name="MCT_transport_1comp_WENO3_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3),
+                         spatial_discretization=spatial_discretization_WENO3,
                          time_integrator=time_integrator,
 
                          ),
                 partial(refine_discretization,
                          setting_name="MCT_transport_1comp_WENO3nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO3NonEq),
+                         spatial_discretization=spatial_discretization_WENO3NonEq,
                          time_integrator=time_integrator,
 
                          ),
                 partial(refine_discretization,
                          setting_name="MCT_transport_1comp_KOREN_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
+                         spatial_discretization=spatial_discretization_KOREN,
                          time_integrator=time_integrator,
 
                          ),
                 partial(refine_discretization,
                          setting_name="MCT_transport_1comp_KORENnonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
+                         spatial_discretization=spatial_discretization_KORENNonEq,
                          time_integrator=time_integrator,
 
                          )
