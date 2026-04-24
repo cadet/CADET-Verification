@@ -211,10 +211,10 @@ def _load_analytical_reference(filename):
 def fv_benchmark(small_test=False, sensitivities=False):
 
     # Load analytical references for linear 1-component benchmarks
-    ref_LRM = _load_analytical_reference('ref_LRM_dynLin_1comp_benchmark1.h5')
-    ref_LRMP = _load_analytical_reference('ref_LRMP_dynLin_1comp_benchmark1.h5')
-    ref_GRM = _load_analytical_reference('ref_GRM_dynLin_1comp_benchmark1.h5')
-    ref_GRMsd = _load_analytical_reference('ref_GRMsd_dynLin_1comp_benchmark1.h5')
+    ref_LRM = _load_analytical_reference('LRM_dynLin_1comp_benchmark1.h5')
+    ref_LRMP = _load_analytical_reference('LRMP_dynLin_1comp_benchmark1.h5')
+    ref_GRM = _load_analytical_reference('GRM_dynLin_1comp_benchmark1.h5')
+    ref_GRMsd = _load_analytical_reference('GRMsd_dynLin_1comp_benchmark1.h5')
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -328,10 +328,10 @@ def dg_benchmark(small_test=False, sensitivities=False):
     n_settings = 8
 
     # Load analytical references for linear 1-component benchmarks
-    ref_LRM = _load_analytical_reference('ref_LRM_dynLin_1comp_benchmark1.h5')
-    ref_LRMP = _load_analytical_reference('ref_LRMP_dynLin_1comp_benchmark1.h5')
-    ref_GRM = _load_analytical_reference('ref_GRM_dynLin_1comp_benchmark1.h5')
-    ref_GRMsd = _load_analytical_reference('ref_GRMsd_dynLin_1comp_benchmark1.h5')
+    ref_LRM = _load_analytical_reference('LRM_dynLin_1comp_benchmark1.h5')
+    ref_LRMP = _load_analytical_reference('LRMP_dynLin_1comp_benchmark1.h5')
+    ref_GRM = _load_analytical_reference('GRM_dynLin_1comp_benchmark1.h5')
+    ref_GRMsd = _load_analytical_reference('GRMsd_dynLin_1comp_benchmark1.h5')
 
     benchmark_config = {
         'cadet_config_jsons': [

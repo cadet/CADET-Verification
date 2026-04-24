@@ -131,7 +131,7 @@ def main():
     lrm_ref = get_LRM_analytical_reference(solution_times, dps=dps)
     print(f"     Computed in {time.time() - t0:.1f}s, max={np.max(lrm_ref):.6e}")
     save_analytical_reference(
-        output_dir / 'ref_LRM_dynLin_1comp_benchmark1.h5',
+        output_dir / 'LRM_dynLin_1comp_benchmark1.h5',
         solution_times, lrm_ref, 'LRM', LRM_BENCHMARK_PARAMS
     )
 
@@ -141,7 +141,7 @@ def main():
     lrmp_ref = get_LRMP_analytical_reference(solution_times, dps=dps)
     print(f"     Computed in {time.time() - t0:.1f}s, max={np.max(lrmp_ref):.6e}")
     save_analytical_reference(
-        output_dir / 'ref_LRMP_dynLin_1comp_benchmark1.h5',
+        output_dir / 'LRMP_dynLin_1comp_benchmark1.h5',
         solution_times, lrmp_ref, 'LRMP', LRMP_BENCHMARK_PARAMS
     )
 
@@ -151,7 +151,7 @@ def main():
     grm_ref = get_GRM_analytical_reference(solution_times, surface_diffusion=0.0, dps=dps)
     print(f"     Computed in {time.time() - t0:.1f}s, max={np.max(grm_ref):.6e}")
     save_analytical_reference(
-        output_dir / 'ref_GRM_dynLin_1comp_benchmark1.h5',
+        output_dir / 'GRM_dynLin_1comp_benchmark1.h5',
         solution_times, grm_ref, 'GRM', GRM_BENCHMARK_PARAMS
     )
 
@@ -162,7 +162,7 @@ def main():
     grmsd_ref = get_GRM_analytical_reference(solution_times, surface_diffusion=5e-11, dps=dps)
     print(f"     Computed in {time.time() - t0:.1f}s, max={np.max(grmsd_ref):.6e}")
     save_analytical_reference(
-        output_dir / 'ref_GRMsd_dynLin_1comp_benchmark1.h5',
+        output_dir / 'GRMsd_dynLin_1comp_benchmark1.h5',
         solution_times, grmsd_ref, 'GRM', grmsd_params
     )
 

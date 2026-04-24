@@ -105,9 +105,9 @@ def main():
     results = []
 
     for name, filename in [
-        ('LRM (dynLin, 1 comp)', 'ref_LRM_dynLin_1comp_benchmark1.h5'),
-        ('LRMP (dynLin, 1 comp)', 'ref_LRMP_dynLin_1comp_benchmark1.h5'),
-        ('GRM (dynLin, 1 comp)', 'ref_GRM_dynLin_1comp_benchmark1.h5'),
+        ('LRM (dynLin, 1 comp)', 'LRM_dynLin_1comp_benchmark1.h5'),
+        ('LRMP (dynLin, 1 comp)', 'LRMP_dynLin_1comp_benchmark1.h5'),
+        ('GRM (dynLin, 1 comp)', 'GRM_dynLin_1comp_benchmark1.h5'),
     ]:
         casema_file = _casema_dir / filename
         verif_file = _verification_dir / filename

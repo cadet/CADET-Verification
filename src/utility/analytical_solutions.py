@@ -7,11 +7,6 @@ transform (de Hoog algorithm via mpmath) to compute outlet concentration
 profiles for columns with Danckwerts boundary conditions, linear binding,
 and rectangular pulse inlet.
 
-References
-----------
-- Qamar et al., "Analytical solutions and moment analysis of general rate
-  model for linear liquid chromatography", Chem. Eng. Sci. 107 (2014) 192-205
-
 """
 
 import numpy as np
