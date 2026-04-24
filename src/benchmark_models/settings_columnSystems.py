@@ -428,8 +428,7 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     ]
 
     # solution times
-    Cyclic_model.root.input.solver.user_solution_times = np.linspace(
-        1.0 if analytical_reference else 0.0, 6000.0, 6000 if analytical_reference else 6001)
+    Cyclic_model.root.input.solver.user_solution_times = np.linspace(0.0, 6000.0, 6001)
 
     # Time
     # Tolerances for the time integrator
@@ -616,8 +615,7 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     ]
 
     # solution times
-    Acyclic_model.root.input.solver.user_solution_times = np.linspace(
-        1.0 if analytical_reference else 0.0, 3000.0, 3000 if analytical_reference else 3001)
+    Acyclic_model.root.input.solver.user_solution_times = np.linspace(0.0, 3000.0, 3001)
 
     # Time
     # Tolerances for the time integrator

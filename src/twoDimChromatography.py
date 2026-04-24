@@ -50,7 +50,7 @@ def get_settings(use_CASEMA_reference, reference_data_path, small_test):
             'par_method': 0,
             'adsorption_model': 'NONE',
             'surface_diffusion': 0.0,
-            'reference': load_reference('ref_2DGRM3Zone_noBnd_1Comp_radZ3.h5')
+            'reference': load_reference('2DGRM3Zone_noBnd_1Comp.h5')
         },
         {  # 1parType, dynamic binding, no surface diffusion
             'analytical_reference': use_CASEMA_reference,
@@ -60,7 +60,7 @@ def get_settings(use_CASEMA_reference, reference_data_path, small_test):
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 1,
             'surface_diffusion': 0.0,
-            'reference': load_reference('ref_2DGRM3Zone_dynLin_1Comp_radZ3.h5')
+            'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5')
         },
         {  # 1parType, dynamic binding, with surface diffusion
             'analytical_reference': use_CASEMA_reference,
@@ -70,7 +70,7 @@ def get_settings(use_CASEMA_reference, reference_data_path, small_test):
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 1,
             'surface_diffusion': 1e-11,
-            'reference': load_reference('ref_2DGRMsd3Zone_dynLin_1Comp_radZ3.h5')
+            'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5')
         },
         {  # 1parType, req binding, no surface diffusion
             'analytical_reference': use_CASEMA_reference,
@@ -82,7 +82,7 @@ def get_settings(use_CASEMA_reference, reference_data_path, small_test):
             'surface_diffusion': 0.0,
             'init_cp': [0.0],
             'init_cs': [0.0],
-            'reference': load_reference('ref_2DGRM3Zone_reqLin_1Comp_radZ3.h5')
+            'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5')
         },
         {  # 1parType, req binding, with surface diffusion
             'analytical_reference': use_CASEMA_reference,
@@ -94,7 +94,7 @@ def get_settings(use_CASEMA_reference, reference_data_path, small_test):
             'surface_diffusion': 1e-11,
             'init_cp': [0.0],
             'init_cs': [0.0],
-            'reference': load_reference('ref_2DGRMsd3Zone_reqLin_1Comp_radZ3.h5')
+            'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5')
         },
         {  # 4parType:
             'analytical_reference': use_CASEMA_reference,
@@ -115,7 +115,7 @@ def get_settings(use_CASEMA_reference, reference_data_path, small_test):
             'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
             'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
             'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-            'reference': load_reference('ref_2DGRM2parType3Zone_1Comp_radZ3.h5' if small_test else '/CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5')
+            'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5')
         }
     ]
 
@@ -131,12 +131,12 @@ def GRM2D_linBnd_tests(
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        'CASEMA_reference/ref_2DGRM3Zone_noBnd_1Comp_radZ3.h5',
-        'CASEMA_reference/ref_2DGRM3Zone_dynLin_1Comp_radZ3.h5',
-        'CASEMA_reference/ref_2DGRMsd3Zone_dynLin_1Comp_radZ3.h5',
-        'CASEMA_reference/ref_2DGRM3Zone_reqLin_1Comp_radZ3.h5',
-        'CASEMA_reference/ref_2DGRMsd3Zone_reqLin_1Comp_radZ3.h5',
-        'CASEMA_reference/ref_2DGRM2parType3Zone_1Comp_radZ3.h5' if small_test else 'CASEMA_reference/ref_2DGRM4parType3Zone_1Comp_radZ3.h5'
+        'CASEMA_reference/2DGRM3Zone_noBnd_1Comp.h5',
+        'CASEMA_reference/2DGRM3Zone_dynLin_1Comp.h5',
+        'CASEMA_reference/2DGRMsd3Zone_dynLin_1Comp.h5',
+        'CASEMA_reference/2DGRM3Zone_reqLin_1Comp.h5',
+        'CASEMA_reference/2DGRMsd3Zone_reqLin_1Comp.h5',
+        'CASEMA_reference/2DGRM2parType3Zone_1Comp.h5' if small_test else 'CASEMA_reference/2DGRM4parType3Zone_1Comp.h5'
         ]
 
 

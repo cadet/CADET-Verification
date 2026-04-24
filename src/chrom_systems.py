@@ -53,7 +53,7 @@ def chromatography_systems_tests(n_jobs, small_test,
     
     if analytical_reference:
         ref = convergence.get_solution(
-            reference_data_path+'/ref_cyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
+            reference_data_path+'/cyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
         ref_files = [[ref]]
 
     config_names = ['cyclicSystem1_LRMP_linBnd_1comp']
@@ -106,9 +106,9 @@ def chromatography_systems_tests(n_jobs, small_test,
      # we compare the simulated outlet of unit 006 with the analytical
      # solution of the combined outlets of unit 004 and 005
         ref = convergence.get_solution(
-            reference_data_path+'/ref_acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_004')
+            reference_data_path+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_004')
         ref = 0.5 * ref + 0.5 * convergence.get_solution(
-            reference_data_path+'/ref_acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_005')
+            reference_data_path+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_005')
         ref_files = [[ref]]
 
     config_names = ['acyclicSystem1_LRMP_linBnd_1comp']

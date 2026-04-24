@@ -25,13 +25,32 @@ GRMlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
 
 GRMlinBnd.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+GRMlinBnd.root['input'].solver.nthreads  = 6
 
 GRMlinBnd.filename = file_path + r"/GRM_dynLin_1comp_benchmark1.h5"
 GRMlinBnd.save()
 
 subprocess.run([executable_path, GRMlinBnd.filename], check=True)
+
+GRMsdlinBnd = Cadet()
+GRMsdlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
+    spatial_method_bulk=-1, spatial_method_particle=-1,
+    particle_type='GENERAL_RATE_PARTICLE',
+    surface_diffusion=5E-11
+    )
+
+GRMsdlinBnd.root['input'].solver.casema_options  = {
+    "ERROR_THRESHOLD": 1e-20,
+    "WORKING_PRECISION": 50
+    }
+GRMsdlinBnd.root['input'].solver.nthreads  = 6
+
+GRMsdlinBnd.filename = file_path + r"/GRMsd_dynLin_1comp_benchmark1.h5"
+GRMsdlinBnd.save()
+
+subprocess.run([executable_path, GRMsdlinBnd.filename], check=True)
 
 LRMPlinBnd = Cadet()
 LRMPlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
@@ -40,9 +59,10 @@ LRMPlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
     )
 
 LRMPlinBnd.root['input'].solver.casema_options  = {
-    "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "ERROR_THRESHOLD": 1e-15,
+    "WORKING_PRECISION": 50
     }
+LRMPlinBnd.root['input'].solver.nthreads  = 6
 
 LRMPlinBnd.filename = file_path + r"/LRMP_dynLin_1comp_benchmark1.h5"
 LRMPlinBnd.save()
@@ -56,8 +76,9 @@ LRMlinBnd.root = setting_Col1D_linLRM_1comp_benchmark1.get_model(
 
 LRMlinBnd.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+LRMlinBnd.root['input'].solver.nthreads  = 6
 
 LRMlinBnd.filename = file_path + r"/LRM_dynLin_1comp_benchmark1.h5"
 LRMlinBnd.save()
@@ -90,11 +111,11 @@ for small_test in [True, False]:
 
     mulParTypeModel.root['input'].solver.casema_options  = {
      "ERROR_THRESHOLD": 1e-20,
-     "NTHREADS": 4
+     "WORKING_PRECISION": 50
      }
+    mulParTypeModel.root['input'].solver.nthreads  = 6
 
-    if small_test:
-        mulParTypeModel.filename = file_path + 'GRM_' + str(mulParTypeModel.root['input'].model.unit_001.npartype) + 'parTypeLin_4comp_benchmark1.h5'
+    mulParTypeModel.filename = file_path + '/GRM_' + str(mulParTypeModel.root['input'].model.unit_001.npartype) + 'parTypeLin_4comp_benchmark1.h5'
     
     mulParTypeModel.save()
     
@@ -106,10 +127,11 @@ acyclicModel = settings_columnSystems.Acyclic_model1(1, 1, 1)
 
 acyclicModel.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+acyclicModel.root['input'].solver.nthreads  = 6
 
-acyclicModel.filename = file_path + r"/new_acyclicSystem1_LRMP_linBnd_1comp.h5"
+acyclicModel.filename = file_path + r"/acyclicSystem1_LRMP_linBnd_1comp.h5"
 acyclicModel.save()
 
 
@@ -122,11 +144,11 @@ cyclicModel = settings_columnSystems.Cyclic_model1(1, 1, 1)
 cyclicModel.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
     "ABSCISSA": 0.0159585,
-    "MAX_LAPLACE_SUMMANDS": 1000000,
-    "NTHREADS": 4
+    "MAX_LAPLACE_SUMMANDS": 1000000
     }
+cyclicModel.root['input'].solver.nthreads  = 6
 
-cyclicModel.filename = file_path + r"/new_acyclicSystem1_LRMP_linBnd_1comp.h5"
+cyclicModel.filename = file_path + r"/cyclicSystem1_LRMP_linBnd_1comp.h5"
 cyclicModel.save()
 
 
@@ -163,8 +185,9 @@ for setting in settings:
         "ERROR_THRESHOLD": 1e-20,
         "ABSCISSA": 0.0315798,
         "MAX_HANKEL_SUMMANDS": 100,
-        "NTHREADS": 4
+        "WORKING_PRECISION": 50
         }
+    GRM2DlinBnd.root['input'].solver.nthreads  = 6
     
     GRM2DlinBnd.root['input'].model.unit_000.discretization.nrad = 3 # nRadialZones
 
