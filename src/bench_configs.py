@@ -284,7 +284,7 @@ def fv_benchmark(small_test=False, sensitivities=False):
             'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
         ],
         'idas_abstol': [
-            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
+            [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]
         ],
         'ax_methods': [
             [0], [0], [0], [0], [0], [0], [0], [0]
@@ -401,7 +401,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
             'outlet'
         ] * n_settings,
         'idas_abstol': [
-           [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
+           [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]
         ],
         'ax_methods': [
             [3], [3], [3], [3], [3], [3], [3], [2]
