@@ -201,20 +201,30 @@ def run_benchmark(
 
 # %% FV benchmark configuration used in CADET-Core tests
 
+def load_reference(file_path):
 
-def _load_analytical_reference(filename):
-    """Load pre-computed analytical reference from CADET-Verification_reference/chromatography."""
-    ref_file = os.path.join(_chromatography_ref_path_, filename)
-    return convergence.get_solution(ref_file, unit='unit_001', which='outlet')
+    if file_path is None or file_path == "":
+        return None
+    else:
+        return convergence.get_solution(
+            file_path,
+            unit='unit_000',
+            which='outlet_port_' + str(0).zfill(3)
+        )
 
-
-def fv_benchmark(small_test=False, sensitivities=False):
+def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
 
     # Load analytical references for linear 1-component benchmarks
-    ref_LRM = _load_analytical_reference('LRM_dynLin_1comp_benchmark1.h5')
-    ref_LRMP = _load_analytical_reference('LRMP_dynLin_1comp_benchmark1.h5')
-    ref_GRM = _load_analytical_reference('GRM_dynLin_1comp_benchmark1.h5')
-    ref_GRMsd = _load_analytical_reference('GRMsd_dynLin_1comp_benchmark1.h5')
+    if ref_filepath is not None:
+        ref_LRM = load_reference(ref_filepath+'/LRM_dynLin_1comp_benchmark1.h5')
+        ref_LRMP = load_reference(ref_filepath+'/LRMP_dynLin_1comp_benchmark1.h5')
+        ref_GRM = load_reference(ref_filepath+'/GRM_dynLin_1comp_benchmark1.h5')
+        ref_GRMsd = load_reference(ref_filepath+'/GRMsd_dynLin_1comp_benchmark1.h5')
+    else:
+        ref_LRM = None
+        ref_LRMP = None
+        ref_GRM = None
+        ref_GRMsd = None
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -323,15 +333,21 @@ def fv_benchmark(small_test=False, sensitivities=False):
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(small_test=False, sensitivities=False):
-
-    n_settings = 8
+def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
 
     # Load analytical references for linear 1-component benchmarks
-    ref_LRM = _load_analytical_reference('LRM_dynLin_1comp_benchmark1.h5')
-    ref_LRMP = _load_analytical_reference('LRMP_dynLin_1comp_benchmark1.h5')
-    ref_GRM = _load_analytical_reference('GRM_dynLin_1comp_benchmark1.h5')
-    ref_GRMsd = _load_analytical_reference('GRMsd_dynLin_1comp_benchmark1.h5')
+    if ref_filepath is not None:
+        ref_LRM = load_reference(ref_filepath+'/LRM_dynLin_1comp_benchmark1.h5')
+        ref_LRMP = load_reference(ref_filepath+'/LRMP_dynLin_1comp_benchmark1.h5')
+        ref_GRM = load_reference(ref_filepath+'/GRM_dynLin_1comp_benchmark1.h5')
+        ref_GRMsd = load_reference(ref_filepath+'/GRMsd_dynLin_1comp_benchmark1.h5')
+    else:
+        ref_LRM = None
+        ref_LRMP = None
+        ref_GRM = None
+        ref_GRMsd = None
+
+    n_settings = 8
 
     benchmark_config = {
         'cadet_config_jsons': [
