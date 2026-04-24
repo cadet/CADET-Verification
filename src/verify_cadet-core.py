@@ -119,7 +119,7 @@ def test_selected_model_groups(
             chromatography.chromatography_tests(
                 n_jobs=n_jobs,
                 small_test=small_test,
-                sensitivities=True,
+                sensitivities=False,
                 output_path=str(output_path) + "/chromatography",
                 cadet_path=cadet_path
             )
