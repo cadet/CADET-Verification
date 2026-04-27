@@ -429,7 +429,7 @@ def GRM2D_linBnd_benchmark1(
     model.model.connections.connections_include_ports = 1
 
     model.solver.sections.SECTION_CONTINUITY = [0,]
-    model.solver.USER_SOLUTION_TIMES = np.linspace(1, 1500, 1500) if kwargs.get('analytical_reference', False) else np.linspace(0, 1500, 1501)
+    model.solver.USER_SOLUTION_TIMES = np.linspace(0, 1500, 1501)
 
     if not run:
         return {'input': model}
