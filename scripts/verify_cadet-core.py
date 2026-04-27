@@ -119,7 +119,7 @@ def test_selected_model_groups(
             chromatography.chromatography_tests(
                 n_jobs=n_jobs,
                 small_test=small_test,
-                sensitivities=True,
+                sensitivities=False,
                 output_path=str(output_path) + "/chromatography",
                 cadet_path=cadet_path
             )
@@ -150,8 +150,6 @@ def test_selected_model_groups(
                 small_test=small_test,
                 output_path=str(output_path) + "/chromatography/systems",
                 cadet_path=cadet_path,
-                analytical_reference=True,
-                reference_data_path=str(project_repo.output_path.parent) + '/data/CASEMA_reference'
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/chromatography/systems")
@@ -172,8 +170,6 @@ def test_selected_model_groups(
                 small_test=small_test,
                 output_path=str(output_path) + "/2Dchromatography",
                 cadet_path=cadet_path,
-                reference_data_path=str(project_repo.output_path.parent / 'data'),
-                use_CASEMA_reference=True,
                 rerun_sims=True
             )
             if delete_h5_files:

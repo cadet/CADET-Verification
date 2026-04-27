@@ -11,6 +11,7 @@ import os
 import copy
 import numpy as np
 from functools import partial
+from pathlib import Path
 import re
 
 import src.benchmark_models.setting_COL1D_axial_transport as setting_axial_transport
@@ -24,6 +25,11 @@ import src.bench_configs as bench_configs
 import src.utility.convergence as convergence
 
 from cadet import Cadet
+
+# %% Reference data paths
+_reference_data_path_ = str(
+    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference' / 'transport'
+)
 
 # %% 
 
@@ -360,11 +366,16 @@ def transport_tests(n_jobs, small_test,
     #%% Radial flow transport
 
     nNumMethods = 6
-    
+
     spatial_discretization_WENO2NonEq['grid_function'] = grid_radial_equivolume
     spatial_discretization_WENO3NonEq['grid_function'] = grid_radial_equivolume
     spatial_discretization_KORENNonEq['grid_function'] = grid_radial_equivolume
-    
+
+    radial_ref_file = _reference_data_path_ + "/radCOL1D_transport_1comp_WENO3_benchmark1_FV_Z262144.h5"
+    radial_ref = convergence.get_solution(
+        radial_ref_file, unit='unit_001', which='outlet'
+    )
+
     addition = {
             'cadet_config_jsons': [
                 setting_radial_transport.get_model()
@@ -373,7 +384,7 @@ def transport_tests(n_jobs, small_test,
                 'COL1D_radTransport_1comp_benchmark1'
             ],
             'include_sens': [False],
-            'ref_files': [[None] * nNumMethods],
+            'ref_files': [[radial_ref] * nNumMethods],
             'unit_IDs': ['001'],
             'which': ['outlet'],
             'ax_methods': [[0] * nNumMethods],
@@ -434,6 +445,11 @@ def transport_tests(n_jobs, small_test,
     spatial_discretization_WENO3NonEq['grid_function'] = grid_frustum_equivolume
     spatial_discretization_KORENNonEq['grid_function'] = grid_frustum_equivolume
 
+    frustum_ref_file = _reference_data_path_ + "/frustumCOL1D_transport_1comp_WENO3_benchmark1_FV_Z524288.h5"
+    frustum_ref = convergence.get_solution(
+        frustum_ref_file, unit='unit_001', which='outlet'
+    )
+
     addition = {
         'cadet_config_jsons': [
             setting_frustum_transport.get_model()
@@ -442,7 +458,7 @@ def transport_tests(n_jobs, small_test,
             'COL1D_frustumTransport_1comp_benchmark1'
         ],
         'include_sens': [False],
-        'ref_files': [[None] * nNumMethods],
+        'ref_files': [[frustum_ref] * nNumMethods],
         'unit_IDs': ['001'],
         'which': ['outlet'],
         'ax_methods': [[0] * nNumMethods],

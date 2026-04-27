@@ -13,6 +13,7 @@ import json
 import copy
 
 import src.bench_func as bench_func
+import src.utility.convergence as convergence
 
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
@@ -23,6 +24,7 @@ from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
 from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
+
 
 # %% benchmark templates
 
@@ -194,8 +196,19 @@ def run_benchmark(
 
 # %% FV benchmark configuration used in CADET-Core tests
 
+def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
 
-def fv_benchmark(small_test=False, sensitivities=False):
+    # Load analytical references for linear 1-component benchmarks
+    if ref_filepath is not None:
+        ref_LRM = convergence.get_solution(ref_filepath+'/LRM_dynLin_1comp_benchmark1.h5')
+        ref_LRMP = convergence.get_solution(ref_filepath+'/LRMP_dynLin_1comp_benchmark1.h5')
+        ref_GRM = convergence.get_solution(ref_filepath+'/GRM_dynLin_1comp_benchmark1.h5')
+        ref_GRMsd = convergence.get_solution(ref_filepath+'/GRMsd_dynLin_1comp_benchmark1.h5')
+    else:
+        ref_LRM = None
+        ref_LRMP = None
+        ref_GRM = None
+        ref_GRMsd = None
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -255,7 +268,8 @@ def fv_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * 8 if sensitivities else [False] * 8,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None], [None]
+            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
+            [None], [None], [None], [None]
         ],
         'unit_IDs': [
             '001', '001', '001', '001', '000', '000', '000', '001'
@@ -264,7 +278,7 @@ def fv_benchmark(small_test=False, sensitivities=False):
             'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
         ],
         'idas_abstol': [
-            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
+            [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]
         ],
         'ax_methods': [
             [0], [0], [0], [0], [0], [0], [0], [0]
@@ -303,7 +317,19 @@ def fv_benchmark(small_test=False, sensitivities=False):
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(small_test=False, sensitivities=False):
+def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
+
+    # Load analytical references for linear 1-component benchmarks
+    if ref_filepath is not None:
+        ref_LRM = convergence.get_solution(ref_filepath+'/LRM_dynLin_1comp_benchmark1.h5')
+        ref_LRMP = convergence.get_solution(ref_filepath+'/LRMP_dynLin_1comp_benchmark1.h5')
+        ref_GRM = convergence.get_solution(ref_filepath+'/GRM_dynLin_1comp_benchmark1.h5')
+        ref_GRMsd = convergence.get_solution(ref_filepath+'/GRMsd_dynLin_1comp_benchmark1.h5')
+    else:
+        ref_LRM = None
+        ref_LRMP = None
+        ref_GRM = None
+        ref_GRMsd = None
 
     n_settings = 8
 
@@ -365,7 +391,8 @@ def dg_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [None], [None], [None], [None], [None], [None], [None], [None]
+            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
+            [None], [None], [None], [None]
         ],
         'unit_IDs': [
             '001', '001', '001', '001', '000', '000', '000', '001'
@@ -374,7 +401,7 @@ def dg_benchmark(small_test=False, sensitivities=False):
             'outlet'
         ] * n_settings,
         'idas_abstol': [
-           [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6]
+           [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]
         ],
         'ax_methods': [
             [3], [3], [3], [3], [3], [3], [3], [2]

@@ -7,9 +7,16 @@ This script defines chromatography tests.
 
 # %% Include packages
 import os
+from pathlib import Path
 
 import src.bench_configs as bench_configs
 import src.bench_func as bench_func
+
+
+# %% Reference data paths
+reference_data_path = str(
+    Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
+)
 
 
 # %% Run with CADET-RDM
@@ -42,7 +49,10 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         cadet_config_names=cadet_config_names, addition=addition,
     disc_refinement_functions = disc_refinement_functions)
 
-    addition = bench_configs.fv_benchmark(small_test=small_test)
+    addition = bench_configs.fv_benchmark(
+        small_test=small_test, sensitivities=sensitivities,
+        ref_filepath=reference_data_path
+        )
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -52,7 +62,9 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         )
     
     addition = bench_configs.dg_benchmark(
-        small_test=small_test, sensitivities=False)
+        small_test=small_test, sensitivities=sensitivities,
+        ref_filepath=reference_data_path
+        )
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,

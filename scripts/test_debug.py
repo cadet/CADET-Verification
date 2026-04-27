@@ -85,9 +85,7 @@ if run_chromatography_system_tests:
         n_jobs=n_jobs,
         small_test=small_test,
         output_path=str(output_path) + "/chromatography/systems",
-        cadet_path=cadet_path,
-        analytical_reference=True,
-        reference_data_path=str(Path.cwd().parent) + '/data/CASEMA_reference'
+        cadet_path=cadet_path
     )
     if delete_h5_files:
         convergence.delete_h5_files(str(output_path) + "/chromatography/systems")
@@ -118,8 +116,6 @@ if run_2Dmodels_tests:
         small_test=small_test,
         output_path=str(output_path) + "/2Dchromatography",
         cadet_path=cadet_path,
-        reference_data_path=str(Path.cwd().parent / 'data'),
-        use_CASEMA_reference=True,
         rerun_sims=True
     )
     if delete_h5_files:

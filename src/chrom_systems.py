@@ -7,10 +7,17 @@ This scirpt defines chromatography system tests
 
 
 import os
+from pathlib import Path
 
 import src.utility.convergence as convergence
 import src.bench_configs as bench_configs
 import src.bench_func as bench_func
+
+
+# %% Reference data paths
+_reference_data_path_ = str(
+    Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
+)
 
 
 # %% Define chromatography system tests
@@ -18,12 +25,12 @@ import src.bench_func as bench_func
 
 def chromatography_systems_tests(n_jobs, small_test,
                                  output_path, cadet_path,
-                                 analytical_reference=True,
-                                 reference_data_path=None):
+                                 use_analytical_reference=True
+                                 ):
 
     os.makedirs(output_path, exist_ok=True)
 
-    if analytical_reference and reference_data_path is None:
+    if use_analytical_reference and _reference_data_path_ is None:
         raise ValueError(
             "Reference data path must be provided to test convergence towards analytical solution!")
 
@@ -43,7 +50,7 @@ def chromatography_systems_tests(n_jobs, small_test,
 
     addition = bench_configs.cyclic_systems_tests(
         n_jobs, output_path, cadet_path, small_test=small_test,
-        analytical_reference=analytical_reference)
+        use_analytical_reference=use_analytical_reference)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -51,9 +58,9 @@ def chromatography_systems_tests(n_jobs, small_test,
         par_methods=par_methods, par_discs=par_discs, idas_abstol=idas_abstol,
         addition=addition)
     
-    if analytical_reference:
+    if use_analytical_reference:
         ref = convergence.get_solution(
-            reference_data_path+'/ref_cyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
+            _reference_data_path_+'/cyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
         ref_files = [[ref]]
 
     config_names = ['cyclicSystem1_LRMP_linBnd_1comp']
@@ -75,7 +82,7 @@ def chromatography_systems_tests(n_jobs, small_test,
         n_jobs=n_jobs,
         rerun_sims=True,
         system_refinement_IDs=['001', '002'],
-        analytical_reference=analytical_reference
+        use_analytical_reference=use_analytical_reference
     )
 
     # %% create acyclic system benchmark configuration
@@ -94,7 +101,7 @@ def chromatography_systems_tests(n_jobs, small_test,
 
     addition = bench_configs.acyclic_systems_tests(
         n_jobs, output_path, cadet_path, small_test=small_test,
-        analytical_reference=analytical_reference)
+        use_analytical_reference=use_analytical_reference)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -102,13 +109,13 @@ def chromatography_systems_tests(n_jobs, small_test,
         par_methods=par_methods, par_discs=par_discs, idas_abstol=idas_abstol,
         addition=addition)
 
-    if analytical_reference:
+    if use_analytical_reference:
      # we compare the simulated outlet of unit 006 with the analytical
      # solution of the combined outlets of unit 004 and 005
         ref = convergence.get_solution(
-            reference_data_path+'/ref_acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_004')
+            _reference_data_path_+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_004')
         ref = 0.5 * ref + 0.5 * convergence.get_solution(
-            reference_data_path+'/ref_acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_005')
+            _reference_data_path_+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_005')
         ref_files = [[ref]]
 
     config_names = ['acyclicSystem1_LRMP_linBnd_1comp']
@@ -130,7 +137,7 @@ def chromatography_systems_tests(n_jobs, small_test,
         n_jobs=n_jobs,
         rerun_sims=True,
         system_refinement_IDs=['002', '003', '004', '005'],
-        analytical_reference=analytical_reference
+        use_analytical_reference=use_analytical_reference
     )
 
     # %% create benchmark configuration
