@@ -7,7 +7,6 @@ without pytest fixtures and cadet-rdm
 """
 
 #%% Include packages
-import sys
 from pathlib import Path
 
 import src.utility.convergence as convergence
@@ -35,10 +34,10 @@ run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_2Dmodels_tests = False
 
-sys.path.append(str(Path(".")))
 output_path = Path.cwd() / "output" / "test_cadet-core"
-cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\CADET_v6.0.0-alpha.2\aRELEASE"
-# convergence.get_cadet_path()
+
+# cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\CADET_v6.0.0-alpha.2\aRELEASE"
+cadet_path = convergence.get_cadet_path()
 
 print_cadet_versions(cadet_path)
 
@@ -56,7 +55,7 @@ if run_chromatography_tests:
     chromatography.chromatography_tests(
         n_jobs=n_jobs,
         small_test=small_test,
-        sensitivities=True,
+        sensitivities=False,
         output_path=str(output_path) + "/chromatography",
         cadet_path=cadet_path
     )
@@ -88,7 +87,7 @@ if run_chromatography_system_tests:
         output_path=str(output_path) + "/chromatography/systems",
         cadet_path=cadet_path,
         analytical_reference=True,
-        reference_data_path=str(Path.cwd()) + '/data/CASEMA_reference'
+        reference_data_path=str(Path.cwd().parent) + '/data/CASEMA_reference'
     )
     if delete_h5_files:
         convergence.delete_h5_files(str(output_path) + "/chromatography/systems")
@@ -119,7 +118,7 @@ if run_2Dmodels_tests:
         small_test=small_test,
         output_path=str(output_path) + "/2Dchromatography",
         cadet_path=cadet_path,
-        reference_data_path=str(Path.cwd() / 'data'),
+        reference_data_path=str(Path.cwd().parent / 'data'),
         use_CASEMA_reference=True,
         rerun_sims=True
     )

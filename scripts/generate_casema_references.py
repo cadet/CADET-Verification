@@ -12,8 +12,9 @@ from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
 
 
-executable_path = r"/home/jmbr/software/casema/code/build/release/src/casema-cli"
-file_path = r"/home/jmbr/software/casema/code/build/release/src"
+executable_path = r"/home/jbreue16/software/cadet-compiled/CASEMA_refRecompute_f2095283/release/src/casema-cli"
+
+file_path = r"/home/jbreue16/software"
 
 #%% 1D linear models
 
@@ -25,13 +26,32 @@ GRMlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
 
 GRMlinBnd.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+GRMlinBnd.root['input'].solver.nthreads  = 6
 
 GRMlinBnd.filename = file_path + r"/GRM_dynLin_1comp_benchmark1.h5"
 GRMlinBnd.save()
 
 subprocess.run([executable_path, GRMlinBnd.filename], check=True)
+
+GRMsdlinBnd = Cadet()
+GRMsdlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
+    spatial_method_bulk=-1, spatial_method_particle=-1,
+    particle_type='GENERAL_RATE_PARTICLE',
+    surface_diffusion=5E-11
+    )
+
+GRMsdlinBnd.root['input'].solver.casema_options  = {
+    "ERROR_THRESHOLD": 1e-20,
+    "WORKING_PRECISION": 50
+    }
+GRMsdlinBnd.root['input'].solver.nthreads  = 6
+
+GRMsdlinBnd.filename = file_path + r"/GRMsd_dynLin_1comp_benchmark1.h5"
+GRMsdlinBnd.save()
+
+subprocess.run([executable_path, GRMsdlinBnd.filename], check=True)
 
 LRMPlinBnd = Cadet()
 LRMPlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
@@ -41,8 +61,9 @@ LRMPlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
 
 LRMPlinBnd.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+LRMPlinBnd.root['input'].solver.nthreads  = 6
 
 LRMPlinBnd.filename = file_path + r"/LRMP_dynLin_1comp_benchmark1.h5"
 LRMPlinBnd.save()
@@ -56,8 +77,9 @@ LRMlinBnd.root = setting_Col1D_linLRM_1comp_benchmark1.get_model(
 
 LRMlinBnd.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+LRMlinBnd.root['input'].solver.nthreads  = 6
 
 LRMlinBnd.filename = file_path + r"/LRM_dynLin_1comp_benchmark1.h5"
 LRMlinBnd.save()
@@ -90,11 +112,11 @@ for small_test in [True, False]:
 
     mulParTypeModel.root['input'].solver.casema_options  = {
      "ERROR_THRESHOLD": 1e-20,
-     "NTHREADS": 4
+     "WORKING_PRECISION": 50
      }
+    mulParTypeModel.root['input'].solver.nthreads  = 6
 
-    if small_test:
-        mulParTypeModel.filename = file_path + 'GRM_' + str(mulParTypeModel.root['input'].model.unit_001.npartype) + 'parTypeLin_4comp_benchmark1.h5'
+    mulParTypeModel.filename = file_path + '/GRM_' + str(mulParTypeModel.root['input'].model.unit_001.npartype) + 'parTypeLin_4comp_benchmark1.h5'
     
     mulParTypeModel.save()
     
@@ -106,10 +128,11 @@ acyclicModel = settings_columnSystems.Acyclic_model1(1, 1, 1)
 
 acyclicModel.root['input'].solver.casema_options  = {
     "ERROR_THRESHOLD": 1e-20,
-    "NTHREADS": 4
+    "WORKING_PRECISION": 50
     }
+acyclicModel.root['input'].solver.nthreads  = 6
 
-acyclicModel.filename = file_path + r"/new_acyclicSystem1_LRMP_linBnd_1comp.h5"
+acyclicModel.filename = file_path + r"/acyclicSystem1_LRMP_linBnd_1comp.h5"
 acyclicModel.save()
 
 
@@ -120,13 +143,13 @@ subprocess.run([executable_path, acyclicModel.filename], check=True)
 cyclicModel = settings_columnSystems.Cyclic_model1(1, 1, 1)
 
 cyclicModel.root['input'].solver.casema_options  = {
-    "ERROR_THRESHOLD": 1e-20,
-    "ABSCISSA": 0.0159585,
-    "MAX_LAPLACE_SUMMANDS": 1000000,
-    "NTHREADS": 4
+    "ABSCISSA": 0.0159585, # estimated from a single unit, see Leweke et al. (2026) "Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm"
+    "MAX_LAPLACE_SUMMANDS": 10000,
+    "WORKING_PRECISION": 50
     }
+cyclicModel.root['input'].solver.nthreads  = 6
 
-cyclicModel.filename = file_path + r"/new_acyclicSystem1_LRMP_linBnd_1comp.h5"
+cyclicModel.filename = file_path + r"/cyclicSystem1_LRMP_linBnd_1comp.h5"
 cyclicModel.save()
 
 
@@ -153,23 +176,21 @@ settings.append(
 for setting in settings:
     
     GRM2DlinBnd.root = settings_2Dchromatography.GRM2D_linBnd_benchmark1(
-        nRadialZones=3,
-        radNElem=-3, # has to be -nRadialZones
-        axMethod=-1,
-        parMethod=-1
+        axMethod=0,
+        radMethod=0,
+        parMethod=0,
+        **setting
         )
 
     GRM2DlinBnd.root['input'].solver.casema_options  = {
         "ERROR_THRESHOLD": 1e-20,
-        "ABSCISSA": 0.0315798,
         "MAX_HANKEL_SUMMANDS": 100,
-        "NTHREADS": 4
+        "WORKING_PRECISION": 50
         }
-    
-    GRM2DlinBnd.root['input'].model.unit_000.discretization.nrad = 3 # nRadialZones
+    GRM2DlinBnd.root['input'].solver.NTHREADS  = 6
 
     GRM2DlinBnd.filename = file_path + '/' + setting['name'] + '.h5'
 
     GRM2DlinBnd.save()
-    
+
     subprocess.run([executable_path, GRM2DlinBnd.filename], check=True)
