@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cadet-verification"
+version = "0.1.0"
+description = "Verification test suite for CADET-Core"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+dependencies = [
+	"mpmath",
+	"scipy",
+	"numpy",
+	"matplotlib",
+	"pytest",
+	"pandas",
+	"h5py",
+	"joblib",
+	"cadet-core>=6.0.0a3",
+	"cadet-python",
+	"cadet-rdm",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

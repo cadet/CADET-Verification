@@ -4,16 +4,6 @@ channels:
 dependencies:
   - python=3.12
   - git-lfs
-  - cadet
   - pip
   - pip:
-      - mpmath
-      - scipy
-      - numpy
-      - matplotlib
-      - pytest
-      - pandas
-      - h5py
-      - joblib
-      - cadet-python
-      - cadet-rdm
+      - -e .
