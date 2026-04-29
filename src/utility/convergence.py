@@ -2706,14 +2706,16 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
                     "Method and discretization must have feasible dimensionalities, look up description."
                 )
 
+    if model is None:
+        nBound = 0
     if nBound == None:
-        nBound = nComp
+        nBound = 0 if re.search("DPFR", model) else nComp
 
     bulk_dof = 0
     par_dof = 0
     flux_dof = 0
 
-    if model is None or not re.search("2D", model):
+    if model is None or not (re.search("2D", model) or re.search("MCT", model)):
         
         inlet_dof = nComp if full_DOFs else 0
         
@@ -2727,14 +2729,14 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
                     * ((abs(method[1]) + 1) * discretization[1, :] * (nComp + nBound))
                 )
     
-        elif discretization.ndim in [0, 1]:  # LRM or LRMP
+        elif discretization.ndim in [0, 1]:  # LRM or LRMP or DPFR
             bulk_dof = (abs(method) + 1) * discretization * nComp
             if full_DOFs:
                 if model == "LRMP":
                     par_dof = (nComp + nBound) * abs(method+1) * discretization
                     if method == 0:  # add flux states for FV discretization
                         flux_dof = bulk_dof
-                elif model == "LRM" or "COL1D":
+                elif model == "LRM" or model == "COL1D" or model == "DPFR":
                     par_dof = nBound * abs(method+1) * discretization
                 else:
                     raise ValueError(
@@ -2745,6 +2747,9 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
         return inlet_dof + bulk_dof + flux_dof + par_dof
     
     else:
+        
+        if re.search("MCT", model):
+            return (abs(method) + 1) * discretization * nComp
         
         inlet_dof = nComp * (method[1] + 1) * discretization[1, :] if full_DOFs else 0
         
@@ -2760,11 +2765,11 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
     
         if discretization.ndim == 3:  # 2D GRM
             if full_DOFs:
-                if re.search(model, "LRMP"):
+                if re.search("LRMP", model):
                     par_dof = (nComp + nBound) * bulk_dof
-                elif re.search(model, "LRM"):
+                elif re.search("LRM", model):
                     par_dof = (nComp + nBound) * bulk_dof
-                elif re.search(model, "GRM"):
+                elif re.search("GRM", model):
                     par_dof = (nComp + nBound) * (method[2] + 1) * discretization[2, :] * bulk_dof
                 else:
                     raise ValueError(
@@ -3566,7 +3571,7 @@ def recalculate_results(file_path, model,
     if transport_model is None:
         try:
             transport_model = re.search(
-                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT',
+                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT|DPFR',
                 model,
                 re.IGNORECASE).group(0)
         except:
