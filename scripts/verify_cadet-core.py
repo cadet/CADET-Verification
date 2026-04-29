@@ -92,7 +92,7 @@ def branch_name(request):
 
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
-    run_binding_tests, run_chromatography_tests, run_chromatography_sensitivity_tests, run_chromatography_system_tests,
+    run_transport_tests, run_binding_tests, run_chromatography_tests, run_chromatography_sensitivity_tests, run_chromatography_system_tests,
     run_crystallization_tests, run_MCT_tests, run_2Dmodels_tests
 ):
 
