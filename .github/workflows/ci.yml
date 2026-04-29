@@ -25,31 +25,39 @@ jobs:
     env:
       DOCKER_IMAGE: ${{ github.event.inputs.docker_image || 'ghcr.io/cadet/cadet-suite:latest' }}
       COMMIT_SHA: ${{ github.event.inputs.branch || github.event.pull_request.head.sha || github.sha }}
+      REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      TEST_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
       PYTEST_ARGS: ""
     steps:
       - name: Run test in Docker
         run: |
           docker pull "$DOCKER_IMAGE"
           docker run --rm \
-            -e REPOSITORY="${{ github.repository }}" \
+            -e REPOSITORY="$REPOSITORY" \
             -e COMMIT_SHA="$COMMIT_SHA" \
+            -e TEST_BRANCH="$TEST_BRANCH" \
             "$DOCKER_IMAGE" \
             bash -c "
               set -e
 
               echo \"Using CADET-Verification commit: \$COMMIT_SHA\"
+              echo \"Using CADET-Verification repository: \$REPOSITORY\"
+              echo \"Using branch for ProjectRepo: \$TEST_BRANCH\"
 
               echo 'Creating and entering workspace...'
               mkdir -p /tmp/cadet-verification && cd /tmp/cadet-verification
 
               echo 'Cloning CADET-Verification'
-              git clone https://github.com/cadet/CADET-Verification.git .
+              git clone https://github.com/\$REPOSITORY.git .
               git fetch origin \$COMMIT_SHA || true
               git checkout \$COMMIT_SHA
+
+              echo 'Checked out revision:'
+              git rev-parse HEAD
 
               echo 'Installing Python dependencies'
               pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
 
               echo 'Running verification'
-              pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py
+              pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=\$TEST_BRANCH
             "
