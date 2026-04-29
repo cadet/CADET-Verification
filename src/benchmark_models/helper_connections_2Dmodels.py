@@ -61,6 +61,43 @@ def lgl_nodes_weights(poly_deg):
     return nodes, weights
 
 
+def get_radCoords_and_crossSectionAreas(rad_method, rad_cells, col_radius):
+    
+    subcellCrossSectionAreas = []
+    rad_coords = []
+    
+    nRadPoints = (rad_method + 1) * rad_cells
+    
+    if rad_method > 0:
+
+        nodes, weights = lgl_nodes_weights(rad_method)
+        # scale the weights to radial element spacing
+        # note that weights need to be scaled to 1 later, to give us the size of the corresponding subcells
+        # print(sum(weights) / 2.0 - 1.0 < 1E-15)
+        deltaR = col_radius / rad_cells
+        for rIdx in range(rad_cells):
+            jojoL = rIdx * deltaR
+            for node in range(rad_method + 1):
+                jojoR = jojoL + weights[node] / 2.0 * deltaR
+                # print("Left boundary: ", jojoL)
+                # print("Right boundary: ", jojoR)
+                subcellCrossSectionAreas.append(
+                    np.pi * (jojoR ** 2 - jojoL ** 2))
+                rad_coords.append(
+                    rIdx * deltaR + (nodes[node] + 1) / 2.0 * deltaR)
+                jojoL = jojoR
+    else:
+        deltaR = col_radius / nRadPoints
+        jojoL = 0.0
+        for rIdx in range(nRadPoints):
+            rad_coords.append(rIdx * deltaR + deltaR / 2.0)
+            jojoR = jojoL + deltaR
+            subcellCrossSectionAreas.append(np.pi * (jojoR ** 2 - jojoL ** 2))
+            jojoL = jojoR
+            
+    return rad_coords, subcellCrossSectionAreas
+
+
 def generate_connections_matrix(rad_method, rad_cells,
                                 velocity, porosity, col_radius,
                                 add_inlet_per_port=True, add_outlet=False):
@@ -95,46 +132,35 @@ def generate_connections_matrix(rad_method, rad_cells,
     # we want the same velocity within each radial zone and use an equidistant radial grid, ie we adjust the volumetric flow rate accordingly in each port
     # 1. compute cross sections
 
-    subcellCrossSectionAreas = []
-    rad_coords = []
-
-    if rad_method > 0:
-
-        nodes, weights = lgl_nodes_weights(rad_method)
-        # scale the weights to radial element spacing
-        # note that weights need to be scaled to 1 later, to give us the size of the corresponding subcells
-        # print(sum(weights) / 2.0 - 1.0 < 1E-15)
-        deltaR = col_radius / rad_cells
-        for rIdx in range(rad_cells):
-            jojoL = rIdx * deltaR
-            for node in range(rad_method + 1):
-                jojoR = jojoL + weights[node] / 2.0 * deltaR
-                # print("Left boundary: ", jojoL)
-                # print("Right boundary: ", jojoR)
-                subcellCrossSectionAreas.append(
-                    np.pi * (jojoR ** 2 - jojoL ** 2))
-                rad_coords.append(
-                    rIdx * deltaR + (nodes[node] + 1) / 2.0 * deltaR)
-                jojoL = jojoR
-    else:
-        deltaR = col_radius / nRadPoints
-        jojoL = 0.0
-        for rIdx in range(nRadPoints):
-            rad_coords.append(rIdx * deltaR + deltaR / 2.0)
-            jojoR = jojoL + deltaR
-            subcellCrossSectionAreas.append(np.pi * (jojoR ** 2 - jojoL ** 2))
-            jojoL = jojoR
+    rad_coords, subcellCrossSectionAreas = get_radCoords_and_crossSectionAreas(rad_method, rad_cells, col_radius)
 
     # create flow rates for each zone
-    flowRates = []
-    columnIdx = 0  # always needs to be the first unit
+    if np.isscalar(porosity):
+        porosity_nodes = np.full(nRadPoints, porosity)
+    else:
+        porosity_elem = np.asarray(porosity)
     
+        if len(porosity_elem) != rad_cells:
+            raise ValueError(
+                f"Porosity length {len(porosity_elem)} must match rad_cells {rad_cells}"
+            )
+    
+        # expand element-wise porosity to nodal values
+        porosity_nodes = np.repeat(porosity_elem, rad_method + 1)
+    
+    # compute flow rates
+    flowRates = []
     for rad in range(nRadPoints):
-        flowRates.append(subcellCrossSectionAreas[rad] * porosity * velocity)
+        flowRates.append(
+            subcellCrossSectionAreas[rad] * porosity_nodes[rad] * velocity
+        )
+        
     # create connections matrix
     connections = []
     # add inlet connections
     if add_inlet_per_port:
+        
+        columnIdx = 0  # always needs to be the first unit
 
         nRadialZones = rad_cells if add_inlet_per_port is True else add_inlet_per_port
 
@@ -143,7 +169,7 @@ def generate_connections_matrix(rad_method, rad_cells,
                 f"Number of rad_cells {rad_cells} is not a multiple of radial zones {nRadialZones}")
 
         for rad in range(nRadPoints):
-            zone = int(rad / (nRadPoints / nRadialZones))
+            zone = (rad * nRadialZones) // nRadPoints
             connections += [zone + 1, columnIdx,
                             0, rad, -1, -1, flowRates[rad]]
             if add_outlet:
