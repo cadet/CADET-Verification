@@ -19,6 +19,7 @@ import src.benchmark_models.setting_COL1D_radial_transport as setting_radial_tra
 import src.benchmark_models.setting_COL1D_frustum_transport as setting_frustum_transport
 import src.benchmark_models.setting_MCT_transport_2channel as setting_MCT_transport_2channel
 import src.benchmark_models.setting_COL2D_axialTransport_2rad as setting_COL2D_axTransport
+import src.benchmark_models.setting_Col1D_lin_1comp_benchmark1 as setting_Col1D_lin_1comp_benchmark1
 import src.bench_func as bench_func
 import src.bench_configs as bench_configs
 
@@ -765,3 +766,162 @@ def transport_tests(n_jobs, small_test,
         disc_refinement_functions = disc_refinement_functions,
         transport_model="MCT"
     )
+        
+        #%% Bulk DG, particle FV combination (axial flow)
+        #   Fixed bulk discretization, particle refinement for EOC
+
+        nNumMethods = 1
+        
+        cadet_configs = []
+        cadet_config_names = []
+        include_sens = []
+        ref_files = []
+        unit_IDs = []
+        which = []
+        ax_methods = []
+        ax_discs = []
+        disc_refinement_functions = []
+        
+        def refine_mixed_discretization(config_data, disc_idx, setting_name,
+                                  spatial_discretization,
+                                  time_integrator=None,
+                                  unit_id = '001', 
+                                  only_return_name=False,
+                                  refine_bulk=True,
+                                  refine_particle=True,
+                                  **kwargs):
+            """ Takes a CADET-configuration as dictionary, adjusts it and returns the 
+                Cadet-Object. Optionally saves the corresponding h5 config file.
+            """
+
+            spatial_discretization = copy.deepcopy(spatial_discretization)
+
+            # Set standard discretization input
+            
+            bulk_method = spatial_discretization['bulk'].pop('SPATIAL_METHOD')
+            par_method = spatial_discretization['particle'].pop('SPATIAL_METHOD')
+            spatial_discretization['bulk']['SPATIAL_METHOD'] = "FV" if bulk_method == 0 else "DG"
+            spatial_discretization['particle']['SPATIAL_METHOD'] = "FV" if par_method == 0 else "DG"
+            
+            if time_integrator is not None:
+                config_data['input']['solver']['time_integrator'] = time_integrator
+                        
+            config_data['input']['model']['unit_' + unit_id]['discretization'].update(
+                {k: v for k, v in spatial_discretization['bulk'].items() if k not in {'NonEq', 'grid_function'}}
+                )
+            
+            config_data['input']['model']['unit_' + unit_id]['particle_type_000']['discretization'].update(
+                {k: v for k, v in spatial_discretization['particle'].items() if k not in {'NonEq', 'grid_function'}}
+                )
+            
+            # refine as desired
+
+            nCol = spatial_discretization['bulk']['NCELLS']
+            nPar = spatial_discretization['particle']['NCELLS']
+            
+            if refine_bulk:
+                
+                nCol = nCol * 2** (disc_idx)
+                
+                if bulk_method == 0:
+                    config_data['input']['model']['unit_' + unit_id]['discretization']['NCOL'] = nCol
+                    
+                elif bulk_method > 0:
+                    config_data['input']['model']['unit_' + unit_id]['discretization']['NELEM'] = nCol
+                    
+            if refine_particle:
+                
+                nPar = nPar * 2** (disc_idx)
+                
+                if par_method == 0:
+                    config_data['input']['model']['unit_' + unit_id]['discretization']['NCELLS'] = nPar
+                    
+                elif par_method > 0:
+                    config_data['input']['model']['unit_' + unit_id]['particle_type_000']['discretization']['PAR_NELEM'] = nPar
+            
+            config_name = convergence.generate_GRM_name(
+                setting_name, bulk_method, nCol, par_method, nPar, parGSM=nPar>1
+                )
+            
+            model = Cadet()
+            model.root.input = copy.deepcopy(config_data['input'])
+            
+            if output_path is not None:
+                
+                model.filename = str(output_path) + '/' + config_name
+                
+                if only_return_name:
+                    return model.filename
+                else:
+                    model.save()
+                    return model
+
+        
+        DGFV_spatial_discretization = {
+            'bulk': {'NCELLS': 8, 'SPATIAL_METHOD': 3,
+                     'USE_ANALYTIC_JACOBIAN': True, 'USE_MODIFIED_NEWTON' : False
+                    },
+            'particle': {'NCELLS': 1, 'SPATIAL_METHOD': 0,
+                }
+            }
+        
+        time_integrator = {
+            'ABSTOL' : 1e-8, 'RELTOL' : 1e-8, 'ALGTOL' : 1e-8,
+            'USE_MODIFIED_NEWTON' : False,
+            'init_step_size' : 1e-6,
+            'max_steps' : 500
+            }
+        
+        addition = {
+                'cadet_config_jsons': [
+                    setting_Col1D_lin_1comp_benchmark1.get_model(
+                        spatial_method_bulk=0, spatial_method_particle=0,
+                        surface_diffusion=5e-11
+                        )
+                ],
+                'cadet_config_names': [
+                    'COL1D_transport_1comp_benchmark1'
+                ],
+                'include_sens': [False],
+                'ref_files': [[None] * nNumMethods],
+                'unit_IDs': ['001'],
+                'which': ['outlet'],
+                'ax_methods': [[3]],
+                'ax_discs': [[
+                    [8] * 6 if not small_test else [8] * 3
+                    ]],
+                'par_methods': [[0]],
+                'par_discs': [[
+                    bench_func.disc_list(1, 6 if not small_test else 4)
+                ]],
+                'disc_refinement_functions' : [[
+                    partial(refine_mixed_discretization,
+                             setting_name="COL1D_transport_1comp_bulkDG_parFV_benchmark1",
+                             spatial_discretization=DGFV_spatial_discretization,
+                             time_integrator=time_integrator,
+                             refine_bulk=False, refine_particle=True
+                             )
+                    ]]
+            }
+
+        bench_configs.add_benchmark(
+            cadet_configs, include_sens, ref_files, unit_IDs, which,
+            ax_methods=ax_methods, ax_discs=ax_discs,
+            cadet_config_names=cadet_config_names, addition=addition,
+            disc_refinement_functions = disc_refinement_functions)
+        
+        bench_func.run_convergence_analysis(
+            output_path=output_path,
+            cadet_path=cadet_path,
+            cadet_configs=cadet_configs,
+            cadet_config_names=cadet_config_names,
+            include_sens=include_sens,
+            ref_files=ref_files,
+            unit_IDs=unit_IDs,
+            which=which,
+            ax_methods=ax_methods,
+            ax_discs=ax_discs,
+            n_jobs=n_jobs,
+            rerun_sims=True,
+            disc_refinement_functions = disc_refinement_functions
+        )
