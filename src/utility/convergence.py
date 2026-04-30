@@ -2156,10 +2156,19 @@ def generate_GRM_name(prefix, axP, axCells, parP, parCells, parGSM=True, suffix=
     elif int(axP) < 0 and int(parP) < 0:
         return prefix + "_DGexInt_P" + str(int(abs(axP))) + "Z" + str(int(axCells)) + "_cDG_parP" + str(int(abs(parP))) + "parZ" + str(int(parCells)) + suffix
 
-    elif int(parP) == 0:
-        raise Exception(
-            "Particle polynomial degree must be >= 1 for DG models")
-    else:
+    elif int(axP) > 0 and int(parP) == 0:
+        return prefix + "_cDG_P" + str(int(abs(axP))) + "Z" + str(int(axCells)) + "_FVparZ" + str(int(parCells)) + suffix
+
+    elif int(axP) < 0 and int(parP) == 0:
+        return prefix + "_DGexInt_P" + str(int(abs(axP))) + "Z" + str(int(axCells)) + "_FVparZ" + str(int(parCells)) + suffix
+
+    elif int(axP) == 0 and int(parP) > 0:
+        if int(parCells) == 1 and parGSM:
+            return prefix + "_FV_Z" + str(int(axCells)) + "_GSM_parP" + str(int(abs(parP))) + "parZ" + str(int(parCells)) + suffix
+        else:
+            return prefix + "_FV_Z" + str(int(axCells)) + "_DG_parP" + str(int(abs(parP))) + "parZ" + str(int(parCells)) + suffix
+
+    else: # parP < 0 not supported
         return None
 
 
