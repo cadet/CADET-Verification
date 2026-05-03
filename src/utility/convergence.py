@@ -2991,18 +2991,23 @@ def convergency_table(method,
     table = []
     # Infer dimensionality of table
     if disc.ndim == 2:
-        if len(disc) == 3 and (transport_model is not None and re.search("2D", transport_model)): # 2DGRM
-            nDisc = disc.shape[1]
-            header.append("$N_e^r$")
-            header.append("$N_e^p$")
-            table.append(disc[0])
-            table.append(disc[1])
-            table.append(disc[2])
-        elif len(disc) == 2 and (transport_model is not None and re.search("2D", transport_model)): # 2D LRM or LRMP
-            nDisc = disc.shape[1]
-            header.append("$N_e^r$")
-            table.append(disc[0])
-            table.append(disc[1])
+        if transport_model is not None and re.search("2D", transport_model):
+            if len(disc) == 3: # 2DGRM
+                nDisc = disc.shape[1]
+                header.append("$N_e^r$")
+                header.append("$N_e^p$")
+                table.append(disc[0])
+                table.append(disc[1])
+                table.append(disc[2])
+            elif len(disc) == 2: # 2D LRM or LRMP
+                nDisc = disc.shape[1]
+                header.append("$N_e^r$")
+                table.append(disc[0])
+                table.append(disc[1])
+            else:
+                raise ValueError(
+                    "Discretization must be n x 2/3 matrix for 2D models."
+                )
         elif len(disc) == 2: # GRM
             nDisc = disc.shape[1]
             header.append("$N_e^p$")
@@ -3571,7 +3576,7 @@ def recalculate_results(file_path, model,
     if transport_model is None:
         try:
             transport_model = re.search(
-                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT|DPFR',
+                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT|2DDPFR|DPFR',
                 model,
                 re.IGNORECASE).group(0)
         except:
