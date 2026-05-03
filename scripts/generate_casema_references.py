@@ -4,7 +4,10 @@ import subprocess
 
 from cadet import Cadet
 
-from src import twoDimChromatography
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from src import twoDimChromatographyDG as twoDimChromatography
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
 from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
@@ -161,14 +164,13 @@ subprocess.run([executable_path, cyclicModel.filename], check=True)
 GRM2DlinBnd = Cadet()
 
 settings = twoDimChromatography.get_settings(
-    use_CASEMA_reference=False, reference_data_path=None,
     small_test=True
     )
 
 # add 4 parType setting (last in list)
 settings.append(
     twoDimChromatography.get_settings(
-        use_CASEMA_reference=False, reference_data_path=None,
+        reference_data_path=None,
         small_test=False
         )[-1]
     )
@@ -178,9 +180,22 @@ for setting in settings:
     GRM2DlinBnd.root = settings_2Dchromatography.GRM2D_linBnd_benchmark1(
         axMethod=0,
         radMethod=0,
+        radNElem=setting.get('nRadialZones'),
         parMethod=0,
         **setting
         )
+
+    # fill model with dummy particle since CASEMA dos not allow npartype = 0
+    if setting.get('npartype', False) == 0:
+        GRM2DlinBnd.root['input'].model.unit_000.NPARTYPE = 1
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.has_film_diffusion = 1
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.has_pore_diffusion = 1
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.film_diffusion = [0.0]
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.pore_diffusion = [0.0]
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.adsorption_model = ['NONE']
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.par_radius = 45E-6
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.par_porosity = 0.75
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.nbound = [0]
 
     GRM2DlinBnd.root['input'].solver.casema_options  = {
         "ERROR_THRESHOLD": 1e-20,
