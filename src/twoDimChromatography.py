@@ -33,7 +33,7 @@ _reference_data_path_ = str(
 # radial zones. Ultimately, the discrete maximum norm of the zonal errors is
 # considered to compute the EOC.
 
-def get_settings(use_CASEMA_reference, small_test):
+def get_settings(small_test):
     
     def load_reference(filename):
 
@@ -48,7 +48,6 @@ def get_settings(use_CASEMA_reference, small_test):
             'film_diffusion': 0.0,
             # 'col_dispersion_radial' : 0.0,
             # If set to true, solution time 0.0 is ignored since its not computed by the analytical solution (CADET-Semi-Analytic)
-            'analytical_reference': use_CASEMA_reference,
             'nRadialZones': 3,
             'name': '2DDPFR3Zone_1comp',
             'par_method': 0,
@@ -57,7 +56,6 @@ def get_settings(use_CASEMA_reference, small_test):
             'reference': load_reference('2DDPFR3Zone_1comp.h5')
         },
         {  # 1parType, dynamic binding, no surface diffusion
-            'analytical_reference': use_CASEMA_reference,
             'nRadialZones': 3,
             'name': '2DGRM3Zone_dynLin_1Comp',
             'par_method': 0,
@@ -67,7 +65,6 @@ def get_settings(use_CASEMA_reference, small_test):
             'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5')
         },
         {  # 1parType, dynamic binding, with surface diffusion
-            'analytical_reference': use_CASEMA_reference,
             'nRadialZones': 3,
             'name': '2DGRMsd3Zone_dynLin_1Comp',
             'par_method': 0,
@@ -77,7 +74,6 @@ def get_settings(use_CASEMA_reference, small_test):
             'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5')
         },
         {  # 1parType, req binding, no surface diffusion
-            'analytical_reference': use_CASEMA_reference,
             'nRadialZones': 3,
             'name': '2DGRM3Zone_reqLin_1Comp',
             'par_method': 0,
@@ -89,7 +85,6 @@ def get_settings(use_CASEMA_reference, small_test):
             'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5')
         },
         {  # 1parType, req binding, with surface diffusion
-            'analytical_reference': use_CASEMA_reference,
             'nRadialZones': 3,
             'name': '2DGRMsd3Zone_reqLin_1Comp',
             'par_method': 0,
@@ -101,7 +96,6 @@ def get_settings(use_CASEMA_reference, small_test):
             'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5')
         },
         {  # 4parType:
-            'analytical_reference': use_CASEMA_reference,
             'nRadialZones': 3,
             'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
             'par_method': 0,
@@ -126,7 +120,7 @@ def get_settings(use_CASEMA_reference, small_test):
 def GRM2D_linBnd_tests(
         n_jobs, small_test,
         output_path, cadet_path,
-        use_analytical_reference=True, rerun_sims=True):
+        rerun_sims=True):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -146,7 +140,7 @@ def GRM2D_linBnd_tests(
 
     # %% Define benchmarks
 
-    settings = get_settings(use_analytical_reference, small_test)
+    settings = get_settings(small_test)
 
     n_settings = len(settings)
 
@@ -188,11 +182,10 @@ def GRM2D_linBnd_tests(
             ],
             'unit_IDs': [  # note that we consider radial zone 0
                 str(nRadialZones + 1 +
-                    0).zfill(3) if kwargs.get('analytical_reference', 0) else '000'
+                    0).zfill(3)
             ],
             'which': [
-                'outlet' if kwargs.get(
-                    'analytical_reference', 0) else 'radial_outlet'  # outlet_port_000
+                'outlet' # outlet_port_000
             ],
             'idas_abstol': [
                 [1e-10]
@@ -241,12 +234,10 @@ def GRM2D_linBnd_tests(
                 '000'
             ],
             'unit_IDs': [  # note that we consider radial zone 0
-                str(nRadialZones + 1 +
-                    0).zfill(3) if kwargs.get('analytical_reference', 0) else '000'
+                str(nRadialZones + 1 + 0).zfill(3)
             ],
             'which': [
-                'outlet' if kwargs.get(
-                    'analytical_reference', 0) else 'radial_outlet'  # outlet_port_000
+                'outlet' # outlet_port_000
             ],
             'idas_abstol': [
                 [1e-10]
@@ -306,144 +297,141 @@ def GRM2D_linBnd_tests(
         n_jobs=n_jobs,
         rad_inlet_profile=None,
         rerun_sims=rerun_sims,
-        refinement_IDs=refinement_IDs,
-        analytical_reference=use_analytical_reference
+        refinement_IDs=refinement_IDs
     )
 
-    # For the analytical solution, we compute the discrete norm of the errors from each zone
-    if use_analytical_reference:
+    # We compute the discrete norm of the errors from each zone
 
-        def copy_json_file(source_file, destination_file):
-            try:
-                shutil.copy(source_file, destination_file)
-            except FileNotFoundError:
-                print(f"File {source_file} not found!")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+    def copy_json_file(source_file, destination_file):
+        try:
+            shutil.copy(source_file, destination_file)
+        except FileNotFoundError:
+            print(f"File {source_file} not found!")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
-        def rename_json_file(original_file, new_file):
-            try:
-                os.replace(original_file, new_file)
-            except FileNotFoundError:
-                print(f"File {original_file} not found!")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+    def rename_json_file(original_file, new_file):
+        try:
+            os.replace(original_file, new_file)
+        except FileNotFoundError:
+            print(f"File {original_file} not found!")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
-        # save old results under new name for corresponding port
+    # save old results under new name for corresponding port
+    for idx in range(len(settings)):
+
+        old_name = str(output_path) + '/convergence_' + \
+            settings[idx]['name'] + '.json'
+        new_name = str(output_path) + '/convergence_' + 'port' + \
+            str(0).zfill(3) + '_' + settings[idx]['name'] + '.json'
+        rename_json_file(old_name, new_name)
+
+    for target_zone in range(1, nRadialZones):
+
+        references = []
+
+        for idx in range(len(ref_file_names)):
+
+            # get the references at the other ports
+            references.extend(
+                [convergence.get_solution(
+                    _reference_data_path_ + '/' + ref_file_names[idx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
+                )]
+            )
+
+        unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)] * \
+            n_settings  # 4 + target_zone
+
+        ref_files = [[ref] for ref in references]
+
+        bench_func.run_convergence_analysis(
+            output_path=output_path,
+            cadet_path=cadet_path,
+            cadet_configs=cadet_configs,
+            cadet_config_names=config_names,
+            include_sens=include_sens,
+            ref_files=ref_files,
+            unit_IDs=unit_IDs,
+            which=which,
+            ax_methods=ax_methods, ax_discs=ax_discs,
+            rad_methods=rad_methods, rad_discs=rad_discs,
+            par_methods=par_methods, par_discs=par_discs,
+            idas_abstol=idas_abstol,
+            n_jobs=n_jobs,
+            rad_inlet_profile=None,
+            rerun_sims=False,
+            refinement_IDs=refinement_IDs
+        )
+
+        # save new results under new name for corresponding port
+
         for idx in range(len(settings)):
 
             old_name = str(output_path) + '/convergence_' + \
                 settings[idx]['name'] + '.json'
             new_name = str(output_path) + '/convergence_' + 'port' + \
-                str(0).zfill(3) + '_' + settings[idx]['name'] + '.json'
+                str(target_zone).zfill(3) + '_' + \
+                settings[idx]['name'] + '.json'
             rename_json_file(old_name, new_name)
 
-        for target_zone in range(1, nRadialZones):
+    # Calculate Discrete Maximum Norm over all radial zones
 
-            references = []
+    for idx in range(len(settings)):
 
-            for idx in range(len(ref_file_names)):
+        # create target file based off the first file
+        target_name = str(output_path) + '/convergence_' + \
+            settings[idx]['name'] + '.json'
+        copy_name = str(output_path) + '/convergence_' + \
+            'port000_' + settings[idx]['name'] + '.json'
+        copy_json_file(copy_name, target_name)
 
-                # get the references at the other ports
-                references.extend(
-                    [convergence.get_solution(
-                        _reference_data_path_ + '/' + ref_file_names[idx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
-                    )]
-                )
+        for target_zone in range(nRadialZones):
 
-            unit_IDs = [str(4 + target_zone).zfill(3)] * \
-                n_settings  # 4 + target_zone
-
-            ref_files = [[ref] for ref in references]
-
-            bench_func.run_convergence_analysis(
-                output_path=output_path,
-                cadet_path=cadet_path,
-                cadet_configs=cadet_configs,
-                cadet_config_names=config_names,
-                include_sens=include_sens,
-                ref_files=ref_files,
-                unit_IDs=unit_IDs,
-                which=which,
-                ax_methods=ax_methods, ax_discs=ax_discs,
-                rad_methods=rad_methods, rad_discs=rad_discs,
-                par_methods=par_methods, par_discs=par_discs,
-                idas_abstol=idas_abstol,
-                n_jobs=n_jobs,
-                rad_inlet_profile=None,
-                rerun_sims=False,
-                refinement_IDs=refinement_IDs,
-                analytical_reference=use_analytical_reference
-            )
-
-            # save new results under new name for corresponding port
-
-            for idx in range(len(settings)):
-
-                old_name = str(output_path) + '/convergence_' + \
-                    settings[idx]['name'] + '.json'
-                new_name = str(output_path) + '/convergence_' + 'port' + \
-                    str(target_zone).zfill(3) + '_' + \
-                    settings[idx]['name'] + '.json'
-                rename_json_file(old_name, new_name)
-
-        # Calculate Discrete Maximum Norm over all radial zones
-
-        for idx in range(len(settings)):
-
-            # create target file based off the first file
-            target_name = str(output_path) + '/convergence_' + \
+            file_name = str(output_path) + '/convergence_' + 'port' + \
+                str(target_zone).zfill(3) + '_' + \
                 settings[idx]['name'] + '.json'
-            copy_name = str(output_path) + '/convergence_' + \
-                'port000_' + settings[idx]['name'] + '.json'
-            copy_json_file(copy_name, target_name)
 
-            for target_zone in range(nRadialZones):
+            with open(file_name, "r") as file:
+                data = json.load(file)
 
-                file_name = str(output_path) + '/convergence_' + 'port' + \
-                    str(target_zone).zfill(3) + '_' + \
-                    settings[idx]['name'] + '.json'
+            if target_zone == 0:
+                disc = data['convergence']['FV']['outlet']['$N_e^z$']
+                maxError = np.array(
+                    data['convergence']['FV']['outlet']['Max. error'])
+                L1Error = np.array(
+                    data['convergence']['FV']['outlet']['$L^1$ error'])
+                L2Error = np.array(
+                    data['convergence']['FV']['outlet']['$L^2$ error'])
+            else:  # maximum norm
+                maxError = np.maximum(maxError, np.array(
+                    data['convergence']['FV']['outlet']['Max. error']))
+                L1Error = np.maximum(L1Error, np.array(
+                    data['convergence']['FV']['outlet']['$L^1$ error']))
+                L2Error = np.maximum(L2Error, np.array(
+                    data['convergence']['FV']['outlet']['$L^2$ error']))
 
-                with open(file_name, "r") as file:
-                    data = json.load(file)
+        maxEOC = np.insert(
+            convergence.calculate_eoc(disc, maxError), 0, 0.0)
+        L1EOC = np.insert(convergence.calculate_eoc(disc, L1Error), 0, 0.0)
+        L2EOC = np.insert(convergence.calculate_eoc(disc, L2Error), 0, 0.0)
 
-                if target_zone == 0:
-                    disc = data['convergence']['FV']['outlet']['$N_e^z$']
-                    maxError = np.array(
-                        data['convergence']['FV']['outlet']['Max. error'])
-                    L1Error = np.array(
-                        data['convergence']['FV']['outlet']['$L^1$ error'])
-                    L2Error = np.array(
-                        data['convergence']['FV']['outlet']['$L^2$ error'])
-                else:  # maximum norm
-                    maxError = np.maximum(maxError, np.array(
-                        data['convergence']['FV']['outlet']['Max. error']))
-                    L1Error = np.maximum(L1Error, np.array(
-                        data['convergence']['FV']['outlet']['$L^1$ error']))
-                    L2Error = np.maximum(L2Error, np.array(
-                        data['convergence']['FV']['outlet']['$L^2$ error']))
+        with open(target_name, "r") as file:
+            target_data = json.load(file)
 
-            maxEOC = np.insert(
-                convergence.calculate_eoc(disc, maxError), 0, 0.0)
-            L1EOC = np.insert(convergence.calculate_eoc(disc, L1Error), 0, 0.0)
-            L2EOC = np.insert(convergence.calculate_eoc(disc, L2Error), 0, 0.0)
+        target_data['convergence']['FV']['outlet']['Max. error'] = maxError.tolist()
+        target_data['convergence']['FV']['outlet']['Max. EOC'] = maxEOC.tolist()
+        target_data['convergence']['FV']['outlet']['$L^1$ error'] = L1Error.tolist()
+        target_data['convergence']['FV']['outlet']['$L^1$ EOC'] = L1EOC.tolist()
+        target_data['convergence']['FV']['outlet']['$L^2$ error'] = L2Error.tolist()
+        target_data['convergence']['FV']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
 
-            with open(target_name, "r") as file:
-                target_data = json.load(file)
-
-            target_data['convergence']['FV']['outlet']['Max. error'] = maxError.tolist()
-            target_data['convergence']['FV']['outlet']['Max. EOC'] = maxEOC.tolist()
-            target_data['convergence']['FV']['outlet']['$L^1$ error'] = L1Error.tolist()
-            target_data['convergence']['FV']['outlet']['$L^1$ EOC'] = L1EOC.tolist()
-            target_data['convergence']['FV']['outlet']['$L^2$ error'] = L2Error.tolist()
-            target_data['convergence']['FV']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
-
-            print("2D chromatography convergence for setting no. ", idx)
-            print(target_data)
-            with open(target_name, "w") as file:
-                # Write with pretty formatting
-                json.dump(target_data, file, indent=4)
-                new_name = str(output_path) + '/convergence_portsMaxNorm_' + \
-                    settings[idx]['name'] + '.json'
-                rename_json_file(target_name, new_name)
+        print("2D chromatography convergence for setting no. ", idx)
+        print(target_data)
+        with open(target_name, "w") as file:
+            # Write with pretty formatting
+            json.dump(target_data, file, indent=4)
+            new_name = str(output_path) + '/convergence_portsMaxNorm_' + \
+                settings[idx]['name'] + '.json'
+            rename_json_file(target_name, new_name)
 

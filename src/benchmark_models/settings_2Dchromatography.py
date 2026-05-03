@@ -195,9 +195,8 @@ def GRM2D_linBnd_benchmark1(
 ):
 
     nRadPoints = (radMethod + 1) * radNElem
-    nInlets = max(1, nRadialZones) if kwargs.get(
-        'rad_inlet_profile', None) is None else nRadPoints
-    nOutlets = kwargs.get('analytical_reference', 0)
+    nInlets = nRadialZones
+    nOutlets = nRadialZones
 
     column = Dict()
 
@@ -385,7 +384,7 @@ def GRM2D_linBnd_benchmark1(
         connections, rad_coords = generate_connections_matrix(
             rad_method=radMethod, rad_cells=radNElem,
             velocity=column.VELOCITY, porosity=column.COL_POROSITY, col_radius=column.COL_RADIUS,
-            add_inlet_per_port=nInlets, add_outlet=int(kwargs.get('analytical_reference', 0))
+            add_inlet_per_port=nInlets, add_outlet=True
         )
 
     else:
