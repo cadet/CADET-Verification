@@ -318,7 +318,7 @@ def SMB_model1(nelem, polydeg, exactInt):
     return {'input': smb_model}
 
 
-def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
+def Cyclic_model1(nelem, polydeg, exactInt):
 
     # Setting up the model
     Cyclic_model = Cadet()
@@ -468,7 +468,7 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     return Cyclic_model
 
 
-def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
+def Acyclic_model1(nelem, polydeg, exactInt):
 
     # Setting up the model
     Acyclic_model = Cadet()
