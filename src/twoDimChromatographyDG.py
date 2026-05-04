@@ -26,6 +26,11 @@ _reference_data_path_ = str(
     Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
 )
 
+# _reference_data_path_ = str(
+#     Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference'
+# )
+
+
 # %% We define multiple settings convering binding modes, surface diffusion and
 # multiple particle types. All settings consider three radial zones.
 # An analytical solution can be provided and the EOC is computed for three
@@ -41,81 +46,84 @@ def get_settings(small_test):
             # If set to true, solution time 0.0 is ignored since its not computed by the analytical solution (CADET-Semi-Analytic)
             'nRadialZones': 2,
             'name': '2DDPFR2Zone_1Comp',
+            # 'reference': convergence.get_solution(
+            #     _reference_data_path_ + '/transport/2DDPFR2Zone_1Comp_DG_axP3Z32_radP3Z16.h5', unit='unit_003', which='outlet'
+            # )
             'reference': convergence.get_solution(
-                _reference_data_path_ + '/2DDPFR3Zone_1comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+                _reference_data_path_ + '/2DDPFR2Zone_1comp.h5', unit='unit_003', which='outlet'
             )
         },
-        # {  # 1parType, dynamic binding, no surface diffusion
-        #     'nRadialZones': nRadialZones,
-        #     'name': '2DGRM3Zone_dynLin_1Comp',
-        #     'par_method': 3,
-        #     'adsorption_model': 'LINEAR',
-        #     'adsorption.is_kinetic': 1,
-        #     'surface_diffusion': 0.0,
-        #     'reference': convergence.get_solution(
-        #         _reference_data_path_ + '/2DGRM3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
-        #     )
-        # },
-        # {  # 1parType, dynamic binding, with surface diffusion
-        #     'nRadialZones': nRadialZones,
-        #     'name': '2DGRMsd3Zone_dynLin_1Comp',
-        #     'par_method': 3,
-        #     'adsorption_model': 'LINEAR',
-        #     'adsorption.is_kinetic': 1,
-        #     'surface_diffusion': 1e-11,
-        #     'reference': convergence.get_solution(
-        #         _reference_data_path_ + '/2DGRMsd3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
-        #     )
-        # },
-        # {  # 1parType, req binding, no surface diffusion
-        #     'nRadialZones': nRadialZones,
-        #     'name': '2DGRM3Zone_reqLin_1Comp',
-        #     'par_method': 3,
-        #     'adsorption_model': 'LINEAR',
-        #     'adsorption.is_kinetic': 0,
-        #     'surface_diffusion': 0.0,
-        #     'init_cp': [0.0],
-        #     'init_cs': [0.0],
-        #     'reference': convergence.get_solution(
-        #         _reference_data_path_ + '/2DGRM3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
-        #     )
-        # },
-        # {  # 1parType, req binding, with surface diffusion
-        #     'nRadialZones': nRadialZones,
-        #     'name': '2DGRMsd3Zone_reqLin_1Comp',
-        #     'par_method': 3,
-        #     'adsorption_model': 'LINEAR',
-        #     'adsorption.is_kinetic': 0,
-        #     'surface_diffusion': 1e-11,
-        #     'init_cp': [0.0],
-        #     'init_cs': [0.0],
-        #     'reference': convergence.get_solution(
-        #         _reference_data_path_ + '/2DGRMsd3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
-        #     )
-        # },
-        # {  # 4parType:
-        #     'nRadialZones': nRadialZones,
-        #     'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
-        #     'par_method': 3,
-        #     'npartype': 2 if small_test else 4,
-        #     'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
-        #     'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
-        #     'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
-        #     'nbound': [1, 1] if small_test else [1, 1, 0, 1],
-        #     'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
-        #     'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
-        #     'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
-        #     'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
-        #     'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
-        #     'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
-        #     'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
-        #     'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
-        #     'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-        #     'reference': convergence.get_solution(
-        #         _reference_data_path_ + '/2DGRM2parType3Zone_1Comp.h5' if small_test else _reference_data_path_ + '/2DGRM4parType3Zone_1Comp.h5',
-        #         unit='unit_000', which='outlet_port_' + str(0).zfill(3)
-        #     )
-        # }
+        {  # 1parType, dynamic binding, no surface diffusion
+            'nRadialZones': 3,
+            'name': '2DGRM3Zone_dynLin_1Comp',
+            'par_method': 3,
+            'adsorption_model': 'LINEAR',
+            'adsorption.is_kinetic': 1,
+            'surface_diffusion': 0.0,
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRM3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            )
+        },
+        {  # 1parType, dynamic binding, with surface diffusion
+            'nRadialZones': 3,
+            'name': '2DGRMsd3Zone_dynLin_1Comp',
+            'par_method': 3,
+            'adsorption_model': 'LINEAR',
+            'adsorption.is_kinetic': 1,
+            'surface_diffusion': 1e-11,
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRMsd3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            )
+        },
+        {  # 1parType, req binding, no surface diffusion
+            'nRadialZones': 3,
+            'name': '2DGRM3Zone_reqLin_1Comp',
+            'par_method': 3,
+            'adsorption_model': 'LINEAR',
+            'adsorption.is_kinetic': 0,
+            'surface_diffusion': 0.0,
+            'init_cp': [0.0],
+            'init_cs': [0.0],
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRM3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            )
+        },
+        {  # 1parType, req binding, with surface diffusion
+            'nRadialZones': 3,
+            'name': '2DGRMsd3Zone_reqLin_1Comp',
+            'par_method': 3,
+            'adsorption_model': 'LINEAR',
+            'adsorption.is_kinetic': 0,
+            'surface_diffusion': 1e-11,
+            'init_cp': [0.0],
+            'init_cs': [0.0],
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRMsd3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            )
+        },
+        {  # 4parType:
+            'nRadialZones': 3,
+            'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
+            'par_method': 3,
+            'npartype': 2 if small_test else 4,
+            'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+            'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+            'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+            'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+            'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+            'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+            'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+            'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+            'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+            'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+            'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+            'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+            'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRM2parType3Zone_1Comp.h5' if small_test else _reference_data_path_ + '/2DGRM4parType3Zone_1Comp.h5',
+                unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            )
+        }
     ]
 
 
@@ -129,7 +137,7 @@ def GRM2D_linBnd_tests(
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        '2DDPFR2Zone_1Comp.h5',
+        '2DDPFR2Zone_1Comp.h5', # '2DDPFR2Zone_1Comp.h5' # 'transport/2DDPFR2Zone_1Comp_DG_axP3Z32_radP3Z16.h5'
         '2DGRM3Zone_dynLin_1Comp.h5',
         '2DGRMsd3Zone_dynLin_1Comp.h5',
         '2DGRM3Zone_reqLin_1Comp.h5',
@@ -211,7 +219,7 @@ def GRM2D_linBnd_tests(
 
     # %% create benchmark configurations
 
-    for setting in [settings[0]]:
+    for setting in settings:
         
         addition = GRM2D_DG_Benchmark(small_test=small_test, **setting)
 
@@ -242,7 +250,7 @@ def GRM2D_linBnd_tests(
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=None,
-        rerun_sims=rerun_sims,
+        rerun_sims=0,
         refinement_IDs=refinement_IDs
     )
 
@@ -280,7 +288,7 @@ def GRM2D_linBnd_tests(
             # get the references at the other ports
             tmp_ref_files = [
                 [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
+                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_' + str(nRadialZones + 1 + target_zone).zfill(3), which='outlet'
                 )]
             ]
 
