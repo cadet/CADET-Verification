@@ -126,12 +126,10 @@ def GRM2D_linBnd_tests(
 
     os.makedirs(output_path, exist_ok=True)
 
-    nRadialZones = 2
-
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        '2DDPFR2Zone_1comp.h5',
+        '2DDPFR2Zone_1Comp.h5',
         '2DGRM3Zone_dynLin_1Comp.h5',
         '2DGRMsd3Zone_dynLin_1Comp.h5',
         '2DGRM3Zone_reqLin_1Comp.h5',
@@ -143,8 +141,6 @@ def GRM2D_linBnd_tests(
     # %% Define benchmarks
 
     settings = get_settings(small_test)
-
-    n_settings = len([settings[0]])
 
     cadet_configs = []
     config_names = []
@@ -164,7 +160,7 @@ def GRM2D_linBnd_tests(
     def GRM2D_DG_Benchmark(small_test=False, **kwargs):
 
         nDisc = 3 if small_test else 4
-        nRadialZones = kwargs.get('nRadialZones', 2)
+        nRadialZones = kwargs['nRadialZones']
 
         benchmark_config = {
             'cadet_config_jsons': [
@@ -250,7 +246,7 @@ def GRM2D_linBnd_tests(
         refinement_IDs=refinement_IDs
     )
 
-    # For the analytical solution, we compute the discrete norm of the errors from each zone
+    # We compute the discrete norm of the errors from each zone
 
     def copy_json_file(source_file, destination_file):
         try:
@@ -268,79 +264,73 @@ def GRM2D_linBnd_tests(
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    # save old results under new name for corresponding port
-    for idx in range(len([settings[0]])):
-
+    for settingIdx in range(len(ref_file_names)):
+        
+        # save old results under new name for corresponding port
         old_name = str(output_path) + '/convergence_' + \
-            settings[idx]['name'] + '.json'
+            settings[settingIdx]['name'] + '.json'
         new_name = str(output_path) + '/convergence_' + 'port' + \
-            str(0).zfill(3) + '_' + settings[idx]['name'] + '.json'
+            str(0).zfill(3) + '_' + settings[settingIdx]['name'] + '.json'
         rename_json_file(old_name, new_name)
+        
+        nRadialZones = settings[settingIdx]['nRadialZones']
 
-    for target_zone in range(1, nRadialZones):
-
-        references = []
-
-        for idx in range(len(ref_file_names)):
+        for target_zone in range(1, nRadialZones):
 
             # get the references at the other ports
-            references.extend(
+            tmp_ref_files = [
                 [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[idx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
+                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
                 )]
+            ]
+
+            unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)]
+    
+            bench_func.run_convergence_analysis(
+                output_path=output_path,
+                cadet_path=cadet_path,
+                cadet_configs=[cadet_configs[settingIdx]],
+                cadet_config_names=[config_names[settingIdx]],
+                include_sens=[include_sens[settingIdx]],
+                ref_files=tmp_ref_files,
+                unit_IDs=unit_IDs,
+                which=[which[settingIdx]],
+                ax_methods=[ax_methods[settingIdx]], ax_discs=[ax_discs[settingIdx]],
+                rad_methods=[rad_methods[settingIdx]], rad_discs=[rad_discs[settingIdx]],
+                par_methods=[par_methods[settingIdx]], par_discs=[par_discs[settingIdx]],
+                idas_abstol=[idas_abstol[settingIdx]],
+                n_jobs=n_jobs,
+                rad_inlet_profile=None,
+                rerun_sims=False,
+                refinement_IDs=[refinement_IDs[settingIdx]]
             )
-
-        unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)] * \
-            n_settings  # 4 + target_zone
-
-        ref_files = [[ref] for ref in references]
-
-        bench_func.run_convergence_analysis(
-            output_path=output_path,
-            cadet_path=cadet_path,
-            cadet_configs=cadet_configs,
-            cadet_config_names=config_names,
-            include_sens=include_sens,
-            ref_files=ref_files,
-            unit_IDs=unit_IDs,
-            which=which,
-            ax_methods=ax_methods, ax_discs=ax_discs,
-            rad_methods=rad_methods, rad_discs=rad_discs,
-            par_methods=par_methods, par_discs=par_discs,
-            idas_abstol=idas_abstol,
-            n_jobs=n_jobs,
-            rad_inlet_profile=None,
-            rerun_sims=False,
-            refinement_IDs=refinement_IDs
-        )
-
-        # save new results under new name for corresponding port
-
-        for idx in range(len([settings[0]])):
-
+    
+            # save new results under new name for corresponding port
             old_name = str(output_path) + '/convergence_' + \
-                settings[idx]['name'] + '.json'
+                settings[settingIdx]['name'] + '.json'
             new_name = str(output_path) + '/convergence_' + 'port' + \
                 str(target_zone).zfill(3) + '_' + \
-                settings[idx]['name'] + '.json'
+                settings[settingIdx]['name'] + '.json'
             rename_json_file(old_name, new_name)
 
     # Calculate Discrete Maximum Norm over all radial zones
 
-    for idx in range(len([settings[0]])):
+    for settingIdx in range(len(settings)):
 
         # create target file based off the first file
         target_name = str(output_path) + '/convergence_' + \
-            settings[idx]['name'] + '.json'
+            settings[settingIdx]['name'] + '.json'
         copy_name = str(output_path) + '/convergence_' + \
-            'port000_' + settings[idx]['name'] + '.json'
+            'port000_' + settings[settingIdx]['name'] + '.json'
         copy_json_file(copy_name, target_name)
+
+        nRadialZones = settings[settingIdx]['nRadialZones']
 
         for target_zone in range(nRadialZones):
 
             file_name = str(output_path) + '/convergence_' + 'port' + \
                 str(target_zone).zfill(3) + '_' + \
-                settings[idx]['name'] + '.json'
+                settings[settingIdx]['name'] + '.json'
 
             with open(file_name, "r") as file:
                 data = json.load(file)
@@ -376,14 +366,13 @@ def GRM2D_linBnd_tests(
         target_data['convergence']['DG_P3']['outlet']['$L^2$ error'] = L2Error.tolist()
         target_data['convergence']['DG_P3']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
 
-        print("2D chromatography convergence for setting no. ", idx)
+        print("2D chromatography convergence for setting no. ", settingIdx)
         print(target_data)
         
         with open(target_name, "w") as file:
             json.dump(target_data, file, indent=4)
         
         new_name = str(output_path) + '/convergence_portsMaxNorm_' + \
-            settings[idx]['name'] + '.json'
+            settings[settingIdx]['name'] + '.json'
         
         rename_json_file(target_name, new_name)
-
