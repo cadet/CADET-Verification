@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 
-This scipt is similar to the src/verify.py file, but meant for debugging
+This scipt is similar to the scripts/verify.py file, but meant for debugging
 without pytest fixtures and cadet-rdm
 
 """
