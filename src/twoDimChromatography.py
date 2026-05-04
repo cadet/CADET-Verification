@@ -47,74 +47,73 @@ def get_settings(small_test):
         {  # PURE COLUMN TRANSPORT CASE
             'film_diffusion': 0.0,
             # 'col_dispersion_radial' : 0.0,
-            # If set to true, solution time 0.0 is ignored since its not computed by the analytical solution (CADET-Semi-Analytic)
-            'nRadialZones': 3,
-            'name': '2DDPFR3Zone_1comp',
+            'nRadialZones': 2,
+            'name': '2DDPFR2Zone_1comp',
             'par_method': 0,
             'adsorption_model': 'NONE',
             'surface_diffusion': 0.0,
-            'reference': load_reference('2DDPFR3Zone_1comp.h5')
+            'reference': load_reference('2DDPFR2Zone_1comp.h5')
         },
-        {  # 1parType, dynamic binding, no surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRM3Zone_dynLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 1,
-            'surface_diffusion': 0.0,
-            'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5')
-        },
-        {  # 1parType, dynamic binding, with surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRMsd3Zone_dynLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 1,
-            'surface_diffusion': 1e-11,
-            'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5')
-        },
-        {  # 1parType, req binding, no surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRM3Zone_reqLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 0,
-            'surface_diffusion': 0.0,
-            'init_cp': [0.0],
-            'init_cs': [0.0],
-            'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5')
-        },
-        {  # 1parType, req binding, with surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRMsd3Zone_reqLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 0,
-            'surface_diffusion': 1e-11,
-            'init_cp': [0.0],
-            'init_cs': [0.0],
-            'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5')
-        },
-        {  # 4parType:
-            'nRadialZones': 3,
-            'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
-            'par_method': 0,
-            'npartype': 2 if small_test else 4,
-            'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
-            'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
-            'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
-            'nbound': [1, 1] if small_test else [1, 1, 0, 1],
-            'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
-            'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
-            'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
-            'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
-            'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
-            'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
-            'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
-            'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
-            'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-            'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5')
-        }
+        # {  # 1parType, dynamic binding, no surface diffusion
+        #     'nRadialZones': 3,
+        #     'name': '2DGRM3Zone_dynLin_1Comp',
+        #     'par_method': 0,
+        #     'adsorption_model': 'LINEAR',
+        #     'adsorption.is_kinetic': 1,
+        #     'surface_diffusion': 0.0,
+        #     'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5')
+        # },
+        # {  # 1parType, dynamic binding, with surface diffusion
+        #     'nRadialZones': 3,
+        #     'name': '2DGRMsd3Zone_dynLin_1Comp',
+        #     'par_method': 0,
+        #     'adsorption_model': 'LINEAR',
+        #     'adsorption.is_kinetic': 1,
+        #     'surface_diffusion': 1e-11,
+        #     'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5')
+        # },
+        # {  # 1parType, req binding, no surface diffusion
+        #     'nRadialZones': 3,
+        #     'name': '2DGRM3Zone_reqLin_1Comp',
+        #     'par_method': 0,
+        #     'adsorption_model': 'LINEAR',
+        #     'adsorption.is_kinetic': 0,
+        #     'surface_diffusion': 0.0,
+        #     'init_cp': [0.0],
+        #     'init_cs': [0.0],
+        #     'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5')
+        # },
+        # {  # 1parType, req binding, with surface diffusion
+        #     'nRadialZones': 3,
+        #     'name': '2DGRMsd3Zone_reqLin_1Comp',
+        #     'par_method': 0,
+        #     'adsorption_model': 'LINEAR',
+        #     'adsorption.is_kinetic': 0,
+        #     'surface_diffusion': 1e-11,
+        #     'init_cp': [0.0],
+        #     'init_cs': [0.0],
+        #     'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5')
+        # },
+        # {  # 4parType:
+        #     'nRadialZones': 3,
+        #     'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
+        #     'par_method': 0,
+        #     'npartype': 2 if small_test else 4,
+        #     'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+        #     'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+        #     'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+        #     'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+        #     'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+        #     'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+        #     'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+        #     'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+        #     'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+        #     'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+        #     'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+        #     'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+        #     'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
+        #     'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5')
+        # }
     ]
 
 def GRM2D_linBnd_tests(
@@ -124,25 +123,21 @@ def GRM2D_linBnd_tests(
 
     os.makedirs(output_path, exist_ok=True)
 
-    nRadialZones = 3
-
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        '2DDPFR3Zone_1comp.h5',
-        '2DGRM3Zone_dynLin_1Comp.h5',
-        '2DGRMsd3Zone_dynLin_1Comp.h5',
-        '2DGRM3Zone_reqLin_1Comp.h5',
-        '2DGRMsd3Zone_reqLin_1Comp.h5',
-        '2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5'
+        '2DDPFR2Zone_1Comp.h5',
+        # '2DGRM3Zone_dynLin_1Comp.h5',
+        # '2DGRMsd3Zone_dynLin_1Comp.h5',
+        # '2DGRM3Zone_reqLin_1Comp.h5',
+        # '2DGRMsd3Zone_reqLin_1Comp.h5',
+        # '2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5'
         ]
 
 
     # %% Define benchmarks
 
     settings = get_settings(small_test)
-
-    n_settings = len(settings)
 
     cadet_configs = []
     config_names = []
@@ -162,7 +157,7 @@ def GRM2D_linBnd_tests(
     def GRM2D_FV_Benchmark(small_test=False, **kwargs):
 
         nDisc = 4 if small_test else 5
-        nRadialZones = kwargs.get('nRadialZones', 3)
+        nRadialZones = kwargs['nRadialZones']
 
         benchmark_config = {
             'cadet_config_jsons': [
@@ -318,79 +313,73 @@ def GRM2D_linBnd_tests(
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    # save old results under new name for corresponding port
-    for idx in range(len(settings)):
-
+    for settingIdx in range(len(ref_file_names)):
+        
+        # save old results under new name for corresponding port
         old_name = str(output_path) + '/convergence_' + \
-            settings[idx]['name'] + '.json'
+            settings[settingIdx]['name'] + '.json'
         new_name = str(output_path) + '/convergence_' + 'port' + \
-            str(0).zfill(3) + '_' + settings[idx]['name'] + '.json'
+            str(0).zfill(3) + '_' + settings[settingIdx]['name'] + '.json'
         rename_json_file(old_name, new_name)
+        
+        nRadialZones = settings[settingIdx]['nRadialZones']
 
-    for target_zone in range(1, nRadialZones):
-
-        references = []
-
-        for idx in range(len(ref_file_names)):
+        for target_zone in range(1, nRadialZones):
 
             # get the references at the other ports
-            references.extend(
+            tmp_ref_files = [
                 [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[idx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
+                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
                 )]
+            ]
+
+            unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)]
+    
+            bench_func.run_convergence_analysis(
+                output_path=output_path,
+                cadet_path=cadet_path,
+                cadet_configs=[cadet_configs[settingIdx]],
+                cadet_config_names=[config_names[settingIdx]],
+                include_sens=[include_sens[settingIdx]],
+                ref_files=tmp_ref_files,
+                unit_IDs=unit_IDs,
+                which=[which[settingIdx]],
+                ax_methods=[ax_methods[settingIdx]], ax_discs=[ax_discs[settingIdx]],
+                rad_methods=[rad_methods[settingIdx]], rad_discs=[rad_discs[settingIdx]],
+                par_methods=[par_methods[settingIdx]], par_discs=[par_discs[settingIdx]],
+                idas_abstol=[idas_abstol[settingIdx]],
+                n_jobs=n_jobs,
+                rad_inlet_profile=None,
+                rerun_sims=False,
+                refinement_IDs=[refinement_IDs[settingIdx]]
             )
-
-        unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)] * \
-            n_settings  # 4 + target_zone
-
-        ref_files = [[ref] for ref in references]
-
-        bench_func.run_convergence_analysis(
-            output_path=output_path,
-            cadet_path=cadet_path,
-            cadet_configs=cadet_configs,
-            cadet_config_names=config_names,
-            include_sens=include_sens,
-            ref_files=ref_files,
-            unit_IDs=unit_IDs,
-            which=which,
-            ax_methods=ax_methods, ax_discs=ax_discs,
-            rad_methods=rad_methods, rad_discs=rad_discs,
-            par_methods=par_methods, par_discs=par_discs,
-            idas_abstol=idas_abstol,
-            n_jobs=n_jobs,
-            rad_inlet_profile=None,
-            rerun_sims=False,
-            refinement_IDs=refinement_IDs
-        )
-
-        # save new results under new name for corresponding port
-
-        for idx in range(len(settings)):
-
+    
+            # save new results under new name for corresponding port
             old_name = str(output_path) + '/convergence_' + \
-                settings[idx]['name'] + '.json'
+                settings[settingIdx]['name'] + '.json'
             new_name = str(output_path) + '/convergence_' + 'port' + \
                 str(target_zone).zfill(3) + '_' + \
-                settings[idx]['name'] + '.json'
+                settings[settingIdx]['name'] + '.json'
             rename_json_file(old_name, new_name)
 
     # Calculate Discrete Maximum Norm over all radial zones
 
-    for idx in range(len(settings)):
+    for settingIdx in range(len(settings)):
 
         # create target file based off the first file
         target_name = str(output_path) + '/convergence_' + \
-            settings[idx]['name'] + '.json'
+            settings[settingIdx]['name'] + '.json'
         copy_name = str(output_path) + '/convergence_' + \
-            'port000_' + settings[idx]['name'] + '.json'
+            'port000_' + settings[settingIdx]['name'] + '.json'
         copy_json_file(copy_name, target_name)
+
+        nRadialZones = settings[settingIdx]['nRadialZones']
 
         for target_zone in range(nRadialZones):
 
             file_name = str(output_path) + '/convergence_' + 'port' + \
                 str(target_zone).zfill(3) + '_' + \
-                settings[idx]['name'] + '.json'
+                settings[settingIdx]['name'] + '.json'
 
             with open(file_name, "r") as file:
                 data = json.load(file)
@@ -426,12 +415,13 @@ def GRM2D_linBnd_tests(
         target_data['convergence']['FV']['outlet']['$L^2$ error'] = L2Error.tolist()
         target_data['convergence']['FV']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
 
-        print("2D chromatography convergence for setting no. ", idx)
+        print("2D chromatography convergence for setting no. ", settingIdx)
         print(target_data)
+        
         with open(target_name, "w") as file:
-            # Write with pretty formatting
             json.dump(target_data, file, indent=4)
-            new_name = str(output_path) + '/convergence_portsMaxNorm_' + \
-                settings[idx]['name'] + '.json'
-            rename_json_file(target_name, new_name)
-
+        
+        new_name = str(output_path) + '/convergence_portsMaxNorm_' + \
+            settings[settingIdx]['name'] + '.json'
+        
+        rename_json_file(target_name, new_name)
