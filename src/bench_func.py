@@ -317,7 +317,7 @@ def create_object_from_config(
                     velocity=config_data['input']['model']['unit_' +
                                                            tmpID].VELOCITY,
                     porosity=config_data['input']['model']['unit_' +
-                                                           tmpID].COL_POROSITY,
+                                                           tmpID].COL_POROSITY[0],
                     col_radius=config_data['input']['model']['unit_' +
                                                              tmpID].COL_RADIUS,
                     add_inlet_per_port=add_inlet_per_port, add_outlet=True

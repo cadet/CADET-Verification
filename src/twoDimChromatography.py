@@ -52,7 +52,8 @@ def get_settings(small_test):
             'par_method': 0,
             'adsorption_model': 'NONE',
             'surface_diffusion': 0.0,
-            'reference': load_reference('2DDPFR2Zone_1Comp.h5')
+            'reference': load_reference('2DDPFR2Zone_1Comp.h5'),
+            'inlet_function': settings_2Dchromatography.stepInlet
         },
         {  # 1parType, dynamic binding, no surface diffusion
             'nRadialZones': 3,
@@ -61,7 +62,8 @@ def get_settings(small_test):
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 1,
             'surface_diffusion': 0.0,
-            'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5')
+            'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5'),
+            'inlet_function': settings_2Dchromatography.stepInlet
         },
         {  # 1parType, dynamic binding, with surface diffusion
             'nRadialZones': 3,
@@ -70,7 +72,8 @@ def get_settings(small_test):
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 1,
             'surface_diffusion': 1e-11,
-            'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5')
+            'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5'),
+            'inlet_function': settings_2Dchromatography.stepInlet
         },
         {  # 1parType, req binding, no surface diffusion
             'nRadialZones': 3,
@@ -81,7 +84,8 @@ def get_settings(small_test):
             'surface_diffusion': 0.0,
             'init_cp': [0.0],
             'init_cs': [0.0],
-            'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5')
+            'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5'),
+            'inlet_function': settings_2Dchromatography.stepInlet
         },
         {  # 1parType, req binding, with surface diffusion
             'nRadialZones': 3,
@@ -92,7 +96,8 @@ def get_settings(small_test):
             'surface_diffusion': 1e-11,
             'init_cp': [0.0],
             'init_cs': [0.0],
-            'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5')
+            'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5'),
+            'inlet_function': settings_2Dchromatography.stepInlet
         },
         {  # 4parType:
             'nRadialZones': 3,
@@ -112,7 +117,8 @@ def get_settings(small_test):
             'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
             'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
             'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-            'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5')
+            'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5'),
+            'inlet_function': settings_2Dchromatography.stepInlet
         }
     ]
 

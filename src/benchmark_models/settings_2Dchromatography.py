@@ -174,11 +174,18 @@ def generate_connections_matrix(rad_method, rad_cells,
     return connections, rad_coords
 
 # =============================================================================
-# Setting
+# Settings
 # =============================================================================
 
 
-# %% Verification setting from Sams thesis
+def stepInlet(zoneIdx, stepSize=1.0, stepStart=1.0):
+    return float(stepStart + zoneIdx * stepSize)
+
+def constInlet(zoneIdx, const=1.0):
+    return float(const)
+
+
+# %% Verification settings with radial variation
 
 
 def GRM2D_linBnd_benchmark1(
@@ -210,14 +217,14 @@ def GRM2D_linBnd_benchmark1(
     column.COL_LENGTH = 0.014
     column.COL_RADIUS = 0.0035
     column.CROSS_SECTION_AREA = np.pi * column.COL_RADIUS**2
-
+    
     column.NPARTYPE = npartype
-    column.COL_POROSITY = 0.37
+    column.COL_POROSITY = kwargs.get('COL_POROSITY', [0.37])
+    
     if column.NPARTYPE > 0:
         column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
         # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
 
-    column.VELOCITY = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
     column.COL_DISPERSION_AXIAL = 5.75e-8
     column.COL_DISPERSION_RADIAL = kwargs.get('col_dispersion_radial', 5e-8)
     
@@ -379,16 +386,22 @@ def GRM2D_linBnd_benchmark1(
     model.solver.sections.NSEC = 2
     model.solver.sections.SECTION_TIMES = [0.0, 10.0, 1500.0]
 
+    
+    # Note: this velocity is only applied to the first zone.
+    # Other zones might have different velocity depending on the porosity
+    zone0Velocity = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
+    column.VELOCITY = zone0Velocity
+    
     # get connections matrix
     if re.search("2D", column.UNIT_TYPE):
         connections, rad_coords = generate_connections_matrix(
             rad_method=radMethod, rad_cells=radNElem,
-            velocity=column.VELOCITY, porosity=column.COL_POROSITY, col_radius=column.COL_RADIUS,
+            velocity=zone0Velocity, porosity=column.COL_POROSITY[0], col_radius=column.COL_RADIUS,
             add_inlet_per_port=nInlets, add_outlet=True
         )
 
     else:
-        Q = np.pi * column.COL_RADIUS**2 * column.VELOCITY
+        Q = np.pi * column.COL_RADIUS**2 * zone0Velocity
         connections = [1, 0, -1, -1, Q]
         rad_coords = [column.COL_RADIUS / 2.0]
 
@@ -406,8 +419,10 @@ def GRM2D_linBnd_benchmark1(
             model.model['unit_' + str(rad + 1).zfill(3)
                         ] = copy.deepcopy(inletUnit)
 
+            constCoeff = kwargs['inlet_function'](rad)
+
             model.model['unit_' + str(rad + 1).zfill(
-                3)].sec_000.CONST_COEFF = float(rad + 1) if nRadialZones > 0 else 0.0
+                3)].sec_000.CONST_COEFF = constCoeff
 
             model.model['unit_' + str(nRadialZones + 1 + rad).zfill(3)] = copy.deepcopy(outletUnit)
             model['return']['unit_' + str(nRadialZones + 1 + rad).zfill(3)] = model['return']['unit_000']
@@ -477,3 +492,4 @@ def GRM2D_linBnd_benchmark1(
             plt.ylabel(r'$concentration~/~mol \cdot L^{-1} $')
 
         return model
+
