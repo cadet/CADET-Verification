@@ -8,6 +8,13 @@ This script implements helper functions to set up the connectivity/flow rate mat
 import numpy as np
 from scipy.special import legendre
 
+
+def stepInlet(zoneIdx, stepSize=1.0, stepStart=1.0):
+    return float(stepStart + zoneIdx * stepSize)
+
+def constInlet(zoneIdx, const=1.0):
+    return float(const)
+
 def q_and_L(poly_deg, x):
     P = legendre(poly_deg)
     dP = P.deriv()
@@ -135,7 +142,7 @@ def generate_connections_matrix(rad_method, rad_cells,
     rad_coords, subcellCrossSectionAreas = get_radCoords_and_crossSectionAreas(rad_method, rad_cells, col_radius)
 
     # create flow rates for each zone
-    if np.isscalar(porosity):
+    if np.isscalar(porosity) or len(porosity) == 1:
         porosity_nodes = np.full(nRadPoints, porosity)
     else:
         porosity_elem = np.asarray(porosity)
