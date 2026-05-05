@@ -18,7 +18,8 @@ from pathlib import Path
 import src.utility.convergence as convergence
 import src.bench_configs as bench_configs
 import src.bench_func as bench_func
-from src.benchmark_models import settings_2Dchromatography
+from src.benchmark_models import setting_Col2D_lin_1comp_benchmark1
+import src.benchmark_models.helper_setup_2Dmodels as helper
 
 
 # %% Reference data paths
@@ -51,7 +52,7 @@ def get_settings(small_test):
             'reference': convergence.get_solution(
                 _reference_data_path_ + '/2DDPFR2Zone_1comp.h5', unit='unit_003', which='outlet'
             ),
-            'inlet_function': settings_2Dchromatography.stepInlet
+            'inlet_function': helper.stepInlet
         },
         {  # 1parType, dynamic binding, no surface diffusion
             'nRadialZones': 3,
@@ -63,7 +64,7 @@ def get_settings(small_test):
             'reference': convergence.get_solution(
                 _reference_data_path_ + '/2DGRM3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
             ),
-            'inlet_function': settings_2Dchromatography.stepInlet
+            'inlet_function': helper.stepInlet
         },
         {  # 1parType, dynamic binding, with surface diffusion
             'nRadialZones': 3,
@@ -75,7 +76,7 @@ def get_settings(small_test):
             'reference': convergence.get_solution(
                 _reference_data_path_ + '/2DGRMsd3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
             ),
-            'inlet_function': settings_2Dchromatography.stepInlet
+            'inlet_function': helper.stepInlet
         },
         {  # 1parType, req binding, no surface diffusion
             'nRadialZones': 3,
@@ -89,7 +90,7 @@ def get_settings(small_test):
             'reference': convergence.get_solution(
                 _reference_data_path_ + '/2DGRM3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
             ),
-            'inlet_function': settings_2Dchromatography.stepInlet
+            'inlet_function': helper.stepInlet
         },
         {  # 1parType, req binding, with surface diffusion
             'nRadialZones': 3,
@@ -103,7 +104,7 @@ def get_settings(small_test):
             'reference': convergence.get_solution(
                 _reference_data_path_ + '/2DGRMsd3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
             ),
-            'inlet_function': settings_2Dchromatography.stepInlet
+            'inlet_function': helper.stepInlet
         },
         {  # 4parType:
             'nRadialZones': 3,
@@ -127,7 +128,7 @@ def get_settings(small_test):
                 _reference_data_path_ + '/2DGRM2parType3Zone_1Comp.h5' if small_test else _reference_data_path_ + '/2DGRM4parType3Zone_1Comp.h5',
                 unit='unit_000', which='outlet_port_' + str(0).zfill(3)
             ),
-            'inlet_function': settings_2Dchromatography.stepInlet
+            'inlet_function': helper.stepInlet
         }
     ]
 
@@ -177,7 +178,7 @@ def GRM2D_linBnd_tests(
 
         benchmark_config = {
             'cadet_config_jsons': [
-                settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+                setting_Col2D_lin_1comp_benchmark1.get_model(
                     radNElem=nRadialZones,
                     rad_inlet_profile=None,
                     USE_MODIFIED_NEWTON=0, axMethod=3, **kwargs)

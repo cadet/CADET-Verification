@@ -15,7 +15,7 @@ import copy
 import src.bench_func as bench_func
 import src.utility.convergence as convergence
 
-from src.benchmark_models import settings_2Dchromatography
+from src.benchmark_models import setting_Col2D_lin_1comp_benchmark1
 from src.benchmark_models import settings_columnSystems
 from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
@@ -1017,7 +1017,7 @@ def GRM2D_FV_benchmark(small_test=False, **kwargs):
     
     benchmark_config = {
         'cadet_config_jsons': [
-            settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+            setting_Col2D_lin_1comp_benchmark1.get_model(
                 radNElem=nRadialZones,
                 rad_inlet_profile=None,
                 USE_MODIFIED_NEWTON=0, axMethod=0, **kwargs)
