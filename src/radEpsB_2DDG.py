@@ -27,13 +27,13 @@ import src.benchmark_models.helper_setup_2Dmodels as helper
 
 
 # %% Reference data paths
-_reference_data_path_ = str(
-    Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
-)
-
 # _reference_data_path_ = str(
-#     Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference'
+#     Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
 # )
+
+_reference_data_path_ = str(
+    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference'
+)
 
 
 # %% We define multiple settings convering binding modes, surface diffusion and
@@ -51,10 +51,10 @@ def get_settings(small_test):
             'nRadialZones': 2,
             'COL_POROSITY': np.linspace(0.35, 0.5, 2),
             'name': '2DDPFR2Zone_radEps_1Comp',
-            # 'reference': convergence.get_solution(
-            #     _reference_data_path_ + '/transport/2DDPFR2Zone_1Comp_DG_axP3Z32_radP3Z16.h5', unit='unit_003', which='outlet'
-            # )
-            'reference': None,
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/transport/2DDPFR2Zone_radEps_1Comp_DG_axP3Z64_radP3Z32.h5', unit='unit_003', which='outlet'
+            ),
+            # 'reference': None,
             'inlet_function': partial(helper.constInlet,
                                       const=1.0)
         }
@@ -71,7 +71,7 @@ def GRM2D_linBnd_tests(
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        None
+        'transport/2DDPFR2Zone_radEps_1Comp_DG_axP3Z64_radP3Z32.h5'
         ]
 
 
@@ -95,8 +95,8 @@ def GRM2D_linBnd_tests(
 
         axNElem = spatial_discretization['AX_NELEM'] * 2** (disc_idx)
         radNElem = spatial_discretization['RAD_NELEM'] * 2** (disc_idx)
-        rad_method = config_copy['input']['model']['unit_' + unit_id]['discretization']['RAD_POLYDEG']
-
+        rad_method = spatial_discretization['RAD_POLYDEG']
+        
         config_copy['input']['model']['unit_' + unit_id]['discretization'].update(spatial_discretization)
         config_copy['input']['model']['unit_' + unit_id]['discretization']['AX_NELEM'] = axNElem
         config_copy['input']['model']['unit_' + unit_id]['discretization']['RAD_NELEM'] = radNElem
@@ -115,6 +115,8 @@ def GRM2D_linBnd_tests(
             
         config_copy['input']['model']['unit_' + unit_id].COL_POROSITY = colPorosity
 
+        constant_velocity = np.isscalar(colPorosity) or len(colPorosity) == 1
+
         # update connections
         
         config_copy['input']['model']['unit_'+ unit_id].PORTS = (rad_method + 1 ) * radNElem
@@ -122,17 +124,18 @@ def GRM2D_linBnd_tests(
         n_units = config_copy['input']['model']['nunits']
         nInlets = int((n_units - 1) / 2)
         add_inlet_per_port = nInlets
-            
-        config_copy['input']['model'].nunits = n_units
         
+        config_copy['input']['model'].nunits = n_units
+                
         connections, rad_coords = helper.generate_connections_matrix(
             rad_method=rad_method, rad_cells=radNElem,
             velocity=config_copy['input']['model']['unit_' +
                                                    unit_id].VELOCITY,
             porosity=config_copy['input']['model']['unit_' +
-                                                   unit_id].COL_POROSITY[0],
+                                                   unit_id].COL_POROSITY,
             col_radius=config_copy['input']['model']['unit_' +
                                                      unit_id].COL_RADIUS,
+            constant_velocity=constant_velocity,
             add_inlet_per_port=add_inlet_per_port, add_outlet=True
         )
 
@@ -152,8 +155,8 @@ def GRM2D_linBnd_tests(
         
         config_name = convergence.generate_2D_name(
             setting_name,
-            spatial_discretization['AX_POLYDEG'], spatial_discretization['AX_NELEM'],
-            spatial_discretization['RAD_POLYDEG'], spatial_discretization['RAD_NELEM']
+            spatial_discretization['AX_POLYDEG'], axNElem,
+            spatial_discretization['RAD_POLYDEG'], radNElem
             )
         
         model = Cadet()
@@ -169,10 +172,9 @@ def GRM2D_linBnd_tests(
                 model.save()
                 return model
 
-
     time_integrator_2dgrm = {
         'ABSTOL' : 1e-10, 'RELTOL' : 1e-8, 'ALGTOL' : 1e-10,
-        'USE_MODIFIED_NEWTON' : False,
+        'USE_MODIFIED_NEWTON' : True,
         'init_step_size' : 1e-10,
         'max_steps' : 1000000
         }
@@ -181,7 +183,7 @@ def GRM2D_linBnd_tests(
         'AX_POLYDEG': 3, 'AX_NELEM': 4, 
         'RAD_POLYDEG': 3, 'RAD_NELEM': 2, 
         'SPATIAL_METHOD' : 'DG',
-        'USE_ANALYTIC_JACOBIAN': True, 'USE_MODIFIED_NEWTON' : False
+        'USE_ANALYTIC_JACOBIAN': True
         }
 
     settings = get_settings(small_test)
@@ -204,7 +206,7 @@ def GRM2D_linBnd_tests(
 
     def GRM2D_DG_Benchmark(small_test=False, **kwargs):
 
-        nDisc = 3 if small_test else 4
+        nDisc = 4 if small_test else 4
         nRadialZones = kwargs['nRadialZones']
 
         benchmark_config = {
@@ -212,7 +214,7 @@ def GRM2D_linBnd_tests(
                 setting_Col2D_lin_1comp_benchmark1.get_model(
                     radNElem=nRadialZones,
                     rad_inlet_profile=None,
-                    USE_MODIFIED_NEWTON=0, axMethod=3, **kwargs)
+                    axMethod=3, **kwargs)
             ],
             'include_sens': [
                 False
@@ -296,7 +298,7 @@ def GRM2D_linBnd_tests(
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=None,
-        rerun_sims=True,
+        rerun_sims=rerun_sims,
         refinement_IDs=refinement_IDs,
         disc_refinement_functions=disc_refinement_functions
     )
