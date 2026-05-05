@@ -7,186 +7,22 @@ This script defines model settings considered for the verification of the
 """
 
 import numpy as np
-from matplotlib import pyplot as plt
 from addict import Dict
 import re
 import copy
 
-from cadet import Cadet
-
 from src.utility import convergence
-
-# =============================================================================
-# Definition of helper functions
-# =============================================================================
-
-from scipy.special import legendre
+import src.benchmark_models.helper_setup_2Dmodels as helper
 
 
-def q_and_L(poly_deg, x):
-    P = legendre(poly_deg)
-    dP = P.deriv()
-    L = P(x)
-    q = P.deriv()(x)
-    q_der = P.deriv(2)(x)
-    return L, q, q_der
+# %% Verification settings with radial variation
 
 
-def lgl_nodes_weights(poly_deg):
-    if poly_deg < 1:
-        raise ValueError("Polynomial degree must be at least 1!")
-
-    nodes = np.zeros(poly_deg + 1)
-    weights = np.zeros(poly_deg + 1)
-    pi = np.pi
-    tolerance = 1e-15
-    n_iterations = 10
-
-    if poly_deg == 1:
-        nodes[0] = -1
-        nodes[1] = 1
-        weights[0] = 1
-        weights[1] = 1
-    else:
-        nodes[0] = -1
-        nodes[poly_deg] = 1
-        weights[0] = 2.0 / (poly_deg * (poly_deg + 1.0))
-        weights[poly_deg] = weights[0]
-
-        for j in range(1, (poly_deg + 1) // 2):
-            x = -np.cos(pi * (j + 0.25) / poly_deg - 3 /
-                        (8.0 * poly_deg * pi * (j + 0.25)))
-            for k in range(n_iterations):
-                L, q, q_der = q_and_L(poly_deg, x)
-                dx = q / q_der
-                x -= dx
-                if abs(dx) <= tolerance * abs(x):
-                    break
-            nodes[j] = x
-            nodes[poly_deg - j] = -x
-            L, q, q_der = q_and_L(poly_deg, x)
-            weights[j] = 2.0 / (poly_deg * (poly_deg + 1.0) * L**2)
-            weights[poly_deg - j] = weights[j]
-
-        if poly_deg % 2 == 0:
-            L, q, q_der = q_and_L(poly_deg, 0.0)
-            nodes[poly_deg // 2] = 0
-            weights[poly_deg // 2] = 2.0 / (poly_deg * (poly_deg + 1.0) * L**2)
-
-    return nodes, weights
-# # Example usage:
-# poly_deg = 5  # Change this to the desired order
-# nodes, weights = lgl_nodes_weights(poly_deg)
-
-# # Display the results
-# print("nodes:", nodes)
-# print("Weights:", weights)
-# print("wiki node", np.sqrt(1/3 - 2*np.sqrt(7) / 21))
-# print("wiki weight", (14 + np.sqrt(7))/30)
-# print("Sum of weights:", sum(weights))
-# print("Inv weights:", np.reciprocal(weights))
-
-
-def generate_connections_matrix(rad_method, rad_cells,
-                                velocity, porosity, col_radius,
-                                add_inlet_per_port=True, add_outlet=False):
-    """Computes the connections matrix with const. velocity flow rates, and radial coordinates.
-    Equidistant cell/element spacing is assumed.
-    
-    Parameters
-    ----------
-    porosity : float
-        column porosity (constant)
-    
-    Returns
-    -------
-    List of float, List of float
-        Connections matrix, radial coordinates.
-    """
-
-    nRadPoints = (rad_method + 1) * rad_cells
-
-    # we want the same velocity within each radial zone and use an equidistant radial grid, ie we adjust the volumetric flow rate accordingly in each port
-    # 1. compute cross sections
-
-    subcellCrossSectionAreas = []
-    rad_coords = []
-
-    if rad_method > 0:
-
-        nodes, weights = lgl_nodes_weights(rad_method)
-        # scale the weights to radial element spacing
-        # note that weights need to be scaled to 1 later, to give us the size of the corresponding subcells
-        # print(sum(weights) / 2.0 - 1.0 < 1E-15)
-        deltaR = col_radius / rad_cells
-        for rIdx in range(rad_cells):
-            jojoL = rIdx * deltaR
-            for node in range(rad_method + 1):
-                jojoR = jojoL + weights[node] / 2.0 * deltaR
-                # print("Left boundary: ", jojoL)
-                # print("Right boundary: ", jojoR)
-                subcellCrossSectionAreas.append(
-                    np.pi * (jojoR ** 2 - jojoL ** 2))
-                rad_coords.append(
-                    rIdx * deltaR + (nodes[node] + 1) / 2.0 * deltaR)
-                jojoL = jojoR
-    else:
-        deltaR = col_radius / nRadPoints
-        jojoL = 0.0
-        for rIdx in range(nRadPoints):
-            rad_coords.append(rIdx * deltaR + deltaR / 2.0)
-            jojoR = jojoL + deltaR
-            subcellCrossSectionAreas.append(np.pi * (jojoR ** 2 - jojoL ** 2))
-            jojoL = jojoR
-
-    # print("subcellCrossSectionAreas: ", subcellCrossSectionAreas)
-    # print(len(subcellCrossSectionAreas) == nRadPoints)
-
-    # create flow rates for each zone
-    flowRates = []
-    columnIdx = 0  # always needs to be the first unit
-    for rad in range(nRadPoints):
-        flowRates.append(subcellCrossSectionAreas[rad] * porosity * velocity)
-    # create connections matrix
-    connections = []
-    # add inlet connections
-    if add_inlet_per_port:
-
-        nRadialZones = rad_cells if add_inlet_per_port is True else add_inlet_per_port
-
-        if not rad_cells % nRadialZones == 0:
-            raise Exception(
-                f"Number of radial zones {nRadialZones} is not a multiple of rad_cells {rad_cells}")
-
-        for rad in range(nRadPoints):
-            zone = int(rad / (nRadPoints / nRadialZones))
-            connections += [zone + 1, columnIdx,
-                            0, rad, -1, -1, flowRates[rad]]
-            if add_outlet:
-                connections += [columnIdx, nRadialZones + 1 + zone,
-                                rad, 0, -1, -1, flowRates[rad]]
-    else:
-        for rad in range(nRadPoints):
-            connections += [1, columnIdx, 0, rad, -1, -1, flowRates[rad]]
-            if add_outlet:
-                connections += [columnIdx, nRadPoints + 1 + rad,
-                                rad, 0, -1, -1, flowRates[rad]]
-    return connections, rad_coords
-
-# =============================================================================
-# Setting
-# =============================================================================
-
-
-# %% Verification setting from Sams thesis
-
-
-def GRM2D_linBnd_benchmark1(
+def get_model(
         axMethod=0, axNElem=8,
         radMethod=0, radNElem=3,
         parMethod=0, parNElem=2,
         nRadialZones=1,  # discontinuous radial inlet zones (equidistant)
-        plot=False, run=False,
         save_path="C:/Users/jmbr/JupyterNotebooks/",
         file_name=None,
         transport_model=None,
@@ -194,9 +30,8 @@ def GRM2D_linBnd_benchmark1(
 ):
 
     nRadPoints = (radMethod + 1) * radNElem
-    nInlets = max(1, nRadialZones) if kwargs.get(
-        'rad_inlet_profile', None) is None else nRadPoints
-    nOutlets = kwargs.get('analytical_reference', 0)
+    nInlets = nRadialZones
+    nOutlets = nRadialZones
 
     column = Dict()
 
@@ -210,30 +45,35 @@ def GRM2D_linBnd_benchmark1(
     column.COL_LENGTH = 0.014
     column.COL_RADIUS = 0.0035
     column.CROSS_SECTION_AREA = np.pi * column.COL_RADIUS**2
-
+    
     column.NPARTYPE = kwargs.get('npartype', 1)
-    # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
-    column.COL_POROSITY = 0.37
-    column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
+    
+    column.COL_POROSITY = kwargs.get('COL_POROSITY', [0.37])
+    
+    if column.NPARTYPE > 0:
+        column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
+        # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
 
-    column.VELOCITY = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
     column.COL_DISPERSION_AXIAL = 5.75e-8
     column.COL_DISPERSION_RADIAL = kwargs.get('col_dispersion_radial', 5e-8)
     
     for parType in range(column.NPARTYPE):
+        
         groupName = 'particle_type_' + str(parType).zfill(3)
         
         column[groupName].has_film_diffusion = 1
 
         # binding parameters
         if column.NPARTYPE > 1:
+            
+            column[groupName].FILM_DIFFUSION = kwargs['film_diffusion'][parType]
             column[groupName].has_pore_diffusion = kwargs['pore_diffusion'][parType] > 0.0
             column[groupName].PAR_RADIUS = kwargs['par_radius'][parType]
             column[groupName].PAR_POROSITY = kwargs['par_porosity'][parType]
             column[groupName].nbound = [kwargs['nbound'][parType]]
             column[groupName].adsorption_model = kwargs['adsorption_model'][parType]
-            column[groupName].FILM_DIFFUSION = kwargs['film_diffusion'][parType]
             column[groupName].PORE_DIFFUSION = kwargs['pore_diffusion'][parType]
+            
             if not column[groupName].nbound == [0]:
                 column[groupName].has_surface_diffusion = kwargs['surface_diffusion'][parType] > 0.0
                 column[groupName].SURFACE_DIFFUSION = kwargs['surface_diffusion'][parType]
@@ -276,8 +116,8 @@ def GRM2D_linBnd_benchmark1(
         rad_delta = column.COL_RADIUS / radNElem
 
         if axMethod > 0:
-            ax_nodes, _ = lgl_nodes_weights(axMethod)
-            rad_nodes, _ = lgl_nodes_weights(radMethod)
+            ax_nodes, _ = helper.lgl_nodes_weights(axMethod)
+            rad_nodes, _ = helper.lgl_nodes_weights(radMethod)
 
             for idx in range(axNElem):
                 ax_coords[idx * (axMethod+1): (idx + 1) * (axMethod+1)
@@ -378,16 +218,22 @@ def GRM2D_linBnd_benchmark1(
     model.solver.sections.NSEC = 2
     model.solver.sections.SECTION_TIMES = [0.0, 10.0, 1500.0]
 
+    
+    # Note: this velocity is only applied to the first zone.
+    # Other zones might have different velocity depending on the porosity
+    zone0Velocity = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
+    column.VELOCITY = zone0Velocity
+    
     # get connections matrix
     if re.search("2D", column.UNIT_TYPE):
-        connections, rad_coords = generate_connections_matrix(
+        connections, rad_coords = helper.generate_connections_matrix(
             rad_method=radMethod, rad_cells=radNElem,
-            velocity=column.VELOCITY, porosity=column.COL_POROSITY, col_radius=column.COL_RADIUS,
-            add_inlet_per_port=nInlets, add_outlet=int(kwargs.get('analytical_reference', 0))
+            velocity=zone0Velocity, porosity=column.COL_POROSITY, col_radius=column.COL_RADIUS,
+            add_inlet_per_port=nInlets, add_outlet=True
         )
 
     else:
-        Q = np.pi * column.COL_RADIUS**2 * column.VELOCITY
+        Q = np.pi * column.COL_RADIUS**2 * zone0Velocity
         connections = [1, 0, -1, -1, Q]
         rad_coords = [column.COL_RADIUS / 2.0]
 
@@ -405,8 +251,10 @@ def GRM2D_linBnd_benchmark1(
             model.model['unit_' + str(rad + 1).zfill(3)
                         ] = copy.deepcopy(inletUnit)
 
+            constCoeff = kwargs['inlet_function'](rad)
+
             model.model['unit_' + str(rad + 1).zfill(
-                3)].sec_000.CONST_COEFF = float(rad + 1) if nRadialZones > 0 else 0.0
+                3)].sec_000.CONST_COEFF = constCoeff
 
             model.model['unit_' + str(nRadialZones + 1 + rad).zfill(3)] = copy.deepcopy(outletUnit)
             model['return']['unit_' + str(nRadialZones + 1 + rad).zfill(3)] = model['return']['unit_000']
@@ -431,48 +279,4 @@ def GRM2D_linBnd_benchmark1(
     model.solver.sections.SECTION_CONTINUITY = [0,]
     model.solver.USER_SOLUTION_TIMES = np.linspace(0, 1500, 1501)
 
-    if not run:
-        return {'input': model}
-    else:
-        cadet_model = Cadet()
-        cadet_model.root.input = model
-
-        if column.discretization.SPATIAL_METHOD == "FV":
-            cadet_model.filename = save_path + \
-                file_name if file_name is not None else save_path + "FV_grm2d_debug.h5"
-        else:
-            cadet_model.filename = save_path + \
-                file_name if file_name is not None else save_path + "lrmp2d_debug.h5"
-        cadet_model.save()
-
-        data = cadet_model.run_simulation()
-        if data.return_code == 0:
-            print(cadet_model.filename + " simulation completed successfully")
-            cadet_model.load_from_file()
-        else:
-            print(data)
-            raise Exception(cadet_model.filename + " simulation failed")
-
-        if plot:
-
-            plt.figure()
-            zeitpunkt = int(plot)
-            time = cadet_model.root.output.solution.solution_times
-            ax_coords = cadet_model.root.output.coordinates['unit_000'].axial_coordinates
-            c = cadet_model.root.output.solution['unit_000'].solution_bulk
-
-            if re.search("2D", column.UNIT_TYPE):
-                for rad in range(nRadPoints):
-                    plt.plot(ax_coords, c[zeitpunkt, :, rad, 0],
-                             linestyle='dashed', label='c' + str(rad))
-            else:
-                plt.plot(ax_coords, c[zeitpunkt, :, 0],
-                         linestyle='dashed', label='c' + str(rad))
-
-            if nRadPoints <= 12:
-                plt.legend()
-            plt.title(f'Column bulk at t = {zeitpunkt}')
-            plt.xlabel('$time~/~s$')
-            plt.ylabel(r'$concentration~/~mol \cdot L^{-1} $')
-
-        return model
+    return {'input': model}

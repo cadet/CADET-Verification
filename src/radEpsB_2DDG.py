@@ -10,10 +10,14 @@ the 2DGRM. The results of this convergence analysis are published in Rao et al.
 
 # %% import packages and files
 import os
+import copy
 import numpy as np
 import json
 import shutil
 from pathlib import Path
+from functools import partial
+
+from cadet import Cadet
 
 import src.utility.convergence as convergence
 import src.bench_configs as bench_configs
@@ -23,8 +27,12 @@ import src.benchmark_models.helper_setup_2Dmodels as helper
 
 
 # %% Reference data paths
+# _reference_data_path_ = str(
+#     Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
+# )
+
 _reference_data_path_ = str(
-    Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
+    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference'
 )
 
 
@@ -34,94 +42,24 @@ _reference_data_path_ = str(
 # radial zones. Ultimately, the discrete maximum norm of the zonal errors is
 # considered to compute the EOC.
 
-def get_settings(small_test):
-    
-    def load_reference(filename):
 
-        return convergence.get_solution(
-            _reference_data_path_ + "/" + filename,
-            unit='unit_000',
-            which='outlet_port_' + str(0).zfill(3)
-        )
-    
+def get_settings(small_test):
     return [
         {  # PURE COLUMN TRANSPORT CASE
-            'film_diffusion': 0.0,
+            'npartype': 0,
             # 'col_dispersion_radial' : 0.0,
             'nRadialZones': 2,
-            'name': '2DDPFR2Zone_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'NONE',
-            'surface_diffusion': 0.0,
-            'reference': load_reference('2DDPFR2Zone_1Comp.h5'),
-            'inlet_function': helper.stepInlet
-        },
-        {  # 1parType, dynamic binding, no surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRM3Zone_dynLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 1,
-            'surface_diffusion': 0.0,
-            'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5'),
-            'inlet_function': helper.stepInlet
-        },
-        {  # 1parType, dynamic binding, with surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRMsd3Zone_dynLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 1,
-            'surface_diffusion': 1e-11,
-            'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5'),
-            'inlet_function': helper.stepInlet
-        },
-        {  # 1parType, req binding, no surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRM3Zone_reqLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 0,
-            'surface_diffusion': 0.0,
-            'init_cp': [0.0],
-            'init_cs': [0.0],
-            'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5'),
-            'inlet_function': helper.stepInlet
-        },
-        {  # 1parType, req binding, with surface diffusion
-            'nRadialZones': 3,
-            'name': '2DGRMsd3Zone_reqLin_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'LINEAR',
-            'adsorption.is_kinetic': 0,
-            'surface_diffusion': 1e-11,
-            'init_cp': [0.0],
-            'init_cs': [0.0],
-            'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5'),
-            'inlet_function': helper.stepInlet
-        },
-        {  # 4parType:
-            'nRadialZones': 3,
-            'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
-            'par_method': 0,
-            'npartype': 2 if small_test else 4,
-            'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
-            'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
-            'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
-            'nbound': [1, 1] if small_test else [1, 1, 0, 1],
-            'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
-            'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
-            'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
-            'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
-            'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
-            'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
-            'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
-            'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
-            'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-            'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5'),
-            'inlet_function': helper.stepInlet
+            'COL_POROSITY': np.linspace(0.35, 0.5, 2),
+            'name': '2DDPFR2Zone_radEps_1Comp',
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/transport/2DDPFR2Zone_radEps_1Comp_DG_axP3Z64_radP3Z32.h5', unit='unit_003', which='outlet'
+            ),
+            # 'reference': None,
+            'inlet_function': partial(helper.constInlet,
+                                      const=1.0)
         }
     ]
+
 
 def GRM2D_linBnd_tests(
         n_jobs, small_test,
@@ -133,16 +71,120 @@ def GRM2D_linBnd_tests(
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        '2DDPFR2Zone_1Comp.h5',
-        '2DGRM3Zone_dynLin_1Comp.h5',
-        '2DGRMsd3Zone_dynLin_1Comp.h5',
-        '2DGRM3Zone_reqLin_1Comp.h5',
-        '2DGRMsd3Zone_reqLin_1Comp.h5',
-        '2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5'
+        'transport/2DDPFR2Zone_radEps_1Comp_DG_axP3Z64_radP3Z32.h5'
         ]
 
 
     # %% Define benchmarks
+
+    def refine_disc_radEps(
+            config_data, disc_idx, setting_name,
+            spatial_discretization,
+            time_integrator=None,
+            unit_id = '001',
+            only_return_name=False,
+            **kwargs
+            ):
+
+        config_copy = copy.deepcopy(config_data)
+
+        # update discretization
+        
+        if time_integrator is not None:
+            config_copy['input']['solver']['time_integrator'] = time_integrator
+
+        axNElem = spatial_discretization['AX_NELEM'] * 2** (disc_idx)
+        radNElem = spatial_discretization['RAD_NELEM'] * 2** (disc_idx)
+        rad_method = spatial_discretization['RAD_POLYDEG']
+        
+        config_copy['input']['model']['unit_' + unit_id]['discretization'].update(spatial_discretization)
+        config_copy['input']['model']['unit_' + unit_id]['discretization']['AX_NELEM'] = axNElem
+        config_copy['input']['model']['unit_' + unit_id]['discretization']['RAD_NELEM'] = radNElem
+        
+        # replicate zonal parameters for each element
+        
+        colPorosity = []
+        
+        for zoneIdx in range(kwargs['nRadialZones']):
+            
+            epsB = config_copy['input']['model']['unit_' + unit_id].COL_POROSITY[zoneIdx]
+            
+            for elemIdx in range(int(radNElem / kwargs['nRadialZones'])):
+            
+                colPorosity.append(epsB)
+            
+        config_copy['input']['model']['unit_' + unit_id].COL_POROSITY = colPorosity
+
+        constant_velocity = np.isscalar(colPorosity) or len(colPorosity) == 1
+
+        # update connections
+        
+        config_copy['input']['model']['unit_'+ unit_id].PORTS = (rad_method + 1 ) * radNElem
+
+        n_units = config_copy['input']['model']['nunits']
+        nInlets = int((n_units - 1) / 2)
+        add_inlet_per_port = nInlets
+        
+        config_copy['input']['model'].nunits = n_units
+                
+        connections, rad_coords = helper.generate_connections_matrix(
+            rad_method=rad_method, rad_cells=radNElem,
+            velocity=config_copy['input']['model']['unit_' +
+                                                   unit_id].VELOCITY,
+            porosity=config_copy['input']['model']['unit_' +
+                                                   unit_id].COL_POROSITY,
+            col_radius=config_copy['input']['model']['unit_' +
+                                                     unit_id].COL_RADIUS,
+            constant_velocity=constant_velocity,
+            add_inlet_per_port=add_inlet_per_port, add_outlet=True
+        )
+
+        if add_inlet_per_port is True:
+            for rad in range(unit_id * (rad_method + 1)):
+        
+                config_copy['input']['model']['unit_' +
+                                              str(rad + 1).zfill(3)] = copy.deepcopy(config_copy['input']['model']['unit_001'])
+
+                if kwargs.get('rad_inlet_profile', None) is not None:
+                    config_copy['input']['model']['unit_001'].sec_000.CONST_COEFF = kwargs['rad_inlet_profile'](
+                        rad_coords[rad], config_copy['input']['model']['unit_000'].COL_RADIUS)
+
+        config_copy['input'].model.connections.switch_000.connections = connections
+    
+        # create and return object
+        
+        config_name = convergence.generate_2D_name(
+            setting_name,
+            spatial_discretization['AX_POLYDEG'], axNElem,
+            spatial_discretization['RAD_POLYDEG'], radNElem
+            )
+        
+        model = Cadet()
+        model.root.input = config_copy['input']
+        
+        if output_path is not None:
+
+            model.filename = str(output_path) + '/' + config_name
+
+            if only_return_name:
+                return model.filename
+            else:
+                model.save()
+                return model
+
+    time_integrator_2dgrm = {
+        'ABSTOL' : 1e-10, 'RELTOL' : 1e-8, 'ALGTOL' : 1e-10,
+        'USE_MODIFIED_NEWTON' : True,
+        'init_step_size' : 1e-10,
+        'max_steps' : 1000000
+        }
+    
+    spatial_discretization = {
+        'AX_POLYDEG': 3, 'AX_NELEM': 4, 
+        'RAD_POLYDEG': 3, 'RAD_NELEM': 2, 
+        'SPATIAL_METHOD' : 'DG',
+        'USE_ANALYTIC_JACOBIAN': True
+        }
 
     settings = get_settings(small_test)
 
@@ -160,10 +202,11 @@ def GRM2D_linBnd_tests(
     par_methods = []
     par_discs = []
     refinement_IDs = []
+    disc_refinement_functions = []
 
-    def GRM2D_FV_Benchmark(small_test=False, **kwargs):
+    def GRM2D_DG_Benchmark(small_test=False, **kwargs):
 
-        nDisc = 4 if small_test else 5
+        nDisc = 4 if small_test else 4
         nRadialZones = kwargs['nRadialZones']
 
         benchmark_config = {
@@ -171,7 +214,7 @@ def GRM2D_linBnd_tests(
                 setting_Col2D_lin_1comp_benchmark1.get_model(
                     radNElem=nRadialZones,
                     rad_inlet_profile=None,
-                    USE_MODIFIED_NEWTON=0, axMethod=0, **kwargs)
+                    axMethod=3, **kwargs)
             ],
             'include_sens': [
                 False
@@ -183,8 +226,7 @@ def GRM2D_linBnd_tests(
                 '000'
             ],
             'unit_IDs': [  # note that we consider radial zone 0
-                str(nRadialZones + 1 +
-                    0).zfill(3)
+                str(nRadialZones + 1 + 0).zfill(3)
             ],
             'which': [
                 'outlet' # outlet_port_000
@@ -193,32 +235,40 @@ def GRM2D_linBnd_tests(
                 [1e-10]
             ],
             'ax_methods': [
-                [0]
+                [3]
             ],
             'ax_discs': [
                 [bench_func.disc_list(4, nDisc)]
             ],
             'rad_methods': [
-                [0]
+                [3]
             ],
             'rad_discs': [
                 [bench_func.disc_list(nRadialZones, nDisc)]
             ],
             'par_methods': [
-                [0]
+                [None]
             ],
             'par_discs': [
-                [bench_func.disc_list(max(1, nRadialZones - 1), nDisc)]
-            ]
+                [None]
+            ],
+            'disc_refinement_functions' : [[
+                partial(refine_disc_radEps,
+                         setting_name=kwargs['name'],
+                         spatial_discretization=copy.deepcopy(spatial_discretization),
+                         time_integrator=time_integrator_2dgrm,
+                         nRadialZones=nRadialZones
+                         )
+                ]]
         }
 
         return benchmark_config
 
-
     # %% create benchmark configurations
 
     for setting in settings:
-        addition = GRM2D_FV_Benchmark(small_test=small_test, **setting)
+        
+        addition = GRM2D_DG_Benchmark(small_test=small_test, **setting)
 
         bench_configs.add_benchmark(
             cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -226,6 +276,7 @@ def GRM2D_linBnd_tests(
             par_methods=par_methods, par_discs=par_discs,
             idas_abstol=idas_abstol,
             refinement_IDs=refinement_IDs,
+            disc_refinement_functions=disc_refinement_functions,
             addition=addition)
 
         config_names.extend([setting['name']])
@@ -248,7 +299,8 @@ def GRM2D_linBnd_tests(
         n_jobs=n_jobs,
         rad_inlet_profile=None,
         rerun_sims=rerun_sims,
-        refinement_IDs=refinement_IDs
+        refinement_IDs=refinement_IDs,
+        disc_refinement_functions=disc_refinement_functions
     )
 
     # We compute the discrete norm of the errors from each zone
@@ -285,7 +337,7 @@ def GRM2D_linBnd_tests(
             # get the references at the other ports
             tmp_ref_files = [
                 [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
+                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_' + str(nRadialZones + 1 + target_zone).zfill(3), which='outlet'
                 )]
             ]
 
@@ -341,20 +393,20 @@ def GRM2D_linBnd_tests(
                 data = json.load(file)
 
             if target_zone == 0:
-                disc = data['convergence']['FV']['outlet']['$N_e^z$']
+                disc = data['convergence']['DG_P3']['outlet']['$N_e^z$']
                 maxError = np.array(
-                    data['convergence']['FV']['outlet']['Max. error'])
+                    data['convergence']['DG_P3']['outlet']['Max. error'])
                 L1Error = np.array(
-                    data['convergence']['FV']['outlet']['$L^1$ error'])
+                    data['convergence']['DG_P3']['outlet']['$L^1$ error'])
                 L2Error = np.array(
-                    data['convergence']['FV']['outlet']['$L^2$ error'])
+                    data['convergence']['DG_P3']['outlet']['$L^2$ error'])
             else:  # maximum norm
                 maxError = np.maximum(maxError, np.array(
-                    data['convergence']['FV']['outlet']['Max. error']))
+                    data['convergence']['DG_P3']['outlet']['Max. error']))
                 L1Error = np.maximum(L1Error, np.array(
-                    data['convergence']['FV']['outlet']['$L^1$ error']))
+                    data['convergence']['DG_P3']['outlet']['$L^1$ error']))
                 L2Error = np.maximum(L2Error, np.array(
-                    data['convergence']['FV']['outlet']['$L^2$ error']))
+                    data['convergence']['DG_P3']['outlet']['$L^2$ error']))
 
         maxEOC = np.insert(
             convergence.calculate_eoc(disc, maxError), 0, 0.0)
@@ -364,12 +416,12 @@ def GRM2D_linBnd_tests(
         with open(target_name, "r") as file:
             target_data = json.load(file)
 
-        target_data['convergence']['FV']['outlet']['Max. error'] = maxError.tolist()
-        target_data['convergence']['FV']['outlet']['Max. EOC'] = maxEOC.tolist()
-        target_data['convergence']['FV']['outlet']['$L^1$ error'] = L1Error.tolist()
-        target_data['convergence']['FV']['outlet']['$L^1$ EOC'] = L1EOC.tolist()
-        target_data['convergence']['FV']['outlet']['$L^2$ error'] = L2Error.tolist()
-        target_data['convergence']['FV']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
+        target_data['convergence']['DG_P3']['outlet']['Max. error'] = maxError.tolist()
+        target_data['convergence']['DG_P3']['outlet']['Max. EOC'] = maxEOC.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^1$ error'] = L1Error.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^1$ EOC'] = L1EOC.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^2$ error'] = L2Error.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
 
         print("2D chromatography convergence for setting no. ", settingIdx)
         print(target_data)

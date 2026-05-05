@@ -4,8 +4,11 @@ import subprocess
 
 from cadet import Cadet
 
-from src import twoDimChromatography
-from src.benchmark_models import settings_2Dchromatography
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from src import twoDimChromatography as twoDimChromatography
+from src.benchmark_models import setting_Col2D_lin_1comp_benchmark1
 from src.benchmark_models import settings_columnSystems
 from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
@@ -161,26 +164,43 @@ subprocess.run([executable_path, cyclicModel.filename], check=True)
 GRM2DlinBnd = Cadet()
 
 settings = twoDimChromatography.get_settings(
-    use_CASEMA_reference=False, reference_data_path=None,
     small_test=True
     )
 
 # add 4 parType setting (last in list)
 settings.append(
     twoDimChromatography.get_settings(
-        use_CASEMA_reference=False, reference_data_path=None,
         small_test=False
         )[-1]
     )
 
-for setting in settings:
+for setting in [settings[0]]:
     
-    GRM2DlinBnd.root = settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+    GRM2DlinBnd.root = setting_Col2D_lin_1comp_benchmark1.get_model(
         axMethod=0,
         radMethod=0,
+        radNElem=setting.get('nRadialZones'),
         parMethod=0,
         **setting
         )
+
+    # fill model with dummy particle since CASEMA does not allow npartype = 0
+    if GRM2DlinBnd.root['input'].model.unit_000.NPARTYPE == 0:
+
+        GRM2DlinBnd.root['input'].model.unit_000.NPARTYPE = 1
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.PAR_RADIUS = 4.5e-05
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.PAR_POROSITY = 0.75
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.has_film_diffusion = True
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.has_pore_diffusion = True
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.has_surface_diffusion = False
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.FILM_DIFFUSION = [0.0]
+        # note that pore diffusion cannot be zero for casema. Its still effectively ignored since film diffusion is zero.
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.PORE_DIFFUSION = [1e-12]
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.SURFACE_DIFFUSION = [0.0]
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.adsorption_model = ['NONE']
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.nbound = [0]
+        GRM2DlinBnd.root['input'].model.unit_000.particle_type_000.init_cp = [0]
+
 
     GRM2DlinBnd.root['input'].solver.casema_options  = {
         "ERROR_THRESHOLD": 1e-20,
@@ -194,3 +214,13 @@ for setting in settings:
     GRM2DlinBnd.save()
 
     subprocess.run([executable_path, GRM2DlinBnd.filename], check=True)
+
+# import matplotlib.pyplot as plt
+
+# GRM2DlinBnd.load_from_file()
+
+# plt.plot(
+#     GRM2DlinBnd.root['output'].solution.solution_times,
+#     GRM2DlinBnd.root['output'].solution.unit_000.solution_outlet_port_000
+#     )
+# plt.show()

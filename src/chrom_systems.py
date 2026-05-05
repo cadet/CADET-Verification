@@ -24,15 +24,10 @@ _reference_data_path_ = str(
 
 
 def chromatography_systems_tests(n_jobs, small_test,
-                                 output_path, cadet_path,
-                                 use_analytical_reference=True
+                                 output_path, cadet_path
                                  ):
 
     os.makedirs(output_path, exist_ok=True)
-
-    if use_analytical_reference and _reference_data_path_ is None:
-        raise ValueError(
-            "Reference data path must be provided to test convergence towards analytical solution!")
 
     # %% create cyclic system benchmark configuration
 
@@ -49,8 +44,8 @@ def chromatography_systems_tests(n_jobs, small_test,
     par_discs = []
 
     addition = bench_configs.cyclic_systems_tests(
-        n_jobs, output_path, cadet_path, small_test=small_test,
-        use_analytical_reference=use_analytical_reference)
+        n_jobs, output_path, cadet_path, small_test=small_test
+        )
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -58,10 +53,9 @@ def chromatography_systems_tests(n_jobs, small_test,
         par_methods=par_methods, par_discs=par_discs, idas_abstol=idas_abstol,
         addition=addition)
     
-    if use_analytical_reference:
-        ref = convergence.get_solution(
-            _reference_data_path_+'/cyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
-        ref_files = [[ref]]
+    ref = convergence.get_solution(
+        _reference_data_path_+'/cyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_'+unit_IDs[0])
+    ref_files = [[ref]]
 
     config_names = ['cyclicSystem1_LRMP_linBnd_1comp']
 
@@ -81,8 +75,7 @@ def chromatography_systems_tests(n_jobs, small_test,
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rerun_sims=True,
-        system_refinement_IDs=['001', '002'],
-        use_analytical_reference=use_analytical_reference
+        system_refinement_IDs=['001', '002']
     )
 
     # %% create acyclic system benchmark configuration
@@ -100,8 +93,8 @@ def chromatography_systems_tests(n_jobs, small_test,
     par_discs = []
 
     addition = bench_configs.acyclic_systems_tests(
-        n_jobs, output_path, cadet_path, small_test=small_test,
-        use_analytical_reference=use_analytical_reference)
+        n_jobs, output_path, cadet_path, small_test=small_test
+        )
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -109,14 +102,13 @@ def chromatography_systems_tests(n_jobs, small_test,
         par_methods=par_methods, par_discs=par_discs, idas_abstol=idas_abstol,
         addition=addition)
 
-    if use_analytical_reference:
      # we compare the simulated outlet of unit 006 with the analytical
      # solution of the combined outlets of unit 004 and 005
-        ref = convergence.get_solution(
-            _reference_data_path_+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_004')
-        ref = 0.5 * ref + 0.5 * convergence.get_solution(
-            _reference_data_path_+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_005')
-        ref_files = [[ref]]
+    ref = convergence.get_solution(
+        _reference_data_path_+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_004')
+    ref = 0.5 * ref + 0.5 * convergence.get_solution(
+        _reference_data_path_+'/acyclicSystem1_LRMP_linBnd_1comp.h5', unit='unit_005')
+    ref_files = [[ref]]
 
     config_names = ['acyclicSystem1_LRMP_linBnd_1comp']
 
@@ -136,8 +128,7 @@ def chromatography_systems_tests(n_jobs, small_test,
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rerun_sims=True,
-        system_refinement_IDs=['002', '003', '004', '005'],
-        use_analytical_reference=use_analytical_reference
+        system_refinement_IDs=['002', '003', '004', '005']
     )
 
     # %% create benchmark configuration
