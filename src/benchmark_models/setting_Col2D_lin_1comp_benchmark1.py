@@ -228,7 +228,7 @@ def get_model(
     if re.search("2D", column.UNIT_TYPE):
         connections, rad_coords = helper.generate_connections_matrix(
             rad_method=radMethod, rad_cells=radNElem,
-            velocity=zone0Velocity, porosity=column.COL_POROSITY[0], col_radius=column.COL_RADIUS,
+            velocity=zone0Velocity, porosity=column.COL_POROSITY, col_radius=column.COL_RADIUS,
             add_inlet_per_port=nInlets, add_outlet=True
         )
 
