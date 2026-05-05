@@ -8,7 +8,7 @@ import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src import twoDimChromatography as twoDimChromatography
-from src.benchmark_models import settings_2Dchromatography
+from src.benchmark_models import setting_Col2D_lin_1comp_benchmark1
 from src.benchmark_models import settings_columnSystems
 from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
@@ -176,7 +176,7 @@ settings.append(
 
 for setting in [settings[0]]:
     
-    GRM2DlinBnd.root = settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+    GRM2DlinBnd.root = setting_Col2D_lin_1comp_benchmark1.get_model(
         axMethod=0,
         radMethod=0,
         radNElem=setting.get('nRadialZones'),
