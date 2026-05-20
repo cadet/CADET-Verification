@@ -20,7 +20,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     model = Cadet()
     model.install_path = cadet_path
     model.root.input = setting_Col1D_GPR.get_model(f"{setting_name}")
-    model.filename = output_path + f"/GPR_{setting_name}.h5"
+    model.filename = output_path + f"/Col1D_GRM_GPR_{setting_name}.h5"
     return_data = model.run_simulation()
     model.save()
     
@@ -34,7 +34,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     
     
     modelRef = Cadet()
-    modelRef.filename = _reference_data_path_ + f"/GPR_{setting_name}.h5"
+    modelRef.filename = _reference_data_path_ + f"/Col1D_GRM_GPR_{setting_name}.h5"
     modelRef.load_from_file()
     outletRef = convergence.get_solution(modelRef, which='outlet')
     solutionTimeRef = convergence.get_solution_times(modelRef)
@@ -73,7 +73,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
         )
     )
     
-    plt.savefig(output_path + '/GPR_{setting_name}.png')
+    plt.savefig(output_path + f'/GPR_{setting_name}.png')
     plt.show()
     
     
@@ -84,7 +84,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     model = Cadet()
     model.install_path = cadet_path
     model.root.input = setting_Col1D_GPR.get_model(f"{setting_name}")
-    model.filename = output_path + f'/{setting_name}.h5'
+    model.filename = output_path + f'/Col1D_GRM_GPR_{setting_name}.h5'
     model.save()
     return_data = model.run_simulation()
     
@@ -98,7 +98,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     
     
     modelRef = Cadet()
-    modelRef.filename = _reference_data_path_ + f"/GPR_{setting_name}.h5"
+    modelRef.filename = _reference_data_path_ + f"/Col1D_GRM_GPR_{setting_name}.h5"
     modelRef.load_from_file()
     outletRef = convergence.get_solution(modelRef, which='outlet')
     solutionTimeRef = convergence.get_solution_times(modelRef)
@@ -137,4 +137,5 @@ def test_GPR_binding(output_path:str, cadet_path:str):
         )
     )
     
+    plt.savefig(output_path + f'/GPR_{setting_name}.png')
     plt.show()
