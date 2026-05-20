@@ -84,7 +84,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     model = Cadet()
     model.install_path = cadet_path
     model.root.input = setting_Col1D_GPR.get_model(f"{setting_name}")
-    model.filename = output_path + f'\{setting_name}.h5'
+    model.filename = output_path + f'/{setting_name}.h5'
     model.save()
     return_data = model.run_simulation()
     
