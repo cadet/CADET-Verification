@@ -21,6 +21,7 @@ def pytest_addoption(parser):
     parser.addoption("--run-crystallization-tests", type=str2bool, default=True)
     parser.addoption("--run-mct-tests", type=str2bool, default=True)
     parser.addoption("--run-2dmodels-tests", type=str2bool, default=True)
+    parser.addoption("--run-radialDG-tests", type=str2bool, default=True)
 
     parser.addoption("--commit-message", type=str, default="CADET model test run")
     parser.addoption("--rdm-debug-mode", type=str2bool, default=True)
