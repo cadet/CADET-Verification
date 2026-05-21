@@ -167,9 +167,10 @@ def get_model(kernel):
     
     config.solver.nthreads = np.int32(1)
     
+    tEnd = 5.0e+03
     config.solver.sections.nsec = np.int32(2)
     config.solver.sections.section_continuity = np.array([0,0])
-    config.solver.sections.section_times = np.array([0.0e+00,5.0e+00,7.2e+03])
+    config.solver.sections.section_times = np.array([0.0e+00, 5.0e+00, tEnd])
     
     config.model.solver.gs_type = np.int32(1)
     config.model.solver.max_krylov = np.int32(0)
@@ -181,7 +182,7 @@ def get_model(kernel):
     config.solver.time_integrator.init_step_size = np.float64(1e-06)
     config.solver.time_integrator.max_steps = np.int32(1000000)
     config.solver.time_integrator.reltol = np.float64(1e-06)
-    config.solver.user_solution_times = np.linspace(0.0, 7200.0, 72001)
+    config.solver.user_solution_times = np.linspace(0.0, tEnd, int(tEnd) + 1)
     
     
     return config
