@@ -23,8 +23,6 @@ def get_model(
         radMethod=0, radNElem=3,
         parMethod=0, parNElem=2,
         nRadialZones=1,  # discontinuous radial inlet zones (equidistant)
-        save_path="C:/Users/jmbr/JupyterNotebooks/",
-        file_name=None,
         transport_model=None,
         **kwargs
 ):
@@ -48,7 +46,7 @@ def get_model(
     
     column.NPARTYPE = kwargs.get('npartype', 1)
     
-    column.COL_POROSITY = kwargs.get('COL_POROSITY', [0.37])
+    column.COL_POROSITY = kwargs.get('COL_POROSITY', [0.37] * nRadialZones)
     
     if column.NPARTYPE > 0:
         column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
@@ -178,6 +176,8 @@ def get_model(
     # Store solution
     model['return'].split_components_data = 0
     model['return'].split_ports_data = kwargs.get('SPLIT_PORTS_DATA', 1)
+    model['return'].WRITE_SOLUTION_LAST = kwargs.get(
+        'WRITE_SOLUTION_LAST', 0)
     model['return']['unit_000'].WRITE_SOLUTION_INLET = kwargs.get(
         'WRITE_SOLUTION_INLET', 0)
     model['return']['unit_000'].WRITE_SOLUTION_FLUX = kwargs.get(
