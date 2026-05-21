@@ -206,7 +206,7 @@ def GRM2D_linBnd_tests(
 
     def GRM2D_DG_Benchmark(small_test=False, **kwargs):
 
-        nDisc = 4 if small_test else 4
+        nDisc = 3 if small_test else 4
         nRadialZones = kwargs['nRadialZones']
 
         benchmark_config = {
