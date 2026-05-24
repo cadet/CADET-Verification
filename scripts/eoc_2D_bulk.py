@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 from functools import partial
 from numba import njit
+import matplotlib.pyplot as plt
+
 
 from cadet import Cadet
 
@@ -14,25 +16,29 @@ import src.benchmark_models.helper_setup_2Dmodels as helper
 
 
 # =============================
-# SETTINGS
+# configuration for eoc study
 # =============================
-output_path = Path.cwd() / "output" / "test_cadet-core"
-cadet_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+
+output_path = Path.cwd().parent / "output" / "test_cadet-core"
+cadet_path = convergence.get_cadet_path() # r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 axP = 2
 radP = axP
 
-axial_levels = [1, 2, 4, 8]  # axial elements
-radial_levels = [1, 1, 1, 1]  # radial elements
+nRadialZones = 2
+
+axial_levels = [4, 8, 16, 32]  # axial elements
+radial_levels = [2, 4, 8, 16] # [nRadialZones] * len(axial_levels)  # radial elements
 # note: reference will have twice the resolution of the finest level
 
 setting = {
     'npartype': 0,
-    'nRadialZones': 1,
+    'nRadialZones': nRadialZones,
+    'COL_POROSITY': np.linspace(0.35, 0.9, nRadialZones),
     'inlet_function': partial(helper.constInlet, const=1.0),
     'WRITE_SOLUTION_LAST': True,
     'WRITE_SOLUTION_BULK': True,
-    'tEnd': 25,
+    # 'tEnd': 25,
     'USE_MODIFIED_NEWTON': True
 }
 
@@ -44,6 +50,13 @@ def run_sim(axNElem, radNElem, **kwargs):
 
     kwargs.update({'name': f'run_ax{axNElem}_rad{radNElem}'})
 
+    epsB = kwargs['COL_POROSITY']
+    nElemPerZone = int(radNElem / nRadialZones)
+    epsBVec = []
+    for rad in range(nRadialZones):
+        epsBVec.extend([epsB[rad]] * nElemPerZone)
+    kwargs['COL_POROSITY'] = epsBVec
+
     model = setting_Col2D_lin_1comp_benchmark1.get_model(
         axMethod=axP, axNElem=axNElem,
         radMethod=radP, radNElem=radNElem,
@@ -51,13 +64,15 @@ def run_sim(axNElem, radNElem, **kwargs):
 
     tEnd = kwargs.get('tEnd', 1500)
 
+
+
+
     model['input']['solver']['USER_SOLUTION_TIMES'] = np.linspace(0, tEnd, tEnd+1)
     model['input']['solver']['sections']['SECTION_TIMES'] = [0.0, 10.0, tEnd]
 
     sim = Cadet()
     sim.install_path = cadet_path
     sim.root = model
-
     sim.filename = str(output_path / f"sim_ax{axNElem}_rad{radNElem}.h5")
     sim.save()
 
@@ -82,7 +97,30 @@ def run_sim(axNElem, radNElem, **kwargs):
     ax_coords = sim.root.output.coordinates.unit_000.axial_coordinates
     rad_coords = sim.root.output.coordinates.unit_000.radial_coordinates
 
-    return bulk, ax_coords, rad_coords
+    if 'nRadialZones' in kwargs:
+        outlets = []
+    
+        for rad in range(kwargs['nRadialZones']):
+            
+            outletIdx = 1 + rad + kwargs['nRadialZones']
+            
+            outlet = np.array(
+                sim.root.output.solution[f'unit_{outletIdx:03d}'].solution_outlet
+            )
+    
+            outlets.append(outlet)
+    
+        # shape: (time, nRadialZones)
+        outlet = np.column_stack(outlets)
+    
+    else:
+        outlet = np.array(
+            sim.root.output.solution.unit_000.solution_outlet_port_000
+        )
+        
+    times = np.array(sim.root.output.solution.solution_times)
+
+    return bulk, ax_coords, rad_coords, outlet, times
 
 
 def interpolate_2D_cartesian(vals, P1, P2, coords1, coords2,
@@ -135,6 +173,8 @@ def interpolate_2D_cartesian(vals, P1, P2, coords1, coords2,
     tmp_line = np.empty(max(len(coords1), len(coords2)))
     tmp_col  = np.empty(max(len(outCoords1), len(outCoords2)))
 
+    tmp2D = np.empty((len(outCoords1), len(coords2)))
+
     # call optimized kernel
     return interpolate_2D_numba(
         vals, P1, P2,
@@ -143,7 +183,7 @@ def interpolate_2D_cartesian(vals, P1, P2, coords1, coords2,
         outVals,
         nodes1, baryW1,
         nodes2, baryW2,
-        tmp_line, tmp_col
+        tmp_line, tmp_col, tmp2D
     )
 
 
@@ -154,7 +194,7 @@ def interpolate_2D_numba(vals, P1, P2,
                         outVals,
                         nodes1, baryW1,
                         nodes2, baryW2,
-                        tmp_line, tmp_col):
+                        tmp_line, tmp_col, tmp2D):
     """
     Fully optimized 2D interpolation kernel.
 
@@ -169,7 +209,7 @@ def interpolate_2D_numba(vals, P1, P2,
 
     m1 = len(outCoords1)
     m2 = len(outCoords2)
-
+        
     # loop over second dimension (columns)
     for j in range(n2):
         # gather column j into tmp_line
@@ -181,9 +221,9 @@ def interpolate_2D_numba(vals, P1, P2,
             tmp_line, P1, coords1, outCoords1, tmp_col, nodes1, baryW1
         )
 
-        # store intermediate result into outVals[:, j]
+        # store intermediate result into tmp_col
         for i in range(m1):
-            outVals[i, j] = tmp_col[i]
+            tmp2D[i, j] = tmp_col[i]
 
     # now interpolate in second direction (rows)
     for i in range(m1):
@@ -191,7 +231,7 @@ def interpolate_2D_numba(vals, P1, P2,
 
         # copy row
         for j in range(n2):
-            tmp_line[j] = outVals[i, j]
+            tmp_line[j] = tmp2D[i, j]
 
         # interpolate along coords2 → outCoords2
         interpolate_1D_cartesian_numba(
@@ -290,7 +330,9 @@ def interpolate_1D_cartesian_numba(vals, P, coords, outCoords, outVals, nodes, b
 
         # find cell (monotone scan)
         while cellIdx < nCells - 1:
-            deltaX = coords[x_lIdx + nNodes] - coords[x_lIdx]
+            
+            deltaX = coords[x_lIdx + nNodes - 1] - coords[x_lIdx]
+            
             if coords[x_lIdx] + deltaX >= x:
                 break
             cellIdx += 1
@@ -382,7 +424,82 @@ def test_interpolate_1D_cartesian():
     assert np.allclose(outVals, expected_outVals), f"Expected {expected_outVals}, got {outVals}"
 
 
+def collapse_duplicate_coords_1D(coords, vals, axis=0, tol=1e-14):
+    """
+    Collapse duplicated coordinates by averaging interface values.
+
+    Parameters
+    ----------
+    coords : ndarray (n,)
+    vals   : ndarray
+        Data whose length along `axis` matches coords.
+    axis : int
+        Axis corresponding to coords.
+
+    Returns
+    -------
+    coords_new
+    vals_new
+    """
+
+    coords_new = []
+    vals_new = []
+
+    i = 0
+    n = len(coords)
+
+    while i < n:
+
+        # duplicated interface node
+        if i < n - 1 and abs(coords[i+1] - coords[i]) < tol:
+
+            coords_new.append(coords[i])
+
+            v0 = np.take(vals, i, axis=axis)
+            v1 = np.take(vals, i + 1, axis=axis)
+
+            vals_new.append(0.5 * (v0 + v1))
+
+            i += 2
+
+        else:
+
+            coords_new.append(coords[i])
+
+            vals_new.append(np.take(vals, i, axis=axis))
+
+            i += 1
+
+    coords_new = np.array(coords_new)
+    vals_new = np.stack(vals_new, axis=axis)
+
+    return coords_new, vals_new
+
+
+def collapse_duplicate_coords_2D(ax, rad, u, tol=1e-14):
+    """
+    Collapse duplicated DG interface coordinates in both directions.
+    """
+
+    ax_new, u_new = collapse_duplicate_coords_1D(
+        ax,
+        u,
+        axis=0,
+        tol=tol
+    )
+
+    rad_new, u_new = collapse_duplicate_coords_1D(
+        rad,
+        u_new,
+        axis=1,
+        tol=tol
+    )
+
+    return ax_new, rad_new, u_new
+
+
 def compute_errors(u, u_ref, ax, rad):
+    
     dx = np.diff(ax).mean()
     dr = np.diff(rad).mean()
 
@@ -405,15 +522,52 @@ def compute_eoc(errors):
     return eoc
 
 
+#%%
+
 # =============================
 # REFERENCE SOLUTION
 # =============================
 
 print("Running reference solution...")
-u_ref, ax_ref, rad_ref = run_sim(axial_levels[-1]*2, radial_levels[-1]*2, **setting)
+u_ref, ax_ref, rad_ref, outlet_ref, t_ref = run_sim(
+    axial_levels[-1]*2,
+    radial_levels[-1],
+    **setting
+)
 
-# reshape (important!)
 u_ref = u_ref.reshape(len(ax_ref), len(rad_ref))
+
+# ax_ref, rad_ref, u_ref = collapse_duplicate_coords_2D(
+#     ax_ref,
+#     rad_ref,
+#     u_ref
+# )
+
+# =============================
+# PLOT REFERENCE SOLUTION
+# =============================
+
+X, Y = np.meshgrid(ax_ref, rad_ref)
+
+fig, ax = plt.subplots(figsize=(8, 5))
+
+pcm = ax.pcolormesh(
+    X,
+    Y,
+    u_ref.T,
+    shading='auto',
+    cmap='viridis'
+)
+
+cbar = fig.colorbar(pcm, ax=ax)
+cbar.set_label("Concentration")
+
+ax.set_xlabel("Axial coordinate")
+ax.set_ylabel("Radial coordinate")
+ax.set_title("Reference 2D Solution")
+
+plt.tight_layout()
+plt.show()
 
 
 # =============================
@@ -427,7 +581,7 @@ errors_L2 = []
 for axN, radN in zip(axial_levels, radial_levels):
     print(f"Running ax={axN}, rad={radN}")
 
-    u, axCoords, radCoords = run_sim(axN, radN, **setting)
+    u, axCoords, radCoords, _, _ = run_sim(axN, radN, **setting)
     u = u.reshape(len(axCoords), len(radCoords))
 
     # project to reference grid
@@ -448,10 +602,237 @@ eoc_Linf = compute_eoc(errors_Linf)
 eoc_L1 = compute_eoc(errors_L1)
 eoc_L2 = compute_eoc(errors_L2)
 
-print("\nErrors:")
+print("\nBulk Errors:")
 for i in range(len(errors_Linf)):
     print(f"Level {i}: Linf={errors_Linf[i]:.3e}, L1={errors_L1[i]:.3e}, L2={errors_L2[i]:.3e}")
 
-print("\nEOC:")
+print("\nBulk EOC:")
 for i in range(len(eoc_Linf)):
     print(f"Level {i}->{i+1}: Linf={eoc_Linf[i]:.2f}, L1={eoc_L1[i]:.2f}, L2={eoc_L2[i]:.2f}")
+    
+    
+# =============================
+# OUTLET EOC
+# =============================
+
+errors_outlet_Linf = []
+errors_outlet_L1 = []
+errors_outlet_L2 = []
+
+# store per-port errors
+all_port_errors_Linf = []
+all_port_errors_L1 = []
+all_port_errors_L2 = []
+
+for axN, radN in zip(axial_levels, radial_levels):
+
+    print(f"\ncomputing: ax={axN}, rad={radN}")
+
+    _, _, _, outlet, t = run_sim(axN, radN, **setting)
+
+    # ensure shape = (time, nPorts)
+    if outlet.ndim == 1:
+        outlet = outlet[:, None]
+
+    if outlet_ref.ndim == 1:
+        outlet_ref_use = outlet_ref[:, None]
+    else:
+        outlet_ref_use = outlet_ref
+
+    if axN == axial_levels[0]:
+        plt.plot(t_ref, outlet_ref_use)
+        plt.show()
+
+    nPorts = outlet.shape[1]
+
+    dt = np.diff(t_ref).mean()
+
+    port_Linf = []
+    port_L1 = []
+    port_L2 = []
+
+    # ---------------------------------
+    # compute error for every port
+    # ---------------------------------
+    for port in range(nPorts):
+
+        # interpolate current outlet onto reference time grid
+        outlet_interp = np.interp(
+            t_ref,
+            t,
+            outlet[:, port]
+        )
+
+        err = np.abs(
+            outlet_interp - outlet_ref_use[:, port]
+        )
+
+        Linf = np.max(err)
+        L1 = np.sum(err) * dt
+        L2 = np.sqrt(np.sum(err**2) * dt)
+
+        port_Linf.append(Linf)
+        port_L1.append(L1)
+        port_L2.append(L2)
+
+        # print per-port errors immediately
+        print(
+            f"  Port {port}: "
+            f"Linf={Linf:.3e}, "
+            f"L1={L1:.3e}, "
+            f"L2={L2:.3e}"
+        )
+
+    # store per-port errors for EOC computation
+    all_port_errors_Linf.append(port_Linf)
+    all_port_errors_L1.append(port_L1)
+    all_port_errors_L2.append(port_L2)
+
+    # ---------------------------------
+    # take worst error over all ports
+    # ---------------------------------
+    errors_outlet_Linf.append(np.max(port_Linf))
+    errors_outlet_L1.append(np.max(port_L1))
+    errors_outlet_L2.append(np.max(port_L2))
+
+
+# ---------------------------------
+# compute EOC per port
+# ---------------------------------
+
+nPorts = len(all_port_errors_Linf[0])
+
+port_eoc_Linf = []
+port_eoc_L1 = []
+port_eoc_L2 = []
+
+for port in range(nPorts):
+
+    err_Linf = [lvl[port] for lvl in all_port_errors_Linf]
+    err_L1 = [lvl[port] for lvl in all_port_errors_L1]
+    err_L2 = [lvl[port] for lvl in all_port_errors_L2]
+
+    port_eoc_Linf.append(compute_eoc(err_Linf))
+    port_eoc_L1.append(compute_eoc(err_L1))
+    port_eoc_L2.append(compute_eoc(err_L2))
+
+print("\nPer-port Errors and EOC:")
+
+for port in range(nPorts):
+
+    print(f"\nPort {port}")
+
+    # errors
+    for lvl in range(len(all_port_errors_Linf)):
+        print(
+            f"  Level {lvl}: "
+            f"Linf={all_port_errors_Linf[lvl][port]:.3e}, "
+            f"L1={all_port_errors_L1[lvl][port]:.3e}, "
+            f"L2={all_port_errors_L2[lvl][port]:.3e}"
+        )
+
+    # EOC
+    for lvl in range(len(port_eoc_Linf[port])):
+        print(
+            f"  EOC {lvl}->{lvl+1}: "
+            f"Linf={port_eoc_Linf[port][lvl]:.2f}, "
+            f"L1={port_eoc_L1[port][lvl]:.2f}, "
+            f"L2={port_eoc_L2[port][lvl]:.2f}"
+        )
+    
+    
+#%% Tests
+
+def build_dg_coords(nElem, P, xL=0.0, xR=1.0):
+    """
+    Construct DG nodal coordinates with duplicated interfaces.
+    """
+
+    nodes, _ = convergence.LGL_NodesWeights(P)
+
+    coords = []
+
+    dx = (xR - xL) / nElem
+
+    for e in range(nElem):
+
+        xl = xL + e * dx
+        xr = xl + dx
+
+        # map Lobatto nodes from [-1,1] to element
+        x_loc = 0.5 * (xr - xl) * (nodes + 1.0) + xl
+
+        coords.extend(x_loc)
+
+    return np.array(coords)
+
+
+def exact_solution(x, r, exp):
+    return x**exp + r**exp
+
+
+def test_2D_interpolation_convergence():
+
+    P = 2
+
+    levels = [1, 2, 4, 8, 16, 32]
+
+    errors = []
+
+    # -----------------------------
+    # reference grid
+    # -----------------------------
+    ax_ref = build_dg_coords(levels[-1]*2, P)
+    rad_ref = build_dg_coords(levels[-1]*2, P)
+
+    Xref, Rref = np.meshgrid(ax_ref, rad_ref, indexing='ij')
+
+    u_ref = exact_solution(Xref, Rref, P+1)
+
+    # -----------------------------
+    # convergence loop
+    # -----------------------------
+    for nElem in levels:
+
+        print(f"\nTesting nElem = {nElem}")
+
+        ax = build_dg_coords(nElem, P)
+        rad = build_dg_coords(nElem, P)
+
+        X, R = np.meshgrid(ax, rad, indexing='ij')
+
+        u = exact_solution(X, R, P+1)
+
+        # interpolate to reference grid
+        u_interp = interpolate_2D_cartesian(
+            u,
+            P,
+            P,
+            ax,
+            rad,
+            ax_ref,
+            rad_ref,
+            np.empty((len(ax_ref), len(rad_ref)))
+        )
+
+        err = np.abs(u_interp - u_ref)
+
+        Linf = np.max(err)
+
+        errors.append(Linf)
+
+        print(f"Linf = {Linf:.6e}")
+
+    # -----------------------------
+    # compute EOC
+    # -----------------------------
+    print("\nInterpolation EOC:")
+
+    for i in range(1, len(errors)):
+
+        eoc = np.log(errors[i-1] / errors[i]) / np.log(2)
+
+        print(f"{levels[i-1]} -> {levels[i]} : {eoc:.4f}")
+        
+        
+test_2D_interpolation_convergence()
