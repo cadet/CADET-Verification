@@ -6,7 +6,7 @@ import numpy as np
 from functools import partial
 from numba import njit
 import matplotlib.pyplot as plt
-
+from joblib import Parallel, delayed
 
 from cadet import Cadet
 
@@ -22,23 +22,54 @@ import src.benchmark_models.helper_setup_2Dmodels as helper
 output_path = Path.cwd().parent / "output" / "test_cadet-core"
 cadet_path = convergence.get_cadet_path() # r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
+snall_test = 0
+n_jobs = -1
+
 axP = 2
 radP = axP
 
 nRadialZones = 2
 
-axial_levels = [4, 8, 16, 32]  # axial elements
-radial_levels = [2, 4, 8, 16] # [nRadialZones] * len(axial_levels)  # radial elements
-# note: reference will have twice the resolution of the finest level
+# note: last level will be taken as reference
+axial_levels = [4, 8, 16, 32] if snall_test else [4, 8, 16, 32, 64]  # axial elements
+radial_levels = [2, 4, 8, 16] if snall_test else [2, 4, 8, 16, 32] # [nRadialZones] * len(axial_levels)  # radial elements
+
+def init_c(z, r):
+    return np.linspace(1.0, 1.5, nRadialZones)
+
+# L = 0.014
+# R = 0.0035
+
+# z = np.linspace(0, L, 300)
+# r = np.linspace(0, R, 200)
+
+# Z, RR = np.meshgrid(z, r, indexing="ij")
+
+# C = init_c(Z, RR)
+
+# plt.figure(figsize=(6, 4))
+# plt.pcolormesh(Z, RR, C, shading="auto")
+# plt.xlabel("z")
+# plt.ylabel("r")
+# plt.colorbar(label="init_c")
+# plt.tight_layout()
+# plt.show()
 
 setting = {
     'npartype': 0,
     'nRadialZones': nRadialZones,
-    'COL_POROSITY': np.linspace(0.35, 0.9, nRadialZones),
+    'COL_POROSITY': np.linspace(0.3, 0.35, nRadialZones),
+    'INIT_C': init_c,
+    # 'COL_POROSITY': np.linspace(0.35, 0.9, nRadialZones),
+    # Port 1 with reference bulk 64 rad 32
+      # EOC 0->1: Linf=3.94, L1=4.16, L2=4.15
+      # EOC 1->2: Linf=4.23, L1=3.25, L2=3.61
+      # EOC 2->3: Linf=1.97, L1=1.81, L2=1.89
+      # EOC 3->4: Linf=1.66, L1=1.68, L2=1.65
     'inlet_function': partial(helper.constInlet, const=1.0),
     'WRITE_SOLUTION_LAST': True,
     'WRITE_SOLUTION_BULK': True,
-    # 'tEnd': 25,
+    'tEnd': 200, # 200 for outlet # 25 for bulk
     'USE_MODIFIED_NEWTON': True
 }
 
@@ -63,9 +94,6 @@ def run_sim(axNElem, radNElem, **kwargs):
         **kwargs)
 
     tEnd = kwargs.get('tEnd', 1500)
-
-
-
 
     model['input']['solver']['USER_SOLUTION_TIMES'] = np.linspace(0, tEnd, tEnd+1)
     model['input']['solver']['sections']['SECTION_TIMES'] = [0.0, 10.0, tEnd]
@@ -522,149 +550,112 @@ def compute_eoc(errors):
     return eoc
 
 
-#%%
+#%% Bulk EOC
 
-# =============================
-# REFERENCE SOLUTION
-# =============================
+# ==========================================
+# RUN ONE SIMULATION
+# ==========================================
 
-print("Running reference solution...")
-u_ref, ax_ref, rad_ref, outlet_ref, t_ref = run_sim(
-    axial_levels[-1]*2,
-    radial_levels[-1],
-    **setting
+def run_case(axN, radN):
+
+    u, ax, rad, outlet, t = run_sim(
+        axN,
+        radN,
+        **setting
+    )
+
+    return {
+        "axN": axN,
+        "radN": radN,
+        "u": u,
+        "ax": ax,
+        "rad": rad,
+        "outlet": outlet,
+        "t": t,
+    }
+
+
+# ==========================================
+# RUN ALL CASES IN PARALLEL
+# ==========================================
+
+cases = list(zip(axial_levels, radial_levels))
+
+results = Parallel(n_jobs=n_jobs, verbose=10)(
+    delayed(run_case)(axN, radN)
+    for axN, radN in cases
 )
+
+# map results by resolution
+result_map = {
+    (r["axN"], r["radN"]): r
+    for r in results
+}
+
+# ==========================================
+# EXTRACT REFERENCE SOLUTION
+# ==========================================
+
+ref_key = (axial_levels[-1], radial_levels[-1])
+
+ref = result_map[ref_key]
+
+u_ref = ref["u"]
+ax_ref = ref["ax"]
+rad_ref = ref["rad"]
+outlet_ref = ref["outlet"]
+t_ref = ref["t"]
 
 u_ref = u_ref.reshape(len(ax_ref), len(rad_ref))
 
-# ax_ref, rad_ref, u_ref = collapse_duplicate_coords_2D(
-#     ax_ref,
-#     rad_ref,
-#     u_ref
-# )
-
-# =============================
-# PLOT REFERENCE SOLUTION
-# =============================
-
-X, Y = np.meshgrid(ax_ref, rad_ref)
-
-fig, ax = plt.subplots(figsize=(8, 5))
-
-pcm = ax.pcolormesh(
-    X,
-    Y,
-    u_ref.T,
-    shading='auto',
-    cmap='viridis'
+ax_ref, rad_ref, u_ref = collapse_duplicate_coords_2D(
+    ax_ref,
+    rad_ref,
+    u_ref
 )
 
-cbar = fig.colorbar(pcm, ax=ax)
-cbar.set_label("Concentration")
+# ensure shape = (time, nPorts)
+if outlet_ref.ndim == 1:
+    outlet_ref_use = outlet_ref[:, None]
+else:
+    outlet_ref_use = outlet_ref
 
-ax.set_xlabel("Axial coordinate")
-ax.set_ylabel("Radial coordinate")
-ax.set_title("Reference 2D Solution")
+dt = t_ref[1] - t_ref[0]
 
-plt.tight_layout()
-plt.show()
-
-
-# =============================
-# EOC LOOP
-# =============================
-
-errors_Linf = []
-errors_L1 = []
-errors_L2 = []
-
-for axN, radN in zip(axial_levels, radial_levels):
-    print(f"Running ax={axN}, rad={radN}")
-
-    u, axCoords, radCoords, _, _ = run_sim(axN, radN, **setting)
-    u = u.reshape(len(axCoords), len(radCoords))
-
-    # project to reference grid
-    u_interp = interpolate_2D_cartesian(u, axP, radP, axCoords, radCoords, ax_ref, rad_ref, np.empty((len(ax_ref), len(rad_ref))))
-
-    Linf, L1, L2 = compute_errors(u_interp, u_ref, ax_ref, rad_ref)
-
-    errors_Linf.append(Linf)
-    errors_L1.append(L1)
-    errors_L2.append(L2)
-
-
-# =============================
-# EOC RESULTS
-# =============================
-
-eoc_Linf = compute_eoc(errors_Linf)
-eoc_L1 = compute_eoc(errors_L1)
-eoc_L2 = compute_eoc(errors_L2)
-
-print("\nBulk Errors:")
-for i in range(len(errors_Linf)):
-    print(f"Level {i}: Linf={errors_Linf[i]:.3e}, L1={errors_L1[i]:.3e}, L2={errors_L2[i]:.3e}")
-
-print("\nBulk EOC:")
-for i in range(len(eoc_Linf)):
-    print(f"Level {i}->{i+1}: Linf={eoc_Linf[i]:.2f}, L1={eoc_L1[i]:.2f}, L2={eoc_L2[i]:.2f}")
-    
-    
-# =============================
-# OUTLET EOC
-# =============================
+# ==========================================
+# ERROR COMPUTATION
+# ==========================================
 
 errors_outlet_Linf = []
 errors_outlet_L1 = []
 errors_outlet_L2 = []
 
-# store per-port errors
 all_port_errors_Linf = []
 all_port_errors_L1 = []
 all_port_errors_L2 = []
 
-for axN, radN in zip(axial_levels, radial_levels):
+# exclude reference level
+for axN, radN in zip(axial_levels[:-1], radial_levels[:-1]):
 
-    print(f"\ncomputing: ax={axN}, rad={radN}")
+    res = result_map[(axN, radN)]
 
-    _, _, _, outlet, t = run_sim(axN, radN, **setting)
+    outlet = res["outlet"]
+    t = res["t"]
 
-    # ensure shape = (time, nPorts)
     if outlet.ndim == 1:
         outlet = outlet[:, None]
 
-    if outlet_ref.ndim == 1:
-        outlet_ref_use = outlet_ref[:, None]
-    else:
-        outlet_ref_use = outlet_ref
-
-    if axN == axial_levels[0]:
-        plt.plot(t_ref, outlet_ref_use)
-        plt.show()
-
     nPorts = outlet.shape[1]
-
-    dt = np.diff(t_ref).mean()
 
     port_Linf = []
     port_L1 = []
     port_L2 = []
 
-    # ---------------------------------
-    # compute error for every port
-    # ---------------------------------
     for port in range(nPorts):
 
-        # interpolate current outlet onto reference time grid
-        outlet_interp = np.interp(
-            t_ref,
-            t,
-            outlet[:, port]
-        )
-
         err = np.abs(
-            outlet_interp - outlet_ref_use[:, port]
+            outlet[:, port]
+            - outlet_ref_use[:, port]
         )
 
         Linf = np.max(err)
@@ -675,30 +666,24 @@ for axN, radN in zip(axial_levels, radial_levels):
         port_L1.append(L1)
         port_L2.append(L2)
 
-        # print per-port errors immediately
         print(
-            f"  Port {port}: "
+            f"ax={axN}, rad={radN}, port={port}: "
             f"Linf={Linf:.3e}, "
             f"L1={L1:.3e}, "
             f"L2={L2:.3e}"
         )
 
-    # store per-port errors for EOC computation
     all_port_errors_Linf.append(port_Linf)
     all_port_errors_L1.append(port_L1)
     all_port_errors_L2.append(port_L2)
 
-    # ---------------------------------
-    # take worst error over all ports
-    # ---------------------------------
     errors_outlet_Linf.append(np.max(port_Linf))
     errors_outlet_L1.append(np.max(port_L1))
     errors_outlet_L2.append(np.max(port_L2))
 
-
-# ---------------------------------
-# compute EOC per port
-# ---------------------------------
+# ==========================================
+# COMPUTE EOC PER PORT
+# ==========================================
 
 nPorts = len(all_port_errors_Linf[0])
 
@@ -716,13 +701,16 @@ for port in range(nPorts):
     port_eoc_L1.append(compute_eoc(err_L1))
     port_eoc_L2.append(compute_eoc(err_L2))
 
+# ==========================================
+# PRINT RESULTS
+# ==========================================
+
 print("\nPer-port Errors and EOC:")
 
 for port in range(nPorts):
 
     print(f"\nPort {port}")
 
-    # errors
     for lvl in range(len(all_port_errors_Linf)):
         print(
             f"  Level {lvl}: "
@@ -731,7 +719,6 @@ for port in range(nPorts):
             f"L2={all_port_errors_L2[lvl][port]:.3e}"
         )
 
-    # EOC
     for lvl in range(len(port_eoc_Linf[port])):
         print(
             f"  EOC {lvl}->{lvl+1}: "
@@ -739,6 +726,75 @@ for port in range(nPorts):
             f"L1={port_eoc_L1[port][lvl]:.2f}, "
             f"L2={port_eoc_L2[port][lvl]:.2f}"
         )
+
+# # =============================
+# # PLOT REFERENCE SOLUTION
+# # =============================
+
+# X, Y = np.meshgrid(ax_ref, rad_ref)
+
+# fig, ax = plt.subplots(figsize=(8, 5))
+
+# pcm = ax.pcolormesh(
+#     X,
+#     Y,
+#     u_ref.T,
+#     shading='auto',
+#     cmap='viridis'
+# )
+
+# cbar = fig.colorbar(pcm, ax=ax)
+# cbar.set_label("Concentration")
+
+# ax.set_xlabel("Axial coordinate")
+# ax.set_ylabel("Radial coordinate")
+# ax.set_title("Reference 2D Solution")
+
+# plt.tight_layout()
+# plt.show()
+
+
+# # =============================
+# # Bulk EOC LOOP
+# # =============================
+
+# errors_Linf = []
+# errors_L1 = []
+# errors_L2 = []
+
+# for axN, radN in zip(axial_levels, radial_levels):
+#     print(f"Running ax={axN}, rad={radN}")
+
+#     u, axCoords, radCoords, _, _ = run_sim(axN, radN, **setting)
+#     u = u.reshape(len(axCoords), len(radCoords))
+
+#     # project to reference grid
+#     u_interp = interpolate_2D_cartesian(u, axP, radP, axCoords, radCoords, ax_ref, rad_ref, np.empty((len(ax_ref), len(rad_ref))))
+
+#     Linf, L1, L2 = compute_errors(u_interp, u_ref, ax_ref, rad_ref)
+
+#     errors_Linf.append(Linf)
+#     errors_L1.append(L1)
+#     errors_L2.append(L2)
+
+
+# # =============================
+# # Bulk EOC RESULTS
+# # =============================
+
+# eoc_Linf = compute_eoc(errors_Linf)
+# eoc_L1 = compute_eoc(errors_L1)
+# eoc_L2 = compute_eoc(errors_L2)
+
+# print("\nBulk Errors:")
+# for i in range(len(errors_Linf)):
+#     print(f"Level {i}: Linf={errors_Linf[i]:.3e}, L1={errors_L1[i]:.3e}, L2={errors_L2[i]:.3e}")
+
+# print("\nBulk EOC:")
+# for i in range(len(eoc_Linf)):
+#     print(f"Level {i}->{i+1}: Linf={eoc_Linf[i]:.2f}, L1={eoc_L1[i]:.2f}, L2={eoc_L2[i]:.2f}")
+    
+
     
     
 #%% Tests
@@ -835,4 +891,4 @@ def test_2D_interpolation_convergence():
         print(f"{levels[i-1]} -> {levels[i]} : {eoc:.4f}")
         
         
-test_2D_interpolation_convergence()
+# test_2D_interpolation_convergence()
