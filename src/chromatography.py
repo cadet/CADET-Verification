@@ -42,13 +42,13 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
     par_discs = []
     disc_refinement_functions = []
 
-    addition = bench_configs.radial_flow_benchmark(small_test=small_test)
+    # addition = bench_configs.radial_flow_benchmark(small_test=small_test)
 
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
-        cadet_config_names=cadet_config_names, addition=addition,
-    disc_refinement_functions = disc_refinement_functions)
+    # bench_configs.add_benchmark(
+    #     cadet_configs, include_sens, ref_files, unit_IDs, which,
+    #     idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+    #     cadet_config_names=cadet_config_names, addition=addition,
+    # disc_refinement_functions = disc_refinement_functions)
 
     addition = bench_configs.fv_benchmark(small_test=small_test)
 
@@ -59,14 +59,14 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         disc_refinement_functions = disc_refinement_functions
         )
     
-    addition = bench_configs.dg_benchmark(
-        small_test=small_test, sensitivities=False)
+    # addition = bench_configs.dg_benchmark(
+    #     small_test=small_test, sensitivities=False)
 
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
-        cadet_config_names=cadet_config_names, addition=addition,
-    disc_refinement_functions = disc_refinement_functions)
+    # bench_configs.add_benchmark(
+    #     cadet_configs, include_sens, ref_files, unit_IDs, which,
+    #     idas_abstol, ax_methods, ax_discs, par_methods, par_discs,
+    #     cadet_config_names=cadet_config_names, addition=addition,
+    # disc_refinement_functions = disc_refinement_functions)
 
     bench_func.run_convergence_analysis(
         output_path=output_path,
