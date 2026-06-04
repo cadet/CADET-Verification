@@ -64,6 +64,7 @@ jobs:
               pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
 
               echo 'Running verification'
+              export PYTHONPATH=/tmp/cadet-verification/src:$PYTHONPATH
               pytest -s \$PYTEST_ARGS src/testMatthias.py \
                 --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\"
 
