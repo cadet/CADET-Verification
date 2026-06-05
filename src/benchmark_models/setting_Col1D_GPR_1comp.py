@@ -22,7 +22,8 @@ def get_GPR_kernel(kernel:str):
         config.adsorption.is_kinetic = np.int32(1)
         
         config.adsorption.gpr_kkin = np.int32(1)
-        config.adsorption.ndim = np.int32(1)
+        config.adsorption.cp_ndim = np.int32(1)
+        config.adsorption.cs_ndim = np.int32(1)
         config.adsorption.cp_vals = np.array(
             [ 0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015 , 3.003003 , 6.0 ]
             )
@@ -30,10 +31,11 @@ def get_GPR_kernel(kernel:str):
             [ 1.29198742, 76.84778516,110.14325476,141.59781958,165.80146634,
               181.33282173,190.23846417 ]
             )
-        config.adsorption.trained_params = np.array(
-            [ 1.86490637e+01,3.31357112e-04,7.89170771e+03,3.28049204e-15,
-              1.00000000e+00,1.00000000e+00,1.00000000e+00 ]
-            )
+
+        config.adsorption.MLP_WEIGHT_VARIANCE = np.array([1.86490637e+01])
+        config.adsorption.MLP_BIAS_VARIANCE = np.array([3.31357112e-04])
+        config.adsorption.MLP_VARIANCE = np.array([7.89170771e+03])
+        config.adsorption.GAUSSIAN_NOISE_VARIANCE = np.array([1.00000000e+00])
         
     elif kernel == "Shallow_RBF_15":
         
@@ -43,6 +45,8 @@ def get_GPR_kernel(kernel:str):
         config.adsorption.is_kinetic = np.int32(1)
 
         config.adsorption.gpr_kkin = np.int32(1)
+        config.adsorption.cp_ndim = np.int32(1)
+        config.adsorption.cs_ndim = np.int32(1)
         config.adsorption.cp_vals = np.array(
             [ 0.0, 0.42857143, 0.85714286, 1.28571429, 1.71428571, 2.14285714,
               2.57142857, 3.0,3.42857143, 3.85714286, 4.28571429, 4.71428571,
@@ -53,11 +57,12 @@ def get_GPR_kernel(kernel:str):
               174.82014386,178.56705449,181.34328358,183.4827749 ,185.18204912,
               186.56429944,187.71067415,188.67680362,189.50209958,190.21526419 ]
             )
-        config.adsorption.ndim = np.int32(1)
-        config.adsorption.trained_params = np.array(
-            [ 1.00000000e+00,1.00000000e+00,1.00000000e+00,6.89934599e+00,
-              1.52543530e+04,9.32978701e-01,1.47338643e+03 ]
-            )
+        
+        config.adsorption.LINEAR_VARIANCE = np.array([6.89934599e+00])
+        config.adsorption.RBF_VARIANCE = np.array([1.52543530e+04])
+        config.adsorption.RBF_LENGTHSCALE = np.array([9.32978701e-01])
+        config.adsorption.GAUSSIAN_NOISE_VARIANCE = np.array([1.47338643e+03])
+        
     else:
         raise Exception("unsupported GPR binding kernel")
     
