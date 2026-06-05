@@ -7,7 +7,7 @@ runs a CADET simulation with GPR binding, and compares to a mechanistic simulati
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +17,8 @@ from cadet import Cadet
 
 import src.benchmark_models.setting_Col1D_langLRM_2comp_benchmark1 as langmuir_2Comp_setting
 import src.benchmark_models.settings_data_driven_bnd as langmuir_1Comp_setting
-from src.gpr_training import train_gpr_for_cadet
+from src.training_gpr import train_gpr_for_cadet
+from src.training_ann import train_ann_for_cadet
 
 
 def multi_component_langmuir_equilibrium(
@@ -54,11 +55,15 @@ def get_langmuir_parameters(model_setting:Callable) -> tuple[np.ndarray, np.ndar
     return np.array(ka), np.array(kd), np.array(qmax)
 
 
-def run_gpr_analysis(
+def run_hybrid_sim_analysis(
+        binding_model: str["GPR", "ANN"],
         cadet_path: str, output_dir: str,
-        c_sample: np.ndarray, cp: np.ndarray, cs: np.ndarray, kernel: str,
+        c_sample: np.ndarray, cp: np.ndarray, cs: np.ndarray, kernel: Optional[str],
         get_model: callable,
-        add_noise: bool = True
+        add_noise: bool = True,       # only for GPR
+        hidden_nodes: int = 75,       # only for ANN
+        epochs: int = 2000,           # only for ANN
+        patience: int = 500,          # only for ANN
         ) -> tuple[Cadet, Cadet]:
 
     # Step 1: plot isotherm training data
@@ -133,29 +138,41 @@ def run_gpr_analysis(
         plt.ylabel("Outlet Concentration")
         plt.legend()
 
-    # Step 3: train GPR
-    training_results = train_gpr_for_cadet(
-        cp, cs,
-        kernel=kernel, optimization_restarts=1, add_noise=add_noise,
-    )
+    # Step 3: train data-driven surrogate
+    if binding_model == "GPR":
+        training_results = train_gpr_for_cadet(
+            cp, cs,
+            kernel=kernel, optimization_restarts=1, add_noise=add_noise,
+        )
+    elif binding_model == "ANN":
+        training_results = train_ann_for_cadet(cp, cs, hidden_nodes=hidden_nodes, epochs=epochs, patience=patience)
+    else:
+        raise ValueError(f"Invalid data-driven binding model {binding_model}, expected 'GPR' or 'ANN'")
 
-    print(training_results)
+    # print(training_results)
 
     # Step 4: run hybrid simulation
     simHybrid = Cadet()
     simHybrid.install_path = cadet_path
     if nComp == 1:
-        simHybrid.filename = str(output_dir + "/Col1D_GRM_langGPR_1comp_benchmark1.h5")
+        simHybrid.filename = str(output_dir + "/Col1D_GRM_langGPR_1comp_benchmark1.h5") if binding_model == "GPR" else str(output_dir + "/Col1D_GRM_langANN_1comp_benchmark1.h5")
     elif nComp == 2:
-        simHybrid.filename = str(output_dir + "/Col1D_LRM_langGPR_2comp_benchmark1.h5")
+        simHybrid.filename = str(output_dir + "/Col1D_LRM_langGPR_2comp_benchmark1.h5") if binding_model == "GPR" else str(output_dir + "/Col1D_LRM_langANN_2comp_benchmark1.h5")
+    
     simHybrid.root = get_model(spatial_method_bulk=0, write_solution_bulk=1, write_solution_solid=1)
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption_model = "GAUSSIAN_PROCESS_REGRESSION"
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = 1
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CP_NDIM = nComp
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CS_NDIM = nComp
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CP_VALS = cp
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CS_VALS = cs
-    simHybrid.root.input.model.unit_001.particle_type_000.adsorption.GPR_KKIN = [1000.0] * nComp
+    simHybrid.root.input.model.unit_001.particle_type_000.adsorption_model = "GAUSSIAN_PROCESS_REGRESSION" if binding_model == "GPR" else "NEURAL_NETWORK"
+    if binding_model == "GPR":
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CP_NDIM = nComp
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CS_NDIM = nComp
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CP_VALS = cp
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.CS_VALS = cs
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.GPR_KKIN = [1000.0] * nComp
+    elif binding_model == "ANN":
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NN_KKIN = [1000.0] * nComp
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NLAYERS = 2
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NNODES = hidden_nodes
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.POROSITY_FACTOR = 1.0 #/ (1.0-epsilon_p)
+
     for key in training_results:
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key] = training_results[key]
     simHybrid.save()
@@ -249,7 +266,8 @@ def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
     cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
     cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
 
-    simMechanistic1, simHybrid1 = run_gpr_analysis(
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "GPR",
         cadet_path, output_dir,
         c_sample, cp, cs, kernel="MLP",
         get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement),
@@ -270,25 +288,50 @@ def binding_train_GPR_langmuir1Comp(cadet_path: str, output_dir: str):
     cp = np.linspace(0.0, cpMax, NTRAIN + 1)
     cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
 
-    simMechanistic1, simHybrid1 = run_gpr_analysis(
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "GPR",
         cadet_path, output_dir,
         cp, cp, cs, kernel="MLP",
         get_model=partial(
             langmuir_1Comp_setting.get_model,
                 file_name="testitest.h5",
                 mode="MCL",
-                # cp: np.ndarray,
-                # cs: np.ndarray,
                 loading=np.linspace(0.0, 50.0, 50 + 1),
                 column_key="favorable_lysozyme",
                 keq=Ka/Kd,
                 qm=Qmax * (1.0 - 0.75), # mechanistic model shenanigans
                 add_noise=True, # for deterministic data sets
-                # gpr_params: Optional[np.ndarray] = None,
-                # gpr_kernel: str = "MLP",
-                # ann_weights= None,
-                # ann_norm_factor= None,
-                # ann_poros_factor= None,
-                # ann_impl= None
             )
         )
+
+#######################################################################################
+# 1comp Langmuir binding isotherm ANN analysis
+#######################################################################################
+
+def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
+
+    NTRAIN = 10
+
+    Ka, Kd, Qmax = 2.0, 1.0, 20.0
+    cpMax = 10.0
+
+    cp = np.linspace(0.0, cpMax, NTRAIN + 1)
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "ANN",
+        cadet_path, output_dir,
+        cp, cp, cs, kernel=None,
+        get_model=partial(
+            langmuir_1Comp_setting.get_model,
+            file_name="testitest.h5",
+            mode="MCL",
+            loading=np.linspace(0.0, 50.0, 50 + 1),
+            column_key="favorable_lysozyme",
+            keq=Ka/Kd,
+            qm=Qmax * (1.0 - 0.75),
+        ),
+        hidden_nodes=8,
+        epochs=2000,
+        patience=500
+    )
