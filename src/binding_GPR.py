@@ -5,7 +5,7 @@ from pathlib import Path
 from cadet import Cadet
 import src.utility.convergence as convergence
 
-import src.benchmark_models.setting_Col1D_GPR as setting_Col1D_GPR
+import src.benchmark_models.setting_Col1D_GPR_1comp as setting_Col1D_GPR_1comp
 
 
 def test_GPR_binding(output_path:str, cadet_path:str):
@@ -20,7 +20,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     
     model = Cadet()
     model.install_path = cadet_path
-    model.root.input = setting_Col1D_GPR.get_model(f"{setting_name}")
+    model.root.input = setting_Col1D_GPR_1comp.get_model(f"{setting_name}")
     model.filename = output_path + f"/Col1D_GRM_GPR_{setting_name}.h5"
     model.save()
     return_data = model.run_simulation()
@@ -84,7 +84,7 @@ def test_GPR_binding(output_path:str, cadet_path:str):
     
     model = Cadet()
     model.install_path = cadet_path
-    model.root.input = setting_Col1D_GPR.get_model(f"{setting_name}")
+    model.root.input = setting_Col1D_GPR_1comp.get_model(f"{setting_name}")
     model.filename = output_path + f'/Col1D_GRM_GPR_{setting_name}.h5'
     model.save()
     return_data = model.run_simulation()

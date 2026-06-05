@@ -161,15 +161,16 @@ def get_model(
     model.input['return'].unit_000.write_solution_bulk = 0
     model.input['return'].unit_000.write_solution_inlet = 0
     model.input['return'].unit_000.write_solution_outlet = 0
-    model.input['return'].unit_001.write_coordinates = 0
+    model.input['return'].unit_001.write_coordinates = kwargs.get('write_solution_bulk', 0) or kwargs.get('write_solution_solid', 0) or kwargs.get('write_solution_particle', 0)
     model.input['return'].unit_001.write_sens_bulk = 0
     model.input['return'].unit_001.write_sens_last = 0
     model.input['return'].unit_001.write_sens_outlet = 1
     model.input['return'].unit_001.write_solution_bulk = 0
     model.input['return'].unit_001.write_solution_inlet = 0
     model.input['return'].unit_001.write_solution_outlet = 1
-    model.input['return'].unit_001.write_solution_particle = 0
-    model.input['return'].unit_002.write_solution_bulk = 0
+    model.input['return'].unit_002.write_solution_bulk = kwargs.get('write_solution_bulk', 0)
+    model.input['return'].unit_001.write_solution_solid = kwargs.get('write_solution_solid', 0)
+    model.input['return'].unit_001.write_solution_particle = kwargs.get('write_solution_particle', 0)
     model.input['return'].unit_002.write_solution_inlet = 0
     model.input['return'].unit_002.write_solution_outlet = 0
     
