@@ -56,7 +56,7 @@ jobs:
               git rev-parse HEAD
 
               echo 'Installing Python dependencies'
-              pip install mpmath scipy numpy matplotlib pytest pandas h5py joblib
+              pip install .
 
               echo 'Running verification'
               pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=\$TEST_BRANCH
