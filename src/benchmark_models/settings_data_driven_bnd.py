@@ -245,17 +245,16 @@ def _apply_adsorption(
         adsorption.ML_KKIN = 1
         adsorption.LAYERS = 2
         adsorption.NODES = int(ann_weights.layer_0_bias.shape[0])
-        adsorption.NDIM = 1
         adsorption.NORM_FACTOR = keq if ann_norm_factor is None else ann_norm_factor
-        adsorption.POROS_FACTOR = (
+        adsorption.bound_state_000.POROS_FACTOR = (
             1 / (1 - epsilon_p) if ann_poros_factor is None else ann_poros_factor
         )
-        adsorption.layer_0.BIAS = ann_weights.layer_0_bias
-        adsorption.layer_0.KERNEL = ann_weights.layer_0_kernel
-        adsorption.layer_1.BIAS = ann_weights.layer_1_bias
-        adsorption.layer_1.KERNEL = ann_weights.layer_1_kernel
-        adsorption.layer_2.BIAS = ann_weights.layer_2_bias
-        adsorption.layer_2.KERNEL = ann_weights.layer_2_kernel
+        adsorption.bound_state_000.layer_0.BIAS = ann_weights.layer_0_bias
+        adsorption.bound_state_000.layer_0.KERNEL = ann_weights.layer_0_kernel
+        adsorption.bound_state_000.layer_1.BIAS = ann_weights.layer_1_bias
+        adsorption.bound_state_000.layer_1.KERNEL = ann_weights.layer_1_kernel
+        adsorption.bound_state_000.layer_2.BIAS = ann_weights.layer_2_bias
+        adsorption.bound_state_000.layer_2.KERNEL = ann_weights.layer_2_kernel
         if ann_impl is not None:
             adsorption.IMPL = ann_impl
         return
@@ -364,32 +363,3 @@ def get_model(
     model.root.input.solver.user_solution_times = time_simulation
     set_discretization(model, n_bound=[1], n_col=100, n_par=15)
     return model.root
-
-
-def load_ann_weights_from_keras_h5(file_path: str) -> AnnWeights:
-    """Load dense layer weights from a Keras H5 model file."""
-
-    with h5py.File(file_path, "r") as model_file:
-        return AnnWeights(
-            layer_0_kernel=model_file["/model_weights/dense/dense/kernel:0"][()],
-            layer_0_bias=model_file["/model_weights/dense/dense/bias:0"][()],
-            layer_1_kernel=model_file["/model_weights/dense_1/dense_1/kernel:0"][()],
-            layer_1_bias=model_file["/model_weights/dense_1/dense_1/bias:0"][()],
-            layer_2_kernel=model_file["/model_weights/dense_2/dense_2/kernel:0"][()],
-            layer_2_bias=model_file["/model_weights/dense_2/dense_2/bias:0"][()],
-        )
-
-
-def load_ann_weights_from_cadet_h5(file_path: str) -> AnnWeights:
-    """Load ANN weights from an existing CADET input/output H5 file."""
-
-    with h5py.File(file_path, "r") as cadet_file:
-        base = "/input/model/unit_001/adsorption/model_weights"
-        return AnnWeights(
-            layer_0_kernel=cadet_file[f"{base}/layer_0/kernel"][()],
-            layer_0_bias=cadet_file[f"{base}/layer_0/bias"][()],
-            layer_1_kernel=cadet_file[f"{base}/layer_1/kernel"][()],
-            layer_1_bias=cadet_file[f"{base}/layer_1/bias"][()],
-            layer_2_kernel=cadet_file[f"{base}/layer_2/kernel"][()],
-            layer_2_bias=cadet_file[f"{base}/layer_2/bias"][()],
-        )

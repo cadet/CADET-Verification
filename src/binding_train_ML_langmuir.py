@@ -171,10 +171,14 @@ def run_hybrid_sim_analysis(
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NN_KKIN = [1000.0] * nComp
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NLAYERS = 2
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NNODES = hidden_nodes
-        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.POROSITY_FACTOR = 1.0 #/ (1.0-epsilon_p)
+        for component in range(nComp):
+            simHybrid.root.input.model.unit_001.particle_type_000.adsorption[f"bound_state_{component:03d}"].POROSITY_FACTOR = 1.0 #/ (1.0-epsilon_p)
 
     for key in training_results:
-        simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key] = training_results[key]
+        if binding_model == "ANN" and key in ["layer_0", "layer_1", "layer_2"]:
+                simHybrid.root.input.model.unit_001.particle_type_000.adsorption[f"bound_state_{component:03d}"][key].update(training_results[key])
+        else:
+            simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key] = training_results[key]
     simHybrid.save()
     return_data = simHybrid.run_simulation()
     if return_data.return_code != 0:
