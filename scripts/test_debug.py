@@ -26,7 +26,7 @@ n_jobs = -1
 delete_h5_files = False
 
 run_transport_tests = False
-run_binding_tests = False
+run_binding_tests = True
 run_chromatography_tests = False
 run_MCT_tests = False
 run_chromatography_sensitivity_tests = False
@@ -34,10 +34,10 @@ run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_2Dmodels_tests = False
 
-output_path = Path.cwd().parent / "output" / "test_cadet-core"
+output_path = Path.cwd() / "output" / "test_cadet-core"
 
-# cadet_path = r"C:\Users\jmbr\OneDrive\Desktop\CADET_compiled\CADET_v6.0.0-alpha.2\aRELEASE"
 cadet_path = convergence.get_cadet_path()
+cadet_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 print_cadet_versions(cadet_path)
 

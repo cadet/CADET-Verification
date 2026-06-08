@@ -1,14 +1,9 @@
-"""Train Gaussian Process Regression (GPR) models for CADET adsorption workflows.
+"""Train Gaussian Process Regression (GPR) models for CADET binding models.
 
-This module helps you go from raw adsorption training pairs to a CADET-ready
-parameter vector:
+This module helps you go from raw binding training pairs to a CADET configuration:
 - Input: concentration samples ``cp`` and loading samples ``cs``.
 - Model: GPy-based GPR with selectable kernel (RBF, MLP, or +Linear variants).
-- Output: a 7-value parameter vector in the ordering expected by CADET.
-
-Use ``train_gpr_for_cadet(...)`` as the main entry point.
-The returned ``GPRTrainingResult`` also includes prediction arrays and a simple
-Langmuir-based error metric for quick quality checks.
+- Output: hyper-parameters expected by CADET GPR configuration.
 """
 
 from __future__ import annotations
