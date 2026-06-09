@@ -17,7 +17,7 @@ from tensorflow.keras import layers
 tf.get_logger().setLevel("ERROR")
 
 from src.benchmark_models.settings_data_driven_bnd import AnnWeights
-from src.training_gpr import fit_langmuir, langmuir_isotherm
+from src.training_gpr import fit_mechanistic_reference
 
 
 def _custom_loss(lambda_train: float = 500000.0):
@@ -57,8 +57,6 @@ def _to_cadet_weights(model: Any) -> AnnWeights:
 def _train_single_ann(
     X_norm: np.ndarray,
     y: np.ndarray,
-    keq: float,
-    qm: float,
     *,
     hidden_nodes: int,
     epochs: int,
@@ -67,16 +65,29 @@ def _train_single_ann(
     acceptance_threshold: float,
     validation_split: float,
     verbose: int,
+    mechanistic_reference: Optional[callable]=None
 ) -> tuple[AnnWeights, float]:
     """Train one component's ANN, retrying until the integral criterion passes.
 
     The integral criterion measures how well the ANN reproduces the smooth
-    Langmuir reference curve on a dense grid — not just at the training points.
+    mechanistic reference curve on a dense grid — not just at the training points.
     This drives retries because ANN training is non-deterministic (random init).
     """
+
+    if mechanistic_reference is None:
+        # if no mechanistic reference provided, skip the integral criterion and just return the first trained model
+        model = _build_model(input_dim=1, hidden_nodes=hidden_nodes)
+        model.fit(
+            X_norm, y,
+            epochs=epochs,
+            validation_split=validation_split,
+            verbose=verbose,
+        )
+        return _to_cadet_weights(model), float("inf")
+    
     dense_norm = np.linspace(X_norm.min(), X_norm.max(), 1000)
     dense_cp = dense_norm / keq
-    ref_cs = langmuir_isotherm(dense_cp, keq, qm)
+    ref_cs = mechanistic_reference(dense_cp, keq, qm)
 
     best_weights: Optional[AnnWeights] = None
     best_criterion = float("inf")
@@ -126,8 +137,13 @@ def train_ann_for_cadet(
 ) -> dict:
     """Train per-component ANN models and return CADET-ready weight dicts.
 
-    Each bound state (cs column) gets its own ANN.
-    All ANNs are trained on the FULL cp feature matrix.
+    If mechanistic_reference is provided:
+        - used to compute reference curve for training quality control
+        - Langmuir-style scaling is used (keq, qm)
+
+    If None:
+        - pure data-driven training
+        - no physics bias
     """
 
     if random_seed is not None:
@@ -157,35 +173,58 @@ def train_ann_for_cadet(
     if cp.shape[0] != N:
         raise ValueError(f"cp and cs must have same number of rows: {cp.shape}, {cs.shape}")
 
-    # -------------------------
-    # train per bound state ANN
-    # -------------------------
+    X_raw = cp
     results = {}
 
-    X_raw = cp
-
+    # -------------------------
+    # train per component ANN
+    # -------------------------
     for i in range(nBound):
         y = cs[:, i]
 
-        # fit Langmuir scaling per bound state
-        keq, qm = fit_langmuir(X_raw.reshape(-1, cp.shape[1]), y)
+        # ---------------------------------------------------------
+        # CASE 1: mechanistic reference available
+        # ---------------------------------------------------------
+        if mechanistic_reference is not None:
+            keq, qm = fit_mechanistic_reference(X_raw.reshape(-1, cp.shape[1]), y, mechanistic_reference)
+            X_norm = X_raw * keq
 
-        # IMPORTANT: normalization must broadcast correctly
-        X_norm = X_raw * keq
+            weights, _ = _train_single_ann(
+                X_norm,
+                y,
+                hidden_nodes=hidden_nodes,
+                epochs=epochs,
+                patience=patience,
+                max_retries=max_retries,
+                acceptance_threshold=acceptance_threshold,
+                validation_split=validation_split,
+                verbose=verbose,
+                mechanistic_reference=lambda cp, keq, qm: mechanistic_reference(cp, keq, qm)
+            )
 
-        weights, _ = _train_single_ann(
-            X_norm,
-            y,
-            keq,
-            qm,
-            hidden_nodes=hidden_nodes,
-            epochs=epochs,
-            patience=patience,
-            max_retries=max_retries,
-            acceptance_threshold=acceptance_threshold,
-            validation_split=validation_split,
-            verbose=verbose,
-        )
+        # ---------------------------------------------------------
+        # CASE 2: no mechanistic reference (pure data-driven)
+        # ---------------------------------------------------------
+        else:
+            # no physics scaling
+            keq = 1.0
+            qm = float(np.max(y)) if np.max(y) > 0 else 1.0
+
+            X_norm = X_raw  # no scaling
+
+            weights, _ = _train_single_ann(
+                X_norm,
+                y,
+                keq,
+                qm,
+                hidden_nodes=hidden_nodes,
+                epochs=epochs,
+                patience=patience,
+                max_retries=max_retries,
+                acceptance_threshold=acceptance_threshold,
+                validation_split=validation_split,
+                verbose=verbose,
+            )
 
         results[f"bound_state_{i:03d}"] = {
             "NORM_FACTOR": keq,

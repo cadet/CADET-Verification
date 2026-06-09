@@ -25,16 +25,12 @@ def langmuir_isotherm(cp: np.ndarray, keq: float, qm: float) -> np.ndarray:
     return (keq * qm * cp) / (1.0 + keq * cp)
 
 
-def fit_langmuir(cp: np.ndarray, cs: np.ndarray) -> tuple[float, float]:
-    """Fit Langmuir parameters KEQ and QM from concentration and loading data."""
+def fit_mechanistic_reference(cp: np.ndarray, cs: np.ndarray, mechanistic_reference: callable) -> tuple[float, float]:
 
     cp = np.asarray(cp, dtype=float)
     cs = np.asarray(cs, dtype=float)
 
-    def _langmuir(x: np.ndarray, keq: float, qm: float) -> np.ndarray:
-        return langmuir_isotherm(x, keq, qm)
-
-    params, _ = curve_fit(_langmuir, cp, cs)
+    params, _ = curve_fit(mechanistic_reference, cp, cs)
     return float(params[0]), float(params[1])
 
 
