@@ -22,25 +22,17 @@ from src.benchmark_models.settings_data_driven_bnd import AnnWeights
 from src.training_gpr import fit_mechanistic_reference
 
 
-def _custom_loss(lambda_train: float = 500000.0):
-    def loss(y_true: Any, y_pred: Any) -> Any:
-        mse_term = tf.reduce_mean(tf.square(y_true - y_pred))
-        l1_term = tf.reduce_mean(tf.abs(y_true - y_pred))
-        return mse_term + lambda_train * l1_term
-    return loss
-
-
-def _build_model(input_dim: int, hidden_nodes: int = 75) -> Any:
+def _build_model(input_dim: int, hidden_nodes: int = 16) -> Any:
     model = keras.Sequential([
         keras.Input(shape=(input_dim,)),
-        layers.Dense(hidden_nodes, activation="elu", kernel_initializer="random_uniform", bias_initializer="zeros"),
-        layers.Dense(hidden_nodes, activation="elu", kernel_initializer="random_uniform", bias_initializer="zeros"),
-        layers.Dense(1, activation=None),  # no output activation — CADET applies none either
+        layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"),
+        layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"),
+        layers.Dense(1, activation=None),
     ])
     model.compile(
-        loss=_custom_loss(),
+        loss="mse",
         optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
-        metrics=["mae", "mse"],
+        metrics=["mae"],
     )
     return model
 
@@ -112,20 +104,20 @@ def _train_single_ann(
 
     for _ in range(max_retries):
 
-        model = _build_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes)
-
-        early_stop = keras.callbacks.EarlyStopping(
-            monitor="val_loss",
-            patience=patience,
-            restore_best_weights=True,
-        )
-
         split_criteria = []
 
         # -------------------------------------------------
         # train + evaluate over all splits
         # -------------------------------------------------
         for train_idx, val_idx in splits:
+
+            model = _build_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes)
+
+            early_stop = keras.callbacks.EarlyStopping(
+                monitor="val_loss",
+                patience=patience,
+                restore_best_weights=True,
+            )
 
             X_train, y_train = X_norm[train_idx], y[train_idx]
             X_val, y_val = X_norm[val_idx], y[val_idx]
@@ -162,9 +154,9 @@ def train_ann_for_cadet(
     cp: np.ndarray,
     cs: np.ndarray,
     *,
-    hidden_nodes: int = 75,
-    epochs: int = 2000,
-    patience: int = 500,
+    hidden_nodes: int = 16,
+    epochs: int = 500,
+    patience: int = 50,
     max_retries: int = 5,
     acceptance_threshold: float = 100.0,
     validation_split: float = 0.2,
