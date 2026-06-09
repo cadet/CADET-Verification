@@ -40,12 +40,12 @@ def binding_tests(n_jobs, cadet_path, output_path):
 
     from matplotlib import pyplot as plt
     
-    # binding_train_GPR_langmuir2Comp(cadet_path, output_path)
-    
     # binding_train_GPR_langmuir1Comp(cadet_path, output_path)
 
-    # binding_train_ANN_langmuir1Comp(cadet_path, output_path)
+    # binding_train_GPR_langmuir2Comp(cadet_path, output_path)
 
-    binding_train_ANN_langmuir2Comp(cadet_path, output_path)
+    binding_train_ANN_langmuir1Comp(cadet_path, output_path)
+
+    # binding_train_ANN_langmuir2Comp(cadet_path, output_path)
 
     plt.show()

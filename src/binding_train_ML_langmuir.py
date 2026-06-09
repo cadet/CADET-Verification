@@ -63,7 +63,7 @@ def run_hybrid_sim_analysis(
         kernel: Optional[str] = None,                       # only for GPR
         add_noise: bool = True,                             # only for GPR
         normalization_factor: Optional[List[float]] = None, # only for ANN
-        hidden_nodes: int = 75,                             # only for ANN
+        hidden_nodes: int = 10,                             # only for ANN
         epochs: int = 2000,                                 # only for ANN
         patience: int = 500,                                # only for ANN
         validation_split: float = 0.2,                      # only for ANN
