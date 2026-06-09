@@ -64,15 +64,19 @@ def run_hybrid_sim_analysis(
         add_noise: bool = True,                             # only for GPR
         normalization_factor: Optional[List[float]] = None, # only for ANN
         hidden_nodes: int = 10,                             # only for ANN
-        epochs: int = 2000,                                 # only for ANN
-        patience: int = 500,                                # only for ANN
-        validation_split: float = 0.2,                      # only for ANN
+        n_layers: int = 2,                                  # only for ANN
+        epochs: int = 500,                                  # only for ANN
+        patience: int = 50,                                 # only for ANN
+        max_retries: int = 2,                               # only for ANN
+        acceptance_threshold: float = 10.0,                 # only for ANN
         training_strategy: Literal[                         # only for ANN
             "random_split",
             "k_fold",
             "leave_one_out",
             "none",
         ] = "random_split",
+        validation_split: float = 0.2,                      # only for ANN
+        plot_training_curves: bool = False,                 # only for ANN
         ) -> tuple[Cadet, Cadet]:
 
     # Step 1: plot isotherm training data
@@ -132,7 +136,7 @@ def run_hybrid_sim_analysis(
     time = simMechanistic.root.output.solution.solution_times
     if nComp == 1:
         outlet_cp = simMechanistic.root.output.solution.unit_001.solution_outlet[:]
-        plt.figure()
+        fig_outlet = plt.figure()
         plt.plot(time, outlet_cp, label="Mechanistic", color='green')
         plt.xlabel("Time")
         plt.ylabel("Outlet Concentration")
@@ -140,7 +144,7 @@ def run_hybrid_sim_analysis(
     elif nComp == 2:
         outlet_cp_1 = simMechanistic.root.output.solution.unit_001.solution_outlet[:, 0]
         outlet_cp_2 = simMechanistic.root.output.solution.unit_001.solution_outlet[:, 1]
-        plt.figure()
+        fig_outlet = plt.figure()
         plt.plot(time, outlet_cp_1, label="Mech comp 1", color='green')
         plt.plot(time, outlet_cp_2, label="Mech comp 2", color='red')
         plt.xlabel("Time")
@@ -155,9 +159,10 @@ def run_hybrid_sim_analysis(
         )
     elif binding_model == "ANN":
         training_results = train_ann_for_cadet(
-            cp, cs,
-            hidden_nodes=hidden_nodes, epochs=epochs, patience=patience,
-            normalization_factor=normalization_factor, validation_split=validation_split, training_strategy=training_strategy
+            cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
+            normalization_factor=normalization_factor, epochs=epochs, patience=patience,
+            max_retries=max_retries, acceptance_threshold=acceptance_threshold, training_strategy=training_strategy, validation_split=validation_split,
+            plot_training_curves=plot_training_curves
             )
     else:
         raise ValueError(f"Invalid data-driven binding model {binding_model}, expected 'GPR' or 'ANN'")
@@ -182,7 +187,7 @@ def run_hybrid_sim_analysis(
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption.GPR_KKIN = [1000.0] * nComp
     elif binding_model == "ANN":
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NN_KKIN = [1000.0] * nComp
-        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NLAYERS = 2
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NLAYERS = n_layers
         simHybrid.root.input.model.unit_001.particle_type_000.adsorption.NNODES = hidden_nodes
         for component in range(nComp):
             simHybrid.root.input.model.unit_001.particle_type_000.adsorption[f"bound_state_{component:03d}"].POROSITY_FACTOR = 1.0 #/ (1.0-epsilon_p)
@@ -203,6 +208,7 @@ def run_hybrid_sim_analysis(
     # Step 5: plot hybrid simulation results and compare to mechanistic simulation
     if nComp == 1:
         outlet_cp_hybrid = simHybrid.root.output.solution.unit_001.solution_outlet[:]
+        plt.figure(fig_outlet.number)
         plt.plot(time, outlet_cp_hybrid, label="Hybrid", linestyle='dashed', color='blue')
         plt.xlabel("Time")
         plt.ylabel("Outlet Concentration")
@@ -328,13 +334,14 @@ def binding_train_GPR_langmuir1Comp(cadet_path: str, output_dir: str):
 
 def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
 
-    NTRAIN = 10
+    NTRAIN = 50
 
     Ka, Kd, Qmax = 2.0, 1.0, 20.0
     cpMax = 10.0
 
     cp = np.linspace(0.0, cpMax, NTRAIN + 1)
     cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+    n_layers = 1
 
     simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
         "ANN",
@@ -348,13 +355,18 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
             column_key="favorable_lysozyme",
             keq=Ka/Kd,
             qm=Qmax * (1.0 - 0.75),
+            n_layers=n_layers
         ),
-        hidden_nodes=8,
-        epochs=2000,
-        patience=500,
+        hidden_nodes=4,
+        n_layers=n_layers,
+        epochs=250, # maximum number of training epochs
+        patience=10, # stop training if validation loss does not improve for `patience` consecutive epochs
         normalization_factor=[Ka/Kd],
+        acceptance_threshold=10.0, # for retries
+        max_retries=5, # number of times to retry training with different random initialization if training fails (e.g. due to bad local minimum)
+        training_strategy="random_split", # "none", "random_split", "leave_one_out", "k_fold"
         validation_split=0.2,
-        training_strategy="none" # "none", "random_split", "leave_one_out", "k_fold"
+        plot_training_curves=True
     )
 
 #######################################################################################
@@ -366,6 +378,7 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
     refinement = 4
     NTRAIN = 10 # 50 with refinement 1 gets us xe-2 max. abs. error for both components
     cpMax = 10.0 # seen as max c^l for unrefined model
+    n_layers = 1
 
     # sample the cp space and compute the corresponding equilibrium loading
     Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
@@ -379,10 +392,14 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
         cadet_path, output_dir,
         c_sample, cp, cs,
         get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement, idas_reftol=1e-4),
-        hidden_nodes=8,
-        epochs=2000,
-        patience=500,
+        hidden_nodes=4,
+        n_layers=n_layers,
+        epochs=250, # maximum number of training epochs
+        patience=10, # stop training if validation loss does not improve for `patience` consecutive epochs
         normalization_factor=None, # Ka/Kd, # None
+        acceptance_threshold=10.0, # for retries
+        max_retries=2,
+        training_strategy="random_split", #  "none", "random_split", "leave_one_out", "k_fold"
         validation_split=0.2,
-        training_strategy="none" #  "none", "random_split", "leave_one_out", "k_fold"
+        plot_training_curves=True
     )

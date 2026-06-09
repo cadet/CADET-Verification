@@ -41,19 +41,6 @@ class ColumnConfig:
     factor: float
     qmax: float
 
-
-@dataclass(frozen=True)
-class AnnWeights:
-    """Three-layer feed-forward ANN weights as expected by CADET ML adsorption."""
-
-    layer_0_kernel: np.ndarray
-    layer_0_bias: np.ndarray
-    layer_1_kernel: np.ndarray
-    layer_1_bias: np.ndarray
-    layer_2_kernel: np.ndarray
-    layer_2_bias: np.ndarray
-
-
 COLUMN_CONFIGS: Dict[str, ColumnConfig] = {
     "favorable_lysozyme": ColumnConfig(
         epsilon_b=0.256288,
@@ -205,13 +192,14 @@ def _apply_adsorption(
     cs: np.ndarray,
     gpr_params: Optional[np.ndarray],
     gpr_kernel: str,
-    ann_weights: Optional[AnnWeights],
+    ann_weights: Optional[Dict],
     keq: float,
     qm: float,
     epsilon_p: float,
     ann_norm_factor: Optional[float],
     ann_poros_factor: Optional[float],
     ann_impl: Optional[str],
+    ann_layers: Optional[int],
 ) -> None:
     """Configure one of the four adsorption settings used in the notebooks."""
 
@@ -243,18 +231,12 @@ def _apply_adsorption(
             raise ValueError("ann_weights must be provided for mode='ANN'.")
         model.root.input.model.unit_001.particle_type_000.adsorption_model = "MACHINE_LEARNING"
         adsorption.ML_KKIN = 1
-        adsorption.LAYERS = 2
-        adsorption.NODES = int(ann_weights.layer_0_bias.shape[0])
+        adsorption.LAYERS = ann_layers if ann_layers is not None else 2
         adsorption.NORM_FACTOR = keq if ann_norm_factor is None else ann_norm_factor
         adsorption.bound_state_000.POROS_FACTOR = (
             1 / (1 - epsilon_p) if ann_poros_factor is None else ann_poros_factor
         )
-        adsorption.bound_state_000.layer_0.BIAS = ann_weights.layer_0_bias
-        adsorption.bound_state_000.layer_0.KERNEL = ann_weights.layer_0_kernel
-        adsorption.bound_state_000.layer_1.BIAS = ann_weights.layer_1_bias
-        adsorption.bound_state_000.layer_1.KERNEL = ann_weights.layer_1_kernel
-        adsorption.bound_state_000.layer_2.BIAS = ann_weights.layer_2_bias
-        adsorption.bound_state_000.layer_2.KERNEL = ann_weights.layer_2_kernel
+        adsorption.bound_state_000.update(ann_weights)
         if ann_impl is not None:
             adsorption.IMPL = ann_impl
         return
@@ -282,10 +264,11 @@ def get_model(
     qm: Optional[float] = None,
     gpr_params: Optional[np.ndarray] = None,
     gpr_kernel: str = "MLP",
-    ann_weights: Optional[AnnWeights] = None,
+    ann_weights: Optional[Dict] = None,
     ann_norm_factor: Optional[float] = None,
     ann_poros_factor: Optional[float] = None,
     ann_impl: Optional[str] = None,
+    ann_layers: Optional[int] = None,
     **kwargs
 ) -> Any:
     """Build and return a CADET model object ready to save or run.
@@ -325,6 +308,7 @@ def get_model(
         ann_norm_factor=ann_norm_factor,
         ann_poros_factor=ann_poros_factor,
         ann_impl=ann_impl,
+        ann_layers=ann_layers,
     )
 
     model.root.input.model.unit_001.init_c = [0.0]
