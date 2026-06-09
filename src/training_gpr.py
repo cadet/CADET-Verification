@@ -18,23 +18,23 @@ from sklearn.metrics import mean_squared_error
 
 KernelName = Literal["RBF", "MLP", "RBF_Linear", "MLP_Linear"]
 
-def langmuir_isotherm(c: np.ndarray, keq: float, qm: float) -> np.ndarray:
+def langmuir_isotherm(cp: np.ndarray, keq: float, qm: float) -> np.ndarray:
     """Standard Langmuir isotherm used as a smooth reference curve."""
 
-    c = np.asarray(c, dtype=float)
-    return (keq * qm * c) / (1.0 + keq * c)
+    cp = np.asarray(cp, dtype=float)
+    return (keq * qm * cp) / (1.0 + keq * cp)
 
 
-def fit_langmuir(cp: np.ndarray, q: np.ndarray) -> tuple[float, float]:
+def fit_langmuir(cp: np.ndarray, cs: np.ndarray) -> tuple[float, float]:
     """Fit Langmuir parameters KEQ and QM from concentration and loading data."""
 
     cp = np.asarray(cp, dtype=float)
-    q = np.asarray(q, dtype=float)
+    cs = np.asarray(cs, dtype=float)
 
     def _langmuir(x: np.ndarray, keq: float, qm: float) -> np.ndarray:
         return langmuir_isotherm(x, keq, qm)
 
-    params, _ = curve_fit(_langmuir, cp, q)
+    params, _ = curve_fit(_langmuir, cp, cs)
     return float(params[0]), float(params[1])
 
 

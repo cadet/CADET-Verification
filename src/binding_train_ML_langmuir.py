@@ -58,12 +58,14 @@ def get_langmuir_parameters(model_setting:Callable) -> tuple[np.ndarray, np.ndar
 def run_hybrid_sim_analysis(
         binding_model: str["GPR", "ANN"],
         cadet_path: str, output_dir: str,
-        c_sample: np.ndarray, cp: np.ndarray, cs: np.ndarray, kernel: Optional[str],
+        c_sample: np.ndarray, cp: np.ndarray, cs: np.ndarray,
         get_model: callable,
+        kernel: Optional[str],        # only for GPR
         add_noise: bool = True,       # only for GPR
         hidden_nodes: int = 75,       # only for ANN
         epochs: int = 2000,           # only for ANN
         patience: int = 500,          # only for ANN
+        mechanistic_reference: Optional[Callable] = None, # only for ANN
         ) -> tuple[Cadet, Cadet]:
 
     # Step 1: plot isotherm training data
@@ -142,10 +144,10 @@ def run_hybrid_sim_analysis(
     if binding_model == "GPR":
         training_results = train_gpr_for_cadet(
             cp, cs,
-            kernel=kernel, optimization_restarts=1, add_noise=add_noise,
+            kernel=kernel, optimization_restarts=1, add_noise=add_noise
         )
     elif binding_model == "ANN":
-        training_results = train_ann_for_cadet(cp, cs, hidden_nodes=hidden_nodes, epochs=epochs, patience=patience)
+        training_results = train_ann_for_cadet(cp, cs, hidden_nodes=hidden_nodes, epochs=epochs, patience=patience, mechanistic_reference=mechanistic_reference)
     else:
         raise ValueError(f"Invalid data-driven binding model {binding_model}, expected 'GPR' or 'ANN'")
 
@@ -175,10 +177,7 @@ def run_hybrid_sim_analysis(
             simHybrid.root.input.model.unit_001.particle_type_000.adsorption[f"bound_state_{component:03d}"].POROSITY_FACTOR = 1.0 #/ (1.0-epsilon_p)
 
     for key in training_results:
-        if binding_model == "ANN" and key in ["layer_0", "layer_1", "layer_2"]:
-                simHybrid.root.input.model.unit_001.particle_type_000.adsorption[f"bound_state_{component:03d}"][key].update(training_results[key])
-        else:
-            simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key] = training_results[key]
+        simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key].update(training_results[key])
     simHybrid.save()
     return_data = simHybrid.run_simulation()
     if return_data.return_code != 0:
@@ -339,3 +338,45 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
         epochs=2000,
         patience=500
     )
+
+#######################################################################################
+# Langmuir 2Comp binding isotherm ANN analysis
+#######################################################################################
+
+def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
+
+    refinement = 4
+    NTRAIN = 10 # 50 with refinement 1 gets us xe-2 max. abs. error for both components
+    cpMax = 10.0 # seen as max c^l for unrefined model
+
+    # sample the cp space and compute the corresponding equilibrium loading
+    Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
+    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
+    c_sample = np.linspace(0, cpMax, NTRAIN + 1)
+    cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "ANN",
+        cadet_path, output_dir,
+        c_sample, cp, cs,
+        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement),
+        hidden_nodes=8,
+        epochs=2000,
+        patience=500,
+        mechanistic_reference=None
+        )
+
+# def format_vector(values, per_line=10):
+#     lines = []
+#     for i in range(0, len(values), per_line):
+#         lines.append(", ".join(str(x) for x in values[i:i + per_line]))
+#     return ",\n".join(lines)
+
+# # Beispiel:
+# bias = [
+#         -0.3580138087272644,
+#         0.17421364784240723
+#         ]
+
+# print(format_vector(bias))

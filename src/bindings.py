@@ -14,6 +14,7 @@ from src.binding_GPR import test_GPR_binding
 from src.binding_train_ML_langmuir import binding_train_GPR_langmuir1Comp
 from src.binding_train_ML_langmuir import binding_train_GPR_langmuir2Comp
 from src.binding_train_ML_langmuir import binding_train_ANN_langmuir1Comp
+from src.binding_train_ML_langmuir import binding_train_ANN_langmuir2Comp
 
 #%%
 
@@ -43,6 +44,8 @@ def binding_tests(n_jobs, cadet_path, output_path):
     
     # binding_train_GPR_langmuir1Comp(cadet_path, output_path)
 
-    binding_train_ANN_langmuir1Comp(cadet_path, output_path)
+    # binding_train_ANN_langmuir1Comp(cadet_path, output_path)
+
+    binding_train_ANN_langmuir2Comp(cadet_path, output_path)
 
     plt.show()

@@ -54,22 +54,6 @@ def _to_cadet_weights(model: Any) -> AnnWeights:
         layer_2_bias=np.asarray(b2),
     )
 
-
-def _pack_cadet_ann_params(weights: AnnWeights, norm_factor: float) -> dict:
-    """Pack ANN weights to the nested structure CADET reads via pushScope("layer_N").
-
-    C++ reads NORM_FACTOR as a flat array and layer weights via scoped groups:
-      layer_0/{KERNEL,BIAS}, layer_1/{KERNEL,BIAS}, layer_2/{KERNEL,BIAS}
-    The nested dicts here map directly to those HDF5 groups via CADET Python API.
-    """
-    return {
-        "NORM_FACTOR": np.array([norm_factor]),
-        "layer_0": {"KERNEL": weights.layer_0_kernel, "BIAS": weights.layer_0_bias},
-        "layer_1": {"KERNEL": weights.layer_1_kernel, "BIAS": weights.layer_1_bias},
-        "layer_2": {"KERNEL": weights.layer_2_kernel, "BIAS": weights.layer_2_bias},
-    }
-
-
 def _train_single_ann(
     X_norm: np.ndarray,
     y: np.ndarray,
@@ -138,12 +122,12 @@ def train_ann_for_cadet(
     validation_split: float = 0.2,
     verbose: int = 0,
     random_seed: Optional[int] = None,
+    mechanistic_reference: Optional[callable] = None,
 ) -> dict:
     """Train per-component ANN models and return CADET-ready weight dicts.
 
-    Langmuir parameters are auto-fitted from the data to determine the input
-    normalization factor (``keq``) and the Langmuir reference curve used by
-    the integral quality criterion.
+    Each bound state (cs column) gets its own ANN.
+    All ANNs are trained on the FULL cp feature matrix.
     """
 
     if random_seed is not None:
@@ -167,50 +151,56 @@ def train_ann_for_cadet(
     # -------------------------
     if cp.ndim == 1:
         cp = cp.reshape(-1, 1)
-        cp_mode = "shared"
-    elif cp.ndim == 2:
-        if cp.shape[0] != N:
-            raise ValueError(f"cp and cs must have same number of rows: {cp.shape}, {cs.shape}")
-
-        if cp.shape[1] == 1:
-            cp_mode = "shared"
-        elif cp.shape[1] == nBound:
-            cp_mode = "per_output"
-        else:
-            raise ValueError(
-                f"cp has shape {cp.shape} but cs has shape {cs.shape}. "
-                "cp must have either 1 column or match cs columns."
-            )
-    else:
+    elif cp.ndim != 2:
         raise ValueError(f"cp must be 1D or 2D, got {cp.shape}")
 
+    if cp.shape[0] != N:
+        raise ValueError(f"cp and cs must have same number of rows: {cp.shape}, {cs.shape}")
+
     # -------------------------
-    # train model
+    # train per bound state ANN
     # -------------------------
-    # C++ NEURAL_NETWORK has one ANN with nInput=nComp — per-component separate
-    # networks are not supported. Only single-component (nBound=1) is handled here.
-    if nBound != 1:
-        raise NotImplementedError(
-            "train_ann_for_cadet currently only supports nBound=1. "
-            "CADET's NEURAL_NETWORK binding uses a single multi-input ANN (nInput=nComp), "
-            "which requires different training logic for nBound>1."
+    results = {}
+
+    X_raw = cp
+
+    for i in range(nBound):
+        y = cs[:, i]
+
+        # fit Langmuir scaling per bound state
+        keq, qm = fit_langmuir(X_raw.reshape(-1, cp.shape[1]), y)
+
+        # IMPORTANT: normalization must broadcast correctly
+        X_norm = X_raw * keq
+
+        weights, _ = _train_single_ann(
+            X_norm,
+            y,
+            keq,
+            qm,
+            hidden_nodes=hidden_nodes,
+            epochs=epochs,
+            patience=patience,
+            max_retries=max_retries,
+            acceptance_threshold=acceptance_threshold,
+            validation_split=validation_split,
+            verbose=verbose,
         )
 
-    X_raw = cp  # (N, 1)
-    y = cs[:, 0]
+        results[f"bound_state_{i:03d}"] = {
+            "NORM_FACTOR": keq,
+            "layer_0": {
+                "KERNEL": weights.layer_0_kernel,
+                "BIAS": weights.layer_0_bias,
+            },
+            "layer_1": {
+                "KERNEL": weights.layer_1_kernel,
+                "BIAS": weights.layer_1_bias,
+            },
+            "layer_2": {
+                "KERNEL": weights.layer_2_kernel,
+                "BIAS": weights.layer_2_bias,
+            },
+        }
 
-    keq, qm = fit_langmuir(X_raw.reshape(-1), y)
-    X_norm = X_raw * keq  # CADET NORM_FACTOR = keq multiplies the input
-
-    weights, _ = _train_single_ann(
-        X_norm, y, keq, qm,
-        hidden_nodes=hidden_nodes,
-        epochs=epochs,
-        patience=patience,
-        max_retries=max_retries,
-        acceptance_threshold=acceptance_threshold,
-        validation_split=validation_split,
-        verbose=verbose,
-    )
-
-    return _pack_cadet_ann_params(weights, norm_factor=keq)
+    return results
