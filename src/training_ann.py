@@ -8,12 +8,14 @@ This module helps you go from raw binding training pairs to a CADET configuratio
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Callable, Optional, List
 
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from sklearn.model_selection import KFold, LeaveOneOut
+from typing import Literal
 tf.get_logger().setLevel("ERROR")
 
 from src.benchmark_models.settings_data_driven_bnd import AnnWeights
@@ -54,6 +56,32 @@ def _to_cadet_weights(model: Any) -> AnnWeights:
         layer_2_bias=np.asarray(b2),
     )
 
+def _get_splits(X, y, strategy: str, val_ratio: float = 0.2):
+    """Return list of (train_idx, val_idx) splits."""
+
+    n = len(X)
+    idx = np.arange(n)
+
+    if strategy == "random_split":
+        np.random.shuffle(idx)
+        split = int(n * (1 - val_ratio))
+        return [(idx[:split], idx[split:])]
+
+    elif strategy == "k_fold":
+        k = int(1 / val_ratio) if val_ratio > 0 else 5
+        kf = KFold(n_splits=k, shuffle=True)
+        return [(train_idx, val_idx) for train_idx, val_idx in kf.split(X)]
+
+    elif strategy == "leave_one_out":
+        loo = LeaveOneOut()
+        return [(train_idx, val_idx) for train_idx, val_idx in loo.split(X)]
+
+    elif strategy == "none":
+        return [(idx, idx)]  # train on all, validate on all
+
+    else:
+        raise ValueError(f"Unknown training_strategy: {strategy}")
+
 def _train_single_ann(
     X_norm: np.ndarray,
     y: np.ndarray,
@@ -63,48 +91,58 @@ def _train_single_ann(
     patience: int,
     max_retries: int,
     acceptance_threshold: float,
-    validation_split: float,
     verbose: int,
-    mechanistic_reference: Optional[callable]=None
-) -> tuple[AnnWeights, float]:
-    """Train one component's ANN, retrying until the integral criterion passes.
+    validation_split: float,
+    training_strategy: Literal[
+        "random_split",
+        "k_fold",
+        "leave_one_out",
+        "none",
+    ] = "random_split",
+) -> tuple["AnnWeights", float]:
+    """Train one ANN with flexible validation strategy."""
 
-    The integral criterion measures how well the ANN reproduces the smooth
-    mechanistic reference curve on a dense grid — not just at the training points.
-    This drives retries because ANN training is non-deterministic (random init).
-    """
+    X_norm = np.asarray(X_norm, dtype=float)
+    y = np.asarray(y, dtype=float)
 
-    if mechanistic_reference is None:
-        # if no mechanistic reference provided, skip the integral criterion and just return the first trained model
-        model = _build_model(input_dim=1, hidden_nodes=hidden_nodes)
-        model.fit(
-            X_norm, y,
-            epochs=epochs,
-            validation_split=validation_split,
-            verbose=verbose,
-        )
-        return _to_cadet_weights(model), float("inf")
-    
-    dense_norm = np.linspace(X_norm.min(), X_norm.max(), 1000)
-    dense_cp = dense_norm / keq
-    ref_cs = mechanistic_reference(dense_cp, keq, qm)
+    splits = _get_splits(X_norm, y, training_strategy, val_ratio=validation_split)
 
-    best_weights: Optional[AnnWeights] = None
+    best_weights = None
     best_criterion = float("inf")
 
     for _ in range(max_retries):
-        model = _build_model(input_dim=1, hidden_nodes=hidden_nodes)
-        early_stop = keras.callbacks.EarlyStopping(monitor="val_loss", patience=patience)
-        model.fit(
-            X_norm, y,
-            epochs=epochs,
-            validation_split=validation_split,
-            verbose=verbose,
-            callbacks=[early_stop],
+
+        model = _build_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes)
+
+        early_stop = keras.callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=patience,
+            restore_best_weights=True,
         )
 
-        pred_dense = model.predict(dense_norm.reshape(-1, 1), verbose=0).reshape(-1)
-        criterion = float(np.trapz((ref_cs - pred_dense) ** 2, dense_cp))
+        split_criteria = []
+
+        # -------------------------------------------------
+        # train + evaluate over all splits
+        # -------------------------------------------------
+        for train_idx, val_idx in splits:
+
+            X_train, y_train = X_norm[train_idx], y[train_idx]
+            X_val, y_val = X_norm[val_idx], y[val_idx]
+
+            model.fit(
+                X_train,
+                y_train,
+                epochs=epochs,
+                verbose=verbose,
+                validation_data=(X_val, y_val),
+                callbacks=[early_stop],
+            )
+
+            pred_val = model.predict(X_val, verbose=0).reshape(-1)
+            split_criteria.append(np.mean((y_val - pred_val) ** 2))
+
+        criterion = float(np.mean(split_criteria))
 
         if criterion < best_criterion:
             best_criterion = criterion
@@ -120,7 +158,6 @@ def _train_single_ann(
 
     return best_weights, best_criterion
 
-
 def train_ann_for_cadet(
     cp: np.ndarray,
     cs: np.ndarray,
@@ -133,18 +170,14 @@ def train_ann_for_cadet(
     validation_split: float = 0.2,
     verbose: int = 0,
     random_seed: Optional[int] = None,
-    mechanistic_reference: Optional[callable] = None,
+    training_strategy: Literal[
+        "random_split",
+        "k_fold",
+        "leave_one_out",
+        "none",
+    ] = "random_split",
+    normalization_factor: Optional[List[float]] = None,
 ) -> dict:
-    """Train per-component ANN models and return CADET-ready weight dicts.
-
-    If mechanistic_reference is provided:
-        - used to compute reference curve for training quality control
-        - Langmuir-style scaling is used (keq, qm)
-
-    If None:
-        - pure data-driven training
-        - no physics bias
-    """
 
     if random_seed is not None:
         tf.keras.utils.set_random_seed(random_seed)
@@ -152,82 +185,46 @@ def train_ann_for_cadet(
     cp = np.asarray(cp, dtype=float)
     cs = np.asarray(cs, dtype=float)
 
-    # -------------------------
-    # normalize cs (outputs)
-    # -------------------------
     if cs.ndim == 1:
         cs = cs.reshape(-1, 1)
-    elif cs.ndim != 2:
-        raise ValueError(f"cs must be 1D or 2D, got {cs.shape}")
 
     N, nBound = cs.shape
 
-    # -------------------------
-    # normalize cp (inputs)
-    # -------------------------
     if cp.ndim == 1:
         cp = cp.reshape(-1, 1)
-    elif cp.ndim != 2:
-        raise ValueError(f"cp must be 1D or 2D, got {cp.shape}")
 
     if cp.shape[0] != N:
-        raise ValueError(f"cp and cs must have same number of rows: {cp.shape}, {cs.shape}")
+        raise ValueError("cp and cs must have same number of rows")
 
-    X_raw = cp
     results = {}
 
-    # -------------------------
-    # train per component ANN
-    # -------------------------
     for i in range(nBound):
+
         y = cs[:, i]
+        X = cp
 
-        # ---------------------------------------------------------
-        # CASE 1: mechanistic reference available
-        # ---------------------------------------------------------
-        if mechanistic_reference is not None:
-            keq, qm = fit_mechanistic_reference(X_raw.reshape(-1, cp.shape[1]), y, mechanistic_reference)
-            X_norm = X_raw * keq
-
-            weights, _ = _train_single_ann(
-                X_norm,
-                y,
-                hidden_nodes=hidden_nodes,
-                epochs=epochs,
-                patience=patience,
-                max_retries=max_retries,
-                acceptance_threshold=acceptance_threshold,
-                validation_split=validation_split,
-                verbose=verbose,
-                mechanistic_reference=lambda cp, keq, qm: mechanistic_reference(cp, keq, qm)
-            )
-
-        # ---------------------------------------------------------
-        # CASE 2: no mechanistic reference (pure data-driven)
-        # ---------------------------------------------------------
+        if normalization_factor is not None:
+            norm_factor = normalization_factor[i]
         else:
-            # no physics scaling
-            keq = 1.0
-            qm = float(np.max(y)) if np.max(y) > 0 else 1.0
+            norm_factor = 1.0 / (np.max(X, axis=0) + 1e-12)
 
-            X_norm = X_raw  # no scaling
+        X_norm = X / norm_factor
 
-            weights, _ = _train_single_ann(
-                X_norm,
-                y,
-                keq,
-                qm,
-                hidden_nodes=hidden_nodes,
-                epochs=epochs,
-                patience=patience,
-                max_retries=max_retries,
-                acceptance_threshold=acceptance_threshold,
-                validation_split=validation_split,
-                verbose=verbose,
-            )
+        weights, _ = _train_single_ann(
+            X_norm,
+            y,
+            hidden_nodes=hidden_nodes,
+            epochs=epochs,
+            patience=patience,
+            max_retries=max_retries,
+            acceptance_threshold=acceptance_threshold,
+            validation_split=validation_split,
+            verbose=verbose,
+            training_strategy=training_strategy
+        )
 
         results[f"bound_state_{i:03d}"] = {
-            "NORM_FACTOR": keq,
+            "NORM_FACTOR": norm_factor,
             "layer_0": {
                 "KERNEL": weights.layer_0_kernel,
                 "BIAS": weights.layer_0_bias,

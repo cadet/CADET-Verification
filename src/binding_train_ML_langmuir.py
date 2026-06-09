@@ -7,7 +7,7 @@ runs a CADET simulation with GPR binding, and compares to a mechanistic simulati
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, List, Literal, Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -60,12 +60,19 @@ def run_hybrid_sim_analysis(
         cadet_path: str, output_dir: str,
         c_sample: np.ndarray, cp: np.ndarray, cs: np.ndarray,
         get_model: callable,
-        kernel: Optional[str],        # only for GPR
-        add_noise: bool = True,       # only for GPR
-        hidden_nodes: int = 75,       # only for ANN
-        epochs: int = 2000,           # only for ANN
-        patience: int = 500,          # only for ANN
-        mechanistic_reference: Optional[Callable] = None, # only for ANN
+        kernel: Optional[str] = None,                       # only for GPR
+        add_noise: bool = True,                             # only for GPR
+        normalization_factor: Optional[List[float]] = None, # only for ANN
+        hidden_nodes: int = 75,                             # only for ANN
+        epochs: int = 2000,                                 # only for ANN
+        patience: int = 500,                                # only for ANN
+        validation_split: float = 0.2,                      # only for ANN
+        training_strategy: Literal[                         # only for ANN
+            "random_split",
+            "k_fold",
+            "leave_one_out",
+            "none",
+        ] = "random_split",
         ) -> tuple[Cadet, Cadet]:
 
     # Step 1: plot isotherm training data
@@ -147,7 +154,11 @@ def run_hybrid_sim_analysis(
             kernel=kernel, optimization_restarts=1, add_noise=add_noise
         )
     elif binding_model == "ANN":
-        training_results = train_ann_for_cadet(cp, cs, hidden_nodes=hidden_nodes, epochs=epochs, patience=patience, mechanistic_reference=mechanistic_reference)
+        training_results = train_ann_for_cadet(
+            cp, cs,
+            hidden_nodes=hidden_nodes, epochs=epochs, patience=patience,
+            normalization_factor=normalization_factor, validation_split=validation_split, training_strategy=training_strategy
+            )
     else:
         raise ValueError(f"Invalid data-driven binding model {binding_model}, expected 'GPR' or 'ANN'")
 
@@ -177,7 +188,11 @@ def run_hybrid_sim_analysis(
             simHybrid.root.input.model.unit_001.particle_type_000.adsorption[f"bound_state_{component:03d}"].POROSITY_FACTOR = 1.0 #/ (1.0-epsilon_p)
 
     for key in training_results:
-        simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key].update(training_results[key])
+        if binding_model == "ANN":
+            simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key].update(training_results[key])
+        elif binding_model == "GPR":
+            simHybrid.root.input.model.unit_001.particle_type_000.adsorption[key] = training_results[key]
+
     simHybrid.save()
     return_data = simHybrid.run_simulation()
     if return_data.return_code != 0:
@@ -212,7 +227,7 @@ def run_hybrid_sim_analysis(
                 transform=plt.gca().transAxes, fontsize=10,
                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
         
-        plt.savefig(output_dir + "/error_Col1D_GRM_langGPR_1comp.png")
+        plt.savefig(output_dir + "/error_Col1D_GRM_langGPR_1comp.png" if binding_model == "GPR" else output_dir + "/error_Col1D_GRM_langANN_1comp.png")
 
 
     elif nComp == 2:
@@ -247,7 +262,7 @@ def run_hybrid_sim_analysis(
                 transform=plt.gca().transAxes, fontsize=10,
                 verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
         
-        plt.savefig(output_dir + "/error_Col1D_LRM_langGPR_2comp.png")
+        plt.savefig(output_dir + "/error_Col1D_LRM_langGPR_2comp.png" if binding_model == "GPR" else output_dir + "/error_Col1D_LRM_langANN_2comp.png")
 
     return simMechanistic, simHybrid
 
@@ -336,7 +351,10 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
         ),
         hidden_nodes=8,
         epochs=2000,
-        patience=500
+        patience=500,
+        normalization_factor=[Ka/Kd],
+        validation_split=0.2,
+        training_strategy="none" # "none", "random_split", "leave_one_out", "k_fold"
     )
 
 #######################################################################################
@@ -360,23 +378,11 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
         "ANN",
         cadet_path, output_dir,
         c_sample, cp, cs,
-        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement),
+        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement, idas_reftol=1e-4),
         hidden_nodes=8,
         epochs=2000,
         patience=500,
-        mechanistic_reference=None
-        )
-
-# def format_vector(values, per_line=10):
-#     lines = []
-#     for i in range(0, len(values), per_line):
-#         lines.append(", ".join(str(x) for x in values[i:i + per_line]))
-#     return ",\n".join(lines)
-
-# # Beispiel:
-# bias = [
-#         -0.3580138087272644,
-#         0.17421364784240723
-#         ]
-
-# print(format_vector(bias))
+        normalization_factor=None, # Ka/Kd, # None
+        validation_split=0.2,
+        training_strategy="none" #  "none", "random_split", "leave_one_out", "k_fold"
+    )
