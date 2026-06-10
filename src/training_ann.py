@@ -19,27 +19,19 @@ from sklearn.model_selection import KFold, LeaveOneOut
 from typing import Literal
 tf.get_logger().setLevel("ERROR")
 
-def _build_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2) -> Any:
+def _build_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2, learning_rate: float = 0.001) -> Any:
 
-    if n_layers == 1:
-        model = keras.Sequential([
-            keras.Input(shape=(input_dim,)),
-            layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"),
-            layers.Dense(1, activation=None),
-        ])
-    elif n_layers == 2:
-        model = keras.Sequential([
-            keras.Input(shape=(input_dim,)),
-            layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"),
-            layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"),
-            layers.Dense(1, activation=None),
-        ])
-    else:
-        raise ValueError("Unsupported number of layers: {}".format(n_layers))
-    
+    model = keras.Sequential()
+    model.add(keras.Input(shape=(input_dim,)))
+
+    for i in range(n_layers):
+        model.add(layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"))
+
+    model.add(layers.Dense(1, activation=None))
+
     model.compile(
         loss="mse",
-        optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
+        optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
         metrics=["mae"],
     )
     return model
@@ -115,7 +107,8 @@ def _train_single_ann(
         "none",
     ] = "random_split",
     n_layers: int = 2,
-    plot_training_curves: bool = False,
+    plot_training_curves: Optional[str] = None,
+    annIdx: Optional[int] = None
 ) -> tuple[dict, float]:
     """Train one ANN with flexible validation strategy."""
 
@@ -126,20 +119,34 @@ def _train_single_ann(
 
     best_weights = None
     best_criterion = float("inf")
+    best_keras_weights: Optional[list] = None  # raw Keras weights for warm-starting
+    base_lr = 0.001
 
-    for _ in range(max_retries):
+    for attempt in range(max_retries):
 
-        print(f"Training attempt {_ + 1}/{max_retries} with strategy '{training_strategy}'...")
+        lr = base_lr * (0.5 ** attempt)
+        print(f"Training attempt {attempt + 1}/{max_retries} with strategy '{training_strategy}', lr={lr:.2e}...")
         split_criteria = []
         best_fold_weights: Optional[dict] = None
         best_fold_criterion = float("inf")
+        best_fold_keras_weights: Optional[list] = None
 
         # -------------------------------------------------
         # train + evaluate over all splits
         # -------------------------------------------------
         for train_idx, val_idx in splits:
 
-            model = _build_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes, n_layers=n_layers)
+            model = _build_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes, n_layers=n_layers, learning_rate=lr)
+
+            # Warm-start from best weights found so far, perturbed to escape the
+            # previous basin. Noise is proportional to each tensor's std so it
+            # is scale-adaptive regardless of layer size.
+            if best_keras_weights is not None:
+                noisy = [
+                    w + np.random.normal(0, 0.05 * (np.std(w) + 1e-8), w.shape)
+                    for w in best_keras_weights
+                ]
+                model.set_weights(noisy)
 
             early_stop = keras.callbacks.EarlyStopping(
                 monitor="val_loss",
@@ -159,7 +166,7 @@ def _train_single_ann(
                 callbacks=[early_stop],
             )
 
-            if plot_training_curves:
+            if isinstance(plot_training_curves, str):
                 plt.figure()
                 plt.semilogy(history.history["loss"], label="train")
                 plt.semilogy(history.history["val_loss"], label="validation")
@@ -167,6 +174,10 @@ def _train_single_ann(
                 plt.ylabel("MSE Loss")
                 plt.legend()
                 plt.grid(True)
+                if annIdx is not None:
+                    plt.savefig(plot_training_curves + f"/training_curves_cmop_{annIdx}_attempt{attempt+1}.png")
+                else:
+                    plt.savefig(plot_training_curves + f"/training_curves_attempt{attempt+1}.png")
                 print("Stopped after", len(history.history["loss"]), "epochs")
                 print("Best val_loss =", np.min(history.history["val_loss"]))
 
@@ -177,12 +188,14 @@ def _train_single_ann(
             if fold_criterion < best_fold_criterion:
                 best_fold_criterion = fold_criterion
                 best_fold_weights = _to_cadet_weights(model)
+                best_fold_keras_weights = model.get_weights()
 
         criterion = float(np.mean(split_criteria))
 
         if criterion < best_criterion:
             best_criterion = criterion
             best_weights = best_fold_weights
+            best_keras_weights = best_fold_keras_weights
 
         if criterion <= acceptance_threshold:
             break
@@ -213,7 +226,7 @@ def train_ann_for_cadet(
         "none",
     ] = "random_split",
     n_layers: int = 2,
-    plot_training_curves: bool = False,
+    plot_training_curves: Optional[str] = None,
     normalization_factor: Optional[List[float]] = None,
 ) -> dict:
 
@@ -260,25 +273,17 @@ def train_ann_for_cadet(
             patience=patience,
             training_strategy=training_strategy,
             validation_split=validation_split,
-            plot_training_curves=plot_training_curves
+            plot_training_curves=plot_training_curves,
+            annIdx=i
         )
 
-        results[f"bound_state_{i:03d}"] = {
-            "NORM_FACTOR": norm_factor,
-            "layer_0": {
-                "KERNEL": weights["layer_0"]["KERNEL"],
-                "BIAS": weights["layer_0"]["BIAS"],
-            },
-            "layer_1": {
-                "KERNEL": weights["layer_1"]["KERNEL"],
-                "BIAS": weights["layer_1"]["BIAS"],
-            }
-        }
+        results[f"bound_state_{i:03d}"] = { "NORM_FACTOR": norm_factor }
 
-        if n_layers == 2:
-            results[f"bound_state_{i:03d}"]["layer_2"] = {
-                "KERNEL": weights["layer_2"]["KERNEL"],
-                "BIAS": weights["layer_2"]["BIAS"],
+        for layer in range(n_layers+1):
+
+            results[f"bound_state_{i:03d}"][f"layer_{layer}"] = {
+                "KERNEL": weights[f"layer_{layer}"]["KERNEL"],
+                "BIAS": weights[f"layer_{layer}"]["BIAS"],
             }
 
     return results
