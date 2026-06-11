@@ -25,8 +25,10 @@ def L_inf_error(t_sol, solution, t_ref, reference):
 def compute_eoc(errors, refinements, spatial_method):
     eoc_values = [None]
     for i in range(1, len(errors)):
-        n_prev = 8 * refinements[i-1] * (spatial_method + 1)
-        n_curr = 8 * refinements[i]   * (spatial_method + 1)
+        #calculate degree of freedoms (DoF) by: aXNelem * (p+1) * (nComp + nBound) + InletDoF
+        #in this case: LRM with 2comp: nComp = nBound = 2
+        n_prev = 8 * refinements[i-1] * (spatial_method + 1) * 4 + 2
+        n_curr = 8 * refinements[i]   * (spatial_method + 1) * 4 + 2
         eoc = np.log(errors[i] / errors[i-1]) / np.log(n_prev / n_curr)
         eoc_values.append(eoc)
     return eoc_values
@@ -45,6 +47,7 @@ def build_eoc_table(spatial_method, refinements, t_ref, ref_solution, output_pat
         "Method":      method_label,
         "Refinement":  refinements,
         "N elements":  [8 * r for r in refinements],
+        "DoF":         [8*r*(spatial_method +1)*4 + 2 for r in refinements],
         "L-inf error": errors,
         "EOC":         [f"{e:.2f}" if e is not None else "-" for e in eoc_values]
     })
