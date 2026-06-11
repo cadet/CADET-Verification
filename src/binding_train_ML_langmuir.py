@@ -235,7 +235,7 @@ def run_hybrid_sim_analysis(
 
     return simMechanistic, simHybrid
     
-def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", stateIdx=None):
+def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", surrogate_model="surrogate", stateIdx=None):
     
     cp = np.asarray(cp)
     cs_true = np.asarray(cs_true)
@@ -284,7 +284,7 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="la
     ax.set_xlabel("$c^p_1$")
     ax.set_ylabel("$c^p_2$")
     ax.set_zlabel("$c^s$")
-    save_path = output_dir + f"/ANN_{isotherm_model}1Comp_isotherm_comp_{stateIdx}.png"
+    save_path = output_dir + f"/{surrogate_model}_{isotherm_model}1Comp_isotherm_comp_{stateIdx}.png"
     plt.savefig(save_path)
     plt.close(fig)
 
@@ -298,25 +298,27 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="la
     ax.set_xlabel("$c^p_1$")
     ax.set_ylabel("$c^p_2$")
     ax.set_zlabel("|error|")
-    save_path = output_dir + f"/ANN_2Comp{isotherm_model}_error_comp_{stateIdx}.png"
+    save_path = output_dir + f"/{surrogate_model}_2Comp{isotherm_model}_error_comp_{stateIdx}.png"
     plt.savefig(save_path)
     plt.close(fig)
 
-def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", surrogate_name="surrogate"):
+def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", surrogate_model="surrogate"):
 
-    plt.figure()
-    plt.plot(cp, cs_true, label=f"True {isotherm_model}", color='green')
-    plt.plot(cp, cs_pred, label=f"{surrogate_name} prediction", linestyle='dashed', color='blue')
-    plt.xlabel("cp")
-    plt.ylabel("cs")
-    plt.title(f"Isotherm comparison")
-    plt.savefig(output_dir + f"/{surrogate_name}_{isotherm_model}1Comp_isotherm_comparison.png")
-    plt.legend()
-
-    # metrics
     mse = mean_squared_error(cs_true, cs_pred)
     r2 = r2_score(cs_true, cs_pred)
     max_err = np.max(np.abs(cs_true - cs_pred))
+
+    plt.figure()
+    plt.plot(cp, cs_true, label=f"True {isotherm_model}", color='green')
+    plt.plot(cp, cs_pred, label=f"{surrogate_model} prediction", linestyle='dashed', color='blue')
+    plt.xlabel("cp")
+    plt.ylabel("cs")
+    plt.title(f"Isotherm comparison")
+    plt.text(0.25, 0.15, f"MSE: {mse:.3e}\nR2: {r2:.3f}\nMax abs error: {max_err:.3e}",
+            transform=plt.gca().transAxes, fontsize=10,
+            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    plt.savefig(output_dir + f"/{surrogate_model}_{isotherm_model}1Comp_isotherm_comparison.png")
+    plt.legend()
 
     metrics = {
         "bound_state_000": {
@@ -394,7 +396,7 @@ def evaluate_surrogate_vs_isotherm(
             cs_true=cs_true,
             cs_pred=cs_pred,
             output_dir=output_path,
-            surrogate_name=surrogate_model,
+            surrogate_model=surrogate_model,
             isotherm_model=isotherm_model
         )
 
@@ -447,6 +449,7 @@ def evaluate_surrogate_vs_isotherm(
                 cs_pred=y_pred,
                 output_dir=output_path,
                 isotherm_model=isotherm_model,
+                surrogate_model=surrogate_model,
                 stateIdx=i
             )
 
