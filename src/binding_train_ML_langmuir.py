@@ -13,13 +13,14 @@ from typing import Any, Callable, List, Literal, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
+from sklearn.metrics import mean_squared_error, r2_score
 
 from cadet import Cadet
 
 import src.benchmark_models.setting_Col1D_langLRM_2comp_benchmark1 as langmuir_2Comp_setting
 import src.benchmark_models.settings_data_driven_bnd as langmuir_1Comp_setting
 from src.training_gpr import train_gpr_for_cadet
-from src.training_ann import train_ann_for_cadet, _build_ann_model, _to_cadet_weights
+from src.training_ann import train_ann_for_cadet, rebuild_ann_from_cadet_weights, _to_cadet_weights
 
 
 def multi_component_langmuir_equilibrium(
@@ -40,7 +41,6 @@ def multi_component_langmuir_equilibrium(
 
     return qmax * keq * cp / denominator
 
-
 def get_langmuir_parameters(model_setting:Callable) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     
     model = model_setting(spatial_method_bulk=0)
@@ -54,7 +54,6 @@ def get_langmuir_parameters(model_setting:Callable) -> tuple[np.ndarray, np.ndar
     qmax = model.input.model.unit_001.particle_type_000.adsorption.mcl_qmax
     
     return np.array(ka), np.array(kd), np.array(qmax)
-
 
 def run_hybrid_sim_analysis(
         binding_model: str["GPR", "ANN"],
@@ -286,196 +285,8 @@ def run_hybrid_sim_analysis(
         plt.savefig(output_dir + "/error_Col1D_LRM_langGPR_2comp.png" if binding_model == "GPR" else output_dir + "/error_Col1D_LRM_langANN_2comp.png")
 
     return simMechanistic, simHybrid
-
-
-#######################################################################################
-# Langmuir 2Comp binding isotherm GPR analysis
-#######################################################################################
-
-def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
-
-    refinement = 4
-    NTRAIN = 10
-    cpMax = 10.0 # seen as max c^l for unrefined model
-
-    # sample the cp space and compute the corresponding equilibrium loading
-    Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
-    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
-    c_sample = np.linspace(0, cpMax, NTRAIN)
-    cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
-    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
-
-    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
-        "GPR",
-        cadet_path, output_dir,
-        c_sample, cp, cs, kernel="MLP",
-        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement),
-        )
     
-
-#######################################################################################
-# 1comp Langmuir binding isotherm GPR analysis
-#######################################################################################
-
-def binding_train_GPR_langmuir1Comp(cadet_path: str, output_dir: str):
-
-    NTRAIN = 10
-
-    Ka, Kd, Qmax = 2.0, 1.0, 20.0
-    cpMax = 10.0
-
-    cp = np.linspace(0.0, cpMax, NTRAIN)
-    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
-
-    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
-        "GPR",
-        cadet_path, output_dir,
-        cp, cp, cs, kernel="MLP",
-        get_model=partial(
-            langmuir_1Comp_setting.get_model,
-                file_name="testitest.h5",
-                mode="MCL",
-                loading=np.linspace(0.0, 50.0, 50 + 1),
-                column_key="favorable_lysozyme",
-                keq=Ka/Kd,
-                qm=Qmax * (1.0 - 0.75), # mechanistic model shenanigans
-                add_noise=True, # for deterministic data sets
-            )
-        )
-
-#######################################################################################
-# 1comp Langmuir binding isotherm ANN analysis
-#######################################################################################
-
-def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
-
-    NTRAIN = 500
-
-    Ka, Kd, Qmax = 2.0, 1.0, 20.0
-    cpMax = 10.0
-
-    cp = np.linspace(0.0, cpMax, NTRAIN)
-    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
-    n_layers = 1
-
-    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
-        "ANN",
-        cadet_path, output_dir,
-        cp, cp, cs, kernel=None,
-        get_model=partial(
-            langmuir_1Comp_setting.get_model,
-            file_name="testitest.h5",
-            mode="MCL",
-            loading=np.linspace(0.0, 50.0, 50 + 1),
-            column_key="favorable_lysozyme",
-            keq=Ka/Kd,
-            qm=Qmax * (1.0 - 0.75),
-            n_layers=n_layers
-        ),
-        hidden_nodes=4,
-        n_layers=n_layers,
-        epochs=500, # maximum number of training epochs
-        patience=10, # stop training if validation loss does not improve for `patience` consecutive epochs
-        normalization_factor=[Ka/Kd],
-        acceptance_threshold=10.0, # for retries
-        max_retries=1, # number of times to retry training with different initialization if training fails
-        training_strategy="random_split", # "none", "random_split", "leave_one_out", "k_fold"
-        validation_split=0.2,
-        plot_training_curves=output_dir
-    )
-
-#######################################################################################
-# Langmuir 2Comp binding isotherm ANN analysis
-#######################################################################################
-
-def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
-
-    refinement = 4
-    NTRAIN = 50
-    cpMax = 10.0 # seen as max c^l for unrefined model
-    n_layers = 1
-
-    # sample the cp space and compute the corresponding equilibrium loading
-    Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
-    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
-    c_sample = np.linspace(0, cpMax, NTRAIN)
-    cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
-    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
-
-    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
-        "ANN",
-        cadet_path, output_dir,
-        c_sample, cp, cs,
-        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement, idas_reftol=1e-4),
-        hidden_nodes=4,
-        n_layers=n_layers,
-        epochs=250, # maximum number of training epochs
-        patience=50, # stop training if validation loss does not improve for `patience` consecutive epochs
-        normalization_factor=None, # Ka/Kd, # None
-        acceptance_threshold=10.0, # for retries
-        max_retries=1,
-        training_strategy="random_split", #  "none", "random_split", "leave_one_out", "k_fold"
-        validation_split=0.2,
-        plot_training_curves=output_dir
-    )
-
-
-## plan to success
-
-# investigate without simulation, only learned isotherm
-# try adam
-# try batch optimization
-# non-equidistant data
-
-##########################################################
-# Evaluate isotherm training
-##########################################################
-
-
-from sklearn.metrics import mean_squared_error, r2_score
-from pathlib import Path
-output_path = Path.cwd() / "output" / "test_cadet-core" / "chromatography" / "binding"
-
-# ------------------------------------------------------------
-# Helper: rebuild a model from stored CADET weights
-# ------------------------------------------------------------
-def cadet_to_keras_weights(cadet_weights):
-    """
-    Convert CADET-style dict back into Keras weight list format.
-    Assumes only Dense layers in correct order.
-    """
-
-    keras_weights = []
-
-    layer_idx = 0
-    while f"layer_{layer_idx}" in cadet_weights:
-        layer = cadet_weights[f"layer_{layer_idx}"]
-
-        kernel = np.asarray(layer["KERNEL"])
-        bias = np.asarray(layer["BIAS"])
-
-        keras_weights.append(kernel)
-        keras_weights.append(bias)
-
-        layer_idx += 1
-
-    return keras_weights
-
-def rebuild_ann_from_weights(weights, input_dim, hidden_nodes, n_layers):
-
-    model = _build_ann_model(
-        input_dim=input_dim,
-        hidden_nodes=hidden_nodes,
-        n_layers=n_layers,
-        learning_rate=0.0  # inference only
-    )
-
-    keras_weights = cadet_to_keras_weights(weights)
-    model.set_weights(keras_weights)
-
-    return model
-
-def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, stateIdx=None):
+def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", stateIdx=None):
     
     cp = np.asarray(cp)
     cs_true = np.asarray(cs_true)
@@ -510,7 +321,7 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, stateIdx=None):
     ax.set_xlabel("$c^p_1$")
     ax.set_ylabel("$c^p_2$")
     ax.set_zlabel("$c^s$")
-    save_path = output_dir + f"/True_Langmuir1Comp_isotherm_comp_{stateIdx}.png"
+    save_path = output_dir + f"/True_{isotherm_model}1Comp_isotherm_comp_{stateIdx}.png"
     plt.savefig(save_path)
     plt.close(fig)
 
@@ -524,7 +335,7 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, stateIdx=None):
     ax.set_xlabel("$c^p_1$")
     ax.set_ylabel("$c^p_2$")
     ax.set_zlabel("$c^s$")
-    save_path = output_dir + f"/ANN_Langmuir1Comp_isotherm_comp_{stateIdx}.png"
+    save_path = output_dir + f"/ANN_{isotherm_model}1Comp_isotherm_comp_{stateIdx}.png"
     plt.savefig(save_path)
     plt.close(fig)
 
@@ -538,264 +349,311 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, stateIdx=None):
     ax.set_xlabel("$c^p_1$")
     ax.set_ylabel("$c^p_2$")
     ax.set_zlabel("|error|")
-    save_path = output_dir + f"/ANN_2CompLangmuir_error_comp_{stateIdx}.png"
+    save_path = output_dir + f"/ANN_2Comp{isotherm_model}_error_comp_{stateIdx}.png"
     plt.savefig(save_path)
     plt.close(fig)
 
-# ------------------------------------------------------------
-# Evaluate all bound states
-# ------------------------------------------------------------
+def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", surrogate_name="surrogate"):
 
-def evaluate_surrogate_vs_langmuir(
+    plt.figure()
+    plt.plot(cp, cs_true, label=f"True {isotherm_model}", color='green')
+    plt.plot(cp, cs_pred, label=f"{surrogate_name} prediction", linestyle='dashed', color='blue')
+    plt.xlabel("cp")
+    plt.ylabel("cs")
+    plt.title(f"Isotherm comparison")
+    plt.savefig(output_dir + f"/{surrogate_name}_{isotherm_model}1Comp_isotherm_comparison.png")
+    plt.legend()
+
+    # metrics
+    mse = mean_squared_error(cs_true, cs_pred)
+    r2 = r2_score(cs_true, cs_pred)
+    max_err = np.max(np.abs(cs_true - cs_pred))
+
+    metrics = {
+        "bound_state_000": {
+            "MSE": mse,
+            "R2": r2,
+            "MAX_ERROR": max_err
+        }
+    }
+    
+    return metrics
+
+def evaluate_surrogate_vs_isotherm(
         cp,
         cs_true,
         training_results,
         surrogate_model: str,
         output_path: str,
+        isotherm_model="langmuir",
         **kwargs
         ):
     
-    if surrogate_model == "ANN":
-        return evaluate_ann_vs_langmuir(
-            cp,
-            cs_true,
-            training_results,
-            hidden_nodes=kwargs["hidden_nodes"],
-            n_layers=kwargs["n_layers"],
-            output_dir=output_path
-        )
-    elif surrogate_model == "GPR":
-        return evaluate_gpr_vs_langmuir(
-            cp,
-            cs_true,
-            training_results,
-            output_dir=output_path
-        )
+    if cp.ndim == 1:
+        n_states = 1
+    elif cp.ndim > 2:
+        raise ValueError(f"cp shape {cp.shape} is not compatible with evaluation, expected cp.ndim == 1 or cp.ndim == 2")
     else:
-        raise NotImplementedError(f"Evaluation for {surrogate_model} surrogate not implemented yet")
-
-def evaluate_ann_vs_langmuir(
-    cp,
-    cs_true,
-    training_results,
-    hidden_nodes,
-    n_layers,
-    output_dir
-):
-    cp = np.asarray(cp, dtype=float)
-    cs_true = np.asarray(cs_true, dtype=float)
-
-    if cs_true.ndim == 1:
-        cs_true = cs_true[:, None]
-
-    n_states = cs_true.shape[1]
-
+        n_states = cs_true.shape[1]
+    
+    cs_pred = np.zeros(cs_true.shape)
     metrics = {}
-
     models = []
 
     if n_states == 1:
 
-        state = training_results[f"bound_state_000"]
+        if surrogate_model == "ANN":
 
-        norm_factor = state["NORM_FACTOR"]
-        X = cp / norm_factor
+            state = training_results[f"bound_state_000"]
 
-        # rebuild model
-        model = rebuild_ann_from_weights(
-            state,
-            input_dim=1,
-            hidden_nodes=hidden_nodes,
-            n_layers=n_layers
-        )
+            norm_factor = state["NORM_FACTOR"]
+            X = cp / norm_factor
 
-        models.append(model)
+            model = rebuild_ann_from_cadet_weights(
+                state,
+                input_dim=1,
+                hidden_nodes=hidden_nodes,
+                n_layers=n_layers
+            )
 
-        # predict
-        y_pred = model.predict(X, verbose=0).reshape(-1)
-        y_true = cs_true[:]
+            cs_pred = model.predict(X, verbose=0).reshape(-1)
+            models.append(model)
 
-        plt.figure()
-        plt.plot(cp, y_true, label="True Langmuir", color='green')
-        plt.plot(cp, y_pred, label="ANN prediction", linestyle='dashed', color='blue')
-        plt.xlabel("cp")
-        plt.ylabel("cs")
-        plt.title(f"Isotherm comparison")
-        plt.savefig(output_dir + f"/ANN_Langmuir1Comp_isotherm_comparison.png")
-        plt.legend()
+        elif surrogate_model == "GPR": # todo
+            raise NotImplementedError("Evaluation for GPR surrogate not implemented yet")
+        else:
+            raise ValueError(f"Invalid surrogate model {surrogate_model}, expected 'ANN' or 'GPR'")
 
-        # metrics
-        mse = mean_squared_error(y_true, y_pred)
-        r2 = r2_score(y_true, y_pred)
-        max_err = np.max(np.abs(y_true - y_pred))
-
-        metrics["bound_state_000"] = {
-            "MSE": mse,
-            "R2": r2,
-            "MAX_ERROR": max_err
-        }
-        
-        return y_pred, metrics, models
-
-    cs_pred_all = np.zeros_like(cs_true)
-
-    for i in range(n_states):
-        key = f"bound_state_{i:03d}"
-        state = training_results[key]
-
-        norm_factor = state["NORM_FACTOR"]
-        X = cp / norm_factor
-
-        # rebuild model
-        model = rebuild_ann_from_weights(
-            state,
-            input_dim=X.shape[1],
-            hidden_nodes=hidden_nodes,
-            n_layers=n_layers
-        )
-
-        models.append(model)
-
-        # predict
-        y_pred = model.predict(X, verbose=0).reshape(-1)
-        y_true = cs_true[:, i]
-
-        plot_surface_comparison(
+        metric = isotherm_comparison_1D(
             cp=cp,
-            cs_true=y_true,
-            cs_pred=y_pred,
-            output_dir=output_dir,
-            stateIdx=i
+            cs_true=cs_true,
+            cs_pred=cs_pred,
+            output_dir=output_path,
+            surrogate_name="ANN",
+            isotherm_model=isotherm_model
         )
 
-        cs_pred_all[:, i] = y_pred
+        metrics["bound_state_000"] = metric
+    
+    else: # multi-component case
 
-        # metrics
-        mse = mean_squared_error(y_true, y_pred)
-        r2 = r2_score(y_true, y_pred)
-        max_err = np.max(np.abs(y_true - y_pred))
+        cs_pred_all = np.zeros_like(cs_true)
 
-        metrics[key] = {
-            "MSE": mse,
-            "R2": r2,
-            "MAX_ERROR": max_err
-        }
+        for i in range(n_states):
 
-    return cs_pred_all, metrics, models
+            key = f"bound_state_{i:03d}"
+            state = training_results[key]
 
+            norm_factor = state["NORM_FACTOR"]
+            X = cp / norm_factor
 
-# ############################################################################
-# # 1 comp Langmuir training
-# ############################################################################
-
-NTRAIN = 100
-
-# sample the cp space and compute the corresponding equilibrium loading
-Ka, Kd, Qmax = 2.0, 1.0, 20.0
-cpMax = 10.0
-print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
-cp = np.linspace(0.0, cpMax, NTRAIN)
-cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
-
-hidden_nodes=4
-n_layers=2
-epochs=200 # maximum number of training epochs
-patience=50 # stop training if validation loss does not improve for `patience` consecutive epochs
-normalization_factor = [Ka/Kd] # Ka/Kd, # None
-acceptance_threshold=10.0 # for retries
-max_retries=1
-training_strategy="random_split" #  "none", "random_split", "leave_one_out", "k_fold"
-validation_split=0.2
-plot_training_curves=str(output_path)
-
-training_results = train_ann_for_cadet(
-            cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
-            normalization_factor=normalization_factor, epochs=epochs, patience=patience,
-            max_retries=max_retries, acceptance_threshold=acceptance_threshold, training_strategy=training_strategy, validation_split=validation_split,
-            plot_training_curves=plot_training_curves
+            # rebuild model
+            model = rebuild_ann_from_cadet_weights(
+                state,
+                input_dim=X.shape[1],
+                hidden_nodes=kwargs["hidden_nodes"],
+                n_layers=kwargs["n_layers"]
             )
 
-cs_pred, metrics, models = evaluate_surrogate_vs_langmuir(
-    cp=cp,
-    cs_true=cs,
-    surrogate_model="ANN",
-    training_results=training_results,
-    hidden_nodes=hidden_nodes,
-    n_layers=n_layers,
-    output_path=plot_training_curves
-)
+            models.append(model)
 
-print("\n=== Summary metrics ===")
-for k, v in metrics.items():
-    print(k, v)
+            # predict
+            y_pred = model.predict(X, verbose=0).reshape(-1)
+            y_true = cs_true[:, i]
 
-############################################################################
-# 2 comp Langmuir training
-############################################################################
-
-cadet_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
-refinement = 4
-
-NTRAIN = 20
-cpMax = 10.0 # seen as max c^l for unrefined model
-
-# sample the cp space and compute the corresponding equilibrium loading
-Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
-print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
-c_sample = np.linspace(0, cpMax, NTRAIN)
-cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
-cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
-
-hidden_nodes=4
-n_layers=2
-epochs=20 # maximum number of training epochs
-patience=50 # stop training if validation loss does not improve for `patience` consecutive epochs
-normalization_factor=None # Ka/Kd, # None
-acceptance_threshold=10.0 # for retries
-max_retries=1
-training_strategy="random_split" #  "none", "random_split", "leave_one_out", "k_fold"
-validation_split=0.2
-plot_training_curves=str(output_path) + f"/epochs{epochs}_strategy_{training_strategy}" + f"/nLayer{n_layers}_nNodes{hidden_nodes}" + f"/nTrain{NTRAIN}"
-
-os.makedirs(plot_training_curves, exist_ok=True)
-
-training_results = train_ann_for_cadet(
-            cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
-            normalization_factor=normalization_factor, epochs=epochs, patience=patience,
-            max_retries=max_retries, acceptance_threshold=acceptance_threshold, training_strategy=training_strategy, validation_split=validation_split,
-            plot_training_curves=plot_training_curves
+            plot_surface_comparison(
+                cp=cp,
+                cs_true=y_true,
+                cs_pred=y_pred,
+                output_dir=output_path,
+                isotherm_model=isotherm_model,
+                stateIdx=i
             )
 
-cs_pred, metrics, models = evaluate_surrogate_vs_langmuir(
-    cp=cp,
-    cs_true=cs,
-    surrogate_model="ANN",
-    training_results=training_results,
-    hidden_nodes=hidden_nodes,
-    n_layers=n_layers,
-    output_path=plot_training_curves
-)
+            cs_pred_all[:, i] = y_pred
 
-print("\n=== Summary metrics ===")
-for k, v in metrics.items():
-    print(k, v)
+            # metrics
+            mse = mean_squared_error(y_true, y_pred)
+            r2 = r2_score(y_true, y_pred)
+            max_err = np.max(np.abs(y_true - y_pred))
+
+            metrics[key] = {
+                "MSE": mse,
+                "R2": r2,
+                "MAX_ERROR": max_err
+            }
+
+    return cs_pred, metrics, models
+
+#######################################################################################
+# 1comp Langmuir binding isotherm GPR analysis
+#######################################################################################
+
+def binding_train_GPR_langmuir1Comp(cadet_path: str, output_dir: str):
+
+    NTRAIN = 10
+
+    Ka, Kd, Qmax = 2.0, 1.0, 20.0
+    cpMax = 10.0
+
+    cp = np.linspace(0.0, cpMax, NTRAIN)
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "GPR",
+        cadet_path, output_dir,
+        cp, cp, cs, kernel="MLP",
+        get_model=partial(
+            langmuir_1Comp_setting.get_model,
+                file_name="testitest.h5",
+                mode="MCL",
+                loading=np.linspace(0.0, 50.0, 50 + 1),
+                column_key="favorable_lysozyme",
+                keq=Ka/Kd,
+                qm=Qmax * (1.0 - 0.75), # mechanistic model shenanigans
+                add_noise=True, # for deterministic data sets
+            )
+        )
+
+#######################################################################################
+# Langmuir 2Comp binding isotherm GPR analysis
+#######################################################################################
+
+def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
+
+    refinement = 4
+    NTRAIN = 10
+    cpMax = 10.0 # seen as max c^l for unrefined model
+
+    # sample the cp space and compute the corresponding equilibrium loading
+    Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
+    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
+    c_sample = np.linspace(0, cpMax, NTRAIN)
+    cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "GPR",
+        cadet_path, output_dir,
+        c_sample, cp, cs, kernel="MLP",
+        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement),
+        )
+    
+#######################################################################################
+# 1comp Langmuir binding isotherm ANN analysis
+#######################################################################################
+
+def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
+
+    NTRAIN = 100
+
+    # sample the cp space and compute the corresponding equilibrium loading
+    Ka, Kd, Qmax = 2.0, 1.0, 20.0
+    cpMax = 10.0
+    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
+    cp = np.linspace(0.0, cpMax, NTRAIN)
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    hidden_nodes=4
+    n_layers=2
+    epochs=200 # maximum number of training epochs
+    patience=50 # stop training if validation loss does not improve for `patience` consecutive epochs
+    normalization_factor = [Ka/Kd] # Ka/Kd, # None
+    acceptance_threshold=10.0 # for retries
+    max_retries=1
+    training_strategy="random_split" #  "none", "random_split", "leave_one_out", "k_fold"
+    validation_split=0.2
+    plot_training_curves=str(output_dir) + f"/langmuir1comp/epochs{epochs}_strategy_{training_strategy}" + f"/nLayer{n_layers}_nNodes{hidden_nodes}" + f"/nTrain{NTRAIN}"
+    
+    os.makedirs(plot_training_curves, exist_ok=True)
+
+    training_results = train_ann_for_cadet(
+                cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
+                normalization_factor=normalization_factor, epochs=epochs, patience=patience,
+                max_retries=max_retries, acceptance_threshold=acceptance_threshold, training_strategy=training_strategy, validation_split=validation_split,
+                plot_training_curves=plot_training_curves
+                )
+
+    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
+        cp=cp,
+        cs_true=cs,
+        surrogate_model="ANN",
+        training_results=training_results,
+        hidden_nodes=hidden_nodes,
+        n_layers=n_layers,
+        output_path=plot_training_curves,
+        isotherm_model="langmuir"
+    )
+
+    print("\n=== Summary metrics ===")
+    for k, v in metrics.items():
+        print(k, v)
+
+#######################################################################################
+# Langmuir 2Comp binding isotherm ANN analysis
+#######################################################################################
+
+def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
+
+    refinement = 4
+
+    NTRAIN = 100
+    cpMax = 10.0 # seen as max c^l for unrefined model
+
+    # sample the cp space and compute the corresponding equilibrium loading
+    Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
+    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
+    c_sample = np.linspace(0, cpMax, NTRAIN)
+    cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    hidden_nodes=4
+    n_layers=2
+    epochs=100 # maximum number of training epochs
+    patience=50 # stop training if validation loss does not improve for `patience` consecutive epochs
+    normalization_factor=None # Ka/Kd, # None
+    acceptance_threshold=10.0 # for retries
+    max_retries=1
+    training_strategy="random_split" #  "none", "random_split", "leave_one_out", "k_fold"
+    validation_split=0.2
+    plot_training_curves=str(output_dir) + f"/langmuir2comp/epochs{epochs}_strategy_{training_strategy}" + f"/nLayer{n_layers}_nNodes{hidden_nodes}" + f"/nTrain{NTRAIN}"
+
+    os.makedirs(plot_training_curves, exist_ok=True)
+
+    training_results = train_ann_for_cadet(
+                cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
+                normalization_factor=normalization_factor, epochs=epochs, patience=patience,
+                max_retries=max_retries, acceptance_threshold=acceptance_threshold, training_strategy=training_strategy, validation_split=validation_split,
+                plot_training_curves=plot_training_curves
+                )
+
+    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
+        cp=cp,
+        cs_true=cs,
+        surrogate_model="ANN",
+        training_results=training_results,
+        hidden_nodes=hidden_nodes,
+        n_layers=n_layers,
+        output_path=plot_training_curves,
+        isotherm_model="langmuir"
+    )
+
+    print("\n=== Summary metrics ===")
+    for k, v in metrics.items():
+        print(k, v)
+
+    simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
+        "ANN",
+        cadet_path, plot_training_curves,
+        c_sample, cp, cs,
+        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement, idas_reftol=1e-4),
+        trained_ANNs=models,
+        normalization_factor=normalization_factor,
+        n_layers=n_layers,
+        hidden_nodes=hidden_nodes,
+    )
 
 
-
-simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
-    "ANN",
-    cadet_path, plot_training_curves,
-    c_sample, cp, cs,
-    get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement, idas_reftol=1e-4),
-    trained_ANNs=models,
-    normalization_factor=normalization_factor,
-    n_layers=n_layers,
-    hidden_nodes=hidden_nodes,
-)
-
-
-
-plt.show()
 
 ###
 

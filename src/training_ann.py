@@ -36,7 +36,6 @@ def _build_ann_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2, 
     )
     return model
 
-
 def _to_cadet_weights(model):
     weights = {}
 
@@ -62,6 +61,42 @@ def _to_cadet_weights(model):
         dense_idx += 1
 
     return weights
+
+def cadet_to_keras_weights(cadet_weights):
+    """
+    Convert CADET-style dict back into Keras weight list format.
+    Assumes only Dense layers in correct order.
+    """
+
+    keras_weights = []
+
+    layer_idx = 0
+    while f"layer_{layer_idx}" in cadet_weights:
+        layer = cadet_weights[f"layer_{layer_idx}"]
+
+        kernel = np.asarray(layer["KERNEL"])
+        bias = np.asarray(layer["BIAS"])
+
+        keras_weights.append(kernel)
+        keras_weights.append(bias)
+
+        layer_idx += 1
+
+    return keras_weights
+
+def rebuild_ann_from_cadet_weights(weights, input_dim, hidden_nodes, n_layers):
+
+    model = _build_ann_model(
+        input_dim=input_dim,
+        hidden_nodes=hidden_nodes,
+        n_layers=n_layers,
+        learning_rate=0.0  # inference only
+    )
+
+    keras_weights = cadet_to_keras_weights(weights)
+    model.set_weights(keras_weights)
+
+    return model
 
 def _get_splits(X, y, strategy: str, val_ratio: float = 0.2):
     """Return list of (train_idx, val_idx) splits."""

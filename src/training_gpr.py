@@ -114,6 +114,24 @@ def _pack_cadet_params(model: Any, kernel_name: KernelName, bndSuffix:str) -> np
 
     raise ValueError(f"Unsupported kernel: {kernel_name}")
 
+def _build_gpr_model(x, y, kernel, optimization_restarts, add_noise) -> Any:
+
+    gpy = _get_gpy()
+
+    model = gpy.models.GPRegression(x, y, _build_kernel(gpy, kernel))
+
+    if add_noise:
+        model.Gaussian_noise.variance = 1e-6
+        model.Gaussian_noise.variance.constrain_bounded(1e-8, 1e-2)
+
+    model.optimize(messages=True)
+    model.optimize_restarts(num_restarts=optimization_restarts)
+
+    kernel_params_for_cadet.update(
+        _pack_cadet_params(model, kernel, bndSuffix=f"{i:03d}")
+    )
+    
+    return model
 
 def train_gpr_for_cadet(
     cp: np.ndarray,

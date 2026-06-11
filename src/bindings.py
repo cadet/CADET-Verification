@@ -48,4 +48,11 @@ def binding_tests(n_jobs, cadet_path, output_path):
 
     binding_train_ANN_langmuir2Comp(cadet_path, output_path)
 
+    ## plan to success
+
+    # investigate without simulation, only learned isotherm
+    # try adam
+    # try batch optimization
+    # non-equidistant data
+
     plt.show()
