@@ -19,7 +19,7 @@ from sklearn.model_selection import KFold, LeaveOneOut
 from typing import Literal
 tf.get_logger().setLevel("ERROR")
 
-def _build_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2, learning_rate: float = 0.001) -> Any:
+def _build_ann_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2, learning_rate: float = 0.001) -> Any:
 
     model = keras.Sequential()
     model.add(keras.Input(shape=(input_dim,)))
@@ -136,7 +136,7 @@ def _train_single_ann(
         # -------------------------------------------------
         for train_idx, val_idx in splits:
 
-            model = _build_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes, n_layers=n_layers, learning_rate=lr)
+            model = _build_ann_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes, n_layers=n_layers, learning_rate=lr)
 
             # Warm-start from best weights found so far, perturbed to escape the
             # previous basin. Noise is proportional to each tensor's std so it
