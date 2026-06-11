@@ -36,7 +36,7 @@ def _build_ann_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2, 
     )
     return model
 
-def _to_cadet_weights(model):
+def _ANN_to_cadet_weights(model):
     weights = {}
 
     dense_idx = 0
@@ -222,7 +222,7 @@ def _train_single_ann(
 
             if fold_criterion < best_fold_criterion:
                 best_fold_criterion = fold_criterion
-                best_fold_weights = _to_cadet_weights(model)
+                best_fold_weights = _ANN_to_cadet_weights(model)
                 best_fold_keras_weights = model.get_weights()
 
         criterion = float(np.mean(split_criteria))
