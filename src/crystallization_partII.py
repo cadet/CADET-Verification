@@ -28,7 +28,7 @@ from src.benchmark_models import settings_crystallization
 # %% Helper functions
 
 def calculate_normalized_error(ref, sim, x_ct, x_grid):
-    area = np.trapezoid(ref, x_ct)
+    area = np.trapz(ref, x_ct)
 
     L1_error = 0.0
     for i in range(0, len(ref)):
