@@ -10,7 +10,6 @@ import os
 
 from src.benchmark_models import setting_GRM_ACT_2comp_benchmark1
 from src.benchmark_models import setting_GRM_SplineBnd_knots_Shallow_7
-from src.binding_GPR import test_GPR_binding
 from src.binding_train_ML_langmuir import binding_train_GPR_langmuir1Comp
 from src.binding_train_ML_langmuir import binding_train_GPR_langmuir2Comp
 from src.binding_train_ML_langmuir import binding_train_ANN_langmuir1Comp
