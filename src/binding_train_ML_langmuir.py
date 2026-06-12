@@ -198,7 +198,6 @@ def run_hybrid_sim_analysis(
         
         plt.savefig(output_dir + "/error_Col1D_GRM_langGPR_1comp.png" if binding_model == "GPR" else output_dir + "/error_Col1D_GRM_langANN_1comp.png")
 
-
     elif nComp == 2:
         outlet_cp_1_hybrid = simHybrid.root.output.solution.unit_001.solution_outlet[:, 0]
         outlet_cp_2_hybrid = simHybrid.root.output.solution.unit_001.solution_outlet[:, 1]
@@ -583,16 +582,16 @@ def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
 
 def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
 
-    NTRAIN = 100
+    NTRAIN = 150
     hidden_nodes = 4
     n_layers = 2
     epochs = 200 # maximum number of training epochs
     patience = 50 # stop training if validation loss does not improve for `patience` consecutive epochs
     normalization_factor = [1.0] # [Ka/Kd], [1.0] # None
-    acceptance_threshold = 10.0 # for retries
+    acceptance_threshold = 0.01 # stops retries if threshold is achieved
     max_retries = 1
     training_strategy = "random_split" #  "none", "random_split", "leave_one_out", "k_fold"
-    validation_split = 0.2
+    validation_split = 0.2 # for random split
 
     # sample the cp space and compute the corresponding equilibrium loading
     Ka, Kd, Qmax = 2.0, 1.0, 20.0
@@ -659,10 +658,10 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
     cpMax = 10.0 # seen as max c^l for unrefined model
     hidden_nodes = 4
     n_layers = 2
-    epochs = 100 # maximum number of training epochs
+    epochs = 150 # maximum number of training epochs
     patience = 50 # stop training if validation loss does not improve for `patience` consecutive epochs
     normalization_factor = [1.0, 1.0] # Ka/Kd, [1.0, 1.0] # None
-    acceptance_threshold = 10.0 # for retries
+    acceptance_threshold = 10.0 # stops retries if threshold is achieved
     max_retries = 1
     training_strategy = "random_split" #  "none", "random_split", "leave_one_out", "k_fold"
     validation_split = 0.2
