@@ -7,7 +7,7 @@ name = "cadet-verification"
 version = "0.1.0"
 description = "Verification test suite for CADET-Core"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { text = "GPL-3.0-or-later" }
 dependencies = [
 	"mpmath",
@@ -26,8 +26,8 @@ dependencies = [
 [project.optional-dependencies]
 cadet = [
 	"cadet-core>=6.0.0a3",
-	"cadet-python",
-	"cadet-rdm",
+	"cadet-python>=1.2",
+	"cadet-rdm>=1.1.2",
 ]
 
 [tool.setuptools.packages.find]
