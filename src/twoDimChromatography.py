@@ -14,6 +14,7 @@ import numpy as np
 import json
 import shutil
 from pathlib import Path
+import copy
 
 import src.utility.convergence as convergence
 import src.bench_configs as bench_configs
@@ -241,9 +242,9 @@ def GRM2D_linBnd_tests(
         ref_files=ref_files,
         unit_IDs=unit_IDs,
         which=which,
-        ax_methods=ax_methods, ax_discs=ax_discs,
-        rad_methods=rad_methods, rad_discs=rad_discs,
-        par_methods=par_methods, par_discs=par_discs,
+        ax_methods=ax_methods, ax_discs=copy.deepcopy(ax_discs),
+        rad_methods=rad_methods, rad_discs=copy.deepcopy(rad_discs),
+        par_methods=par_methods, par_discs=copy.deepcopy(par_discs),
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=None,
@@ -283,11 +284,14 @@ def GRM2D_linBnd_tests(
         for target_zone in range(1, nRadialZones):
 
             # get the references at the other ports
-            tmp_ref_files = [
-                [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
-                )]
-            ]
+            if ref_file_names[settingIdx] is None:
+                tmp_ref_files = [[None]]
+            else:
+                tmp_ref_files = [
+                    [convergence.get_solution(
+                        _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_' + str(nRadialZones + 1 + target_zone).zfill(3), which='outlet'
+                    )]
+                ]
 
             unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)]
     

@@ -108,7 +108,7 @@ def get_radCoords_and_crossSectionAreas(rad_method, rad_cells, col_radius):
 
 def generate_connections_matrix(rad_method, rad_cells,
                                 velocity, porosity, col_radius,
-                                constant_velocity=True,
+                                constant_velocity=False,
                                 add_inlet_per_port=True, add_outlet=False):
     """Computes the connections matrix with const. velocity flow rates, and radial coordinates.
     Equidistant cell/element spacing is assumed.
@@ -120,18 +120,18 @@ def generate_connections_matrix(rad_method, rad_cells,
     rad_cells : int
         radial number of cells
     velocity : float
-        column velocity (constant)
-    porosity : float
-        column porosity (constant)
+        column velocity of the first zone
+    porosity : float | list
+        column porosity
     col_radius : float
-        column radius (constant)
+        column radius
     constant_velocity : bool
         determines whether flow rates should ensure constant velocity under variable porosity.
         If not, velocity is scaled with porosity with the first porosity index being the reference
-    add_inlet_per_port : int | bool
-        specifies how many radial zones are used either by number or by true to specify one per port
+    add_inlet_per_port : int
+        number of inlets (equidistant spacing)
     add_outlet : bool
-        specifies whetehr or not an outlet is connected per radial zone
+        specifies whetehr or not an outlet is connected per inlet
     
     Returns
     -------

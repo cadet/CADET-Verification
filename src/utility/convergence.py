@@ -1180,20 +1180,14 @@ def barycentric_weights(polyDeg):
     return baryWeights
 
 
-def map_z_to_xi(z, cellIdx, deltaZ):
+def map_x_to_xi(x, x_l, deltaX):
 
-    z_l = cellIdx * deltaZ
-    xi = 2.0 * (z - z_l) / deltaZ - 1.0
-
-    return xi
+    return 2.0 * (x - x_l) / deltaX - 1.0
 
 
-def map_xi_to_z(xi, cellIdx, deltaZ):
+def map_xi_to_x(xi, x_l, deltaX):
 
-    z_l = cellIdx * deltaZ
-    z = deltaZ * (xi + 1.0) / 2.0 + z_l
-
-    return z
+    return deltaX * (xi + 1.0) / 2.0 + x_l
 
 
 # TODO slice ?
@@ -1221,7 +1215,7 @@ def map_xi_to_z(xi, cellIdx, deltaZ):
 #         # Coordinate not in DG coordinates -> interpolate!
 
 #         # get coordinate w.r.t to reference element
-#         mapped_coord = coord * map_z_to_xi(coord, cellIdx, deltaZ)
+#         mapped_coord = coord * map_x_to_xi(coord, cellIdx, deltaZ)
 
 #         # calculate value at coord using using barycentric form
 #         output_values[outputIdx] = (bary_weights / (mapped_coord - nodes) * orig_values).sum() / (bary_weights / (mapped_coord - nodes)).sum()
@@ -1353,7 +1347,7 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
             # Interpolate value if coordinate is not in DG coordinates
             if not nodeHit:
                 # get coordinate w.r.t to reference element
-                mapped_coord = map_z_to_xi(coord, cellIdx, deltaZ)
+                mapped_coord = map_x_to_xi(coord, cellIdx*deltaZ, deltaZ)
                 # calculate value at coord using using barycentric form
                 output_values[outputIdx] = (bary_weights / (mapped_coord - nodes) * orig_values[cellIdx * nNodes: (
                     cellIdx + 1) * nNodes]).sum() / (bary_weights / (mapped_coord - nodes)).sum()
@@ -3510,6 +3504,6 @@ if __name__ == '__main__':
     test_calculate_DOFs()
     test_convergency_table()
     test_get_unique_DGsolution()
-    test_map_z_to_xi()
+    test_map_x_to_xi()
     test_get_interpolated_DGsolution()
     test_Gauss_and_Lobatto_nodes()

@@ -19,6 +19,41 @@ executable_path = r"/home/jbreue16/software/cadet-compiled/CASEMA_refRecompute_f
 
 file_path = r"/home/jbreue16/software"
 
+
+jojo = Cadet()
+
+jojo.filename = r"C:\Users\jmbr\software\CADET-Verification\output\test_cadet-core\ref_ax4_rad2.h5"
+jojo.load_from_file()
+# fill model with dummy particle since CASEMA does not allow npartype = 0
+jojo.root['input'].model.unit_000.npartype = 1
+jojo.root['input'].model.unit_000.discretization.nrad = 2
+jojo.root['input'].model.unit_000.particle_type_000.par_radius = 4.5e-05
+jojo.root['input'].model.unit_000.particle_type_000.par_porosity = 0.75
+jojo.root['input'].model.unit_000.particle_type_000.has_film_diffusion = True
+jojo.root['input'].model.unit_000.particle_type_000.has_pore_diffusion = True
+jojo.root['input'].model.unit_000.particle_type_000.has_surface_diffusion = False
+jojo.root['input'].model.unit_000.particle_type_000.film_diffusion = [0.0]
+# note that pore diffusion cannot be zero for casema. Its still effectively ignored since film diffusion is zero.
+jojo.root['input'].model.unit_000.particle_type_000.pore_diffusion = [1e-12]
+jojo.root['input'].model.unit_000.particle_type_000.surface_diffusion = [0.0]
+jojo.root['input'].model.unit_000.particle_type_000.adsorption_model = ['NONE']
+jojo.root['input'].model.unit_000.particle_type_000.nbound = [0]
+jojo.root['input'].model.unit_000.particle_type_000.init_cp = [0]
+
+
+jojo.root['input'].solver.casema_options  = {
+"ERROR_THRESHOLD": 1e-20,
+"MAX_HANKEL_SUMMANDS": 100,
+"WORKING_PRECISION": 50
+}
+jojo.root['input'].solver.nthreads  = 6
+
+jojo.save()
+
+# subprocess.run([executable_path, GRM2DlinBnd.filename], check=True)
+
+
+
 #%% 1D linear models
 
 GRMlinBnd = Cadet()

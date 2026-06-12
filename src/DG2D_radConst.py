@@ -47,7 +47,7 @@ def get_settings(small_test):
     return [
         {  # PURE COLUMN TRANSPORT CASE
             'npartype': 0,
-            'col_dispersion_radial' : 0.0,
+            # 'col_dispersion_radial' : 0.0,
             'nRadialZones': 2,
             'name': '2DDPFR2Zone_radConst_1Comp',
             # 'reference': convergence.get_solution(
@@ -67,10 +67,9 @@ def GRM2D_linBnd_tests(
 
     os.makedirs(output_path, exist_ok=True)
 
-    # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
-    
     ref_file_names = [
-        'transport/2DDPFR2Zone_radEps_1Comp_DG_axP3Z64_radP3Z32.h5'
+        None
+        # 'transport/2DDPFR2Zone_radEps_1Comp_DG_axP3Z64_radP3Z32.h5'
         ]
 
 
@@ -291,9 +290,9 @@ def GRM2D_linBnd_tests(
         ref_files=ref_files,
         unit_IDs=unit_IDs,
         which=which,
-        ax_methods=ax_methods, ax_discs=ax_discs,
-        rad_methods=rad_methods, rad_discs=rad_discs,
-        par_methods=par_methods, par_discs=par_discs,
+        ax_methods=ax_methods, ax_discs=copy.deepcopy(ax_discs),
+        rad_methods=rad_methods, rad_discs=copy.deepcopy(rad_discs),
+        par_methods=par_methods, par_discs=copy.deepcopy(par_discs),
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=None,
@@ -334,11 +333,14 @@ def GRM2D_linBnd_tests(
         for target_zone in range(1, nRadialZones):
 
             # get the references at the other ports
-            tmp_ref_files = [
-                [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_' + str(nRadialZones + 1 + target_zone).zfill(3), which='outlet'
-                )]
-            ]
+            if ref_file_names[settingIdx] is None:
+                tmp_ref_files = [[None]]
+            else:
+                tmp_ref_files = [
+                    [convergence.get_solution(
+                        _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_' + str(nRadialZones + 1 + target_zone).zfill(3), which='outlet'
+                    )]
+                ]
 
             unit_IDs = [str(nRadialZones + 1 + target_zone).zfill(3)]
     
