@@ -17,7 +17,7 @@ delete_h5_files = False
 
 output_path = Path.cwd().parent / "output" / "test_cadet-core"
 
-# cadet_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+# cadet_path = r"C:/Users/jmbr/software/CADET-Core/out/install/aRELEASE"
 cadet_path = convergence.get_cadet_path()
 
 print_cadet_versions(cadet_path)
@@ -36,7 +36,7 @@ if delete_h5_files:
     convergence.delete_h5_files(str(output_path) + "/2Dchromatography")
 
 '''
-We get ???
+We get P+2 for P=3
 
 '''
 

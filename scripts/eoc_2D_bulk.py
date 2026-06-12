@@ -13,64 +13,57 @@ from cadet import Cadet
 from src.utility import convergence
 from src.benchmark_models import setting_Col2D_lin_1comp_benchmark1
 import src.benchmark_models.helper_setup_2Dmodels as helper
+from src.utility.versionInfo import print_cadet_versions
 
 
 # =============================
 # configuration for eoc study
 # =============================
 
-output_path = Path.cwd().parent / "output" / "test_cadet-core"
-cadet_path = convergence.get_cadet_path() # r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+output_path = Path.cwd().parent / "test_cadet-core"
 
-snall_test = 0
+reference = None # r"C:\Users\jmbr\software\CADET-Verification\output\test_cadet-core\ref_ax4_rad2.h5" # None
+
+cadet_path = convergence.get_cadet_path()
+cadet_path = r"C:\Users\jmbr\Desktop\CADET_compiled\master4_2DoutletFix_2450649\aRELEASE"
+print_cadet_versions(cadet_path)
+
+
+small_test = 1
 n_jobs = -1
+rerun_sims = 1
 
-axP = 2
+axP = 5
 radP = axP
 
 nRadialZones = 2
 
 # note: last level will be taken as reference
-axial_levels = [4, 8, 16, 32] if snall_test else [4, 8, 16, 32, 64]  # axial elements
-radial_levels = [2, 4, 8, 16] if snall_test else [2, 4, 8, 16, 32] # [nRadialZones] * len(axial_levels)  # radial elements
+axial_levels = [4, 8, 16, 32] if small_test else [4, 8, 16, 32, 64, 128, 256]  # axial elements
+radial_levels = [2, 4, 8, 16] if small_test else [2, 4, 8, 16, 32, 64, 128] # [nRadialZones] * len(axial_levels)  # radial elements
 
 def init_c(z, r):
     return np.linspace(1.0, 1.5, nRadialZones)
 
-# L = 0.014
-# R = 0.0035
-
-# z = np.linspace(0, L, 300)
-# r = np.linspace(0, R, 200)
-
-# Z, RR = np.meshgrid(z, r, indexing="ij")
-
-# C = init_c(Z, RR)
-
-# plt.figure(figsize=(6, 4))
-# plt.pcolormesh(Z, RR, C, shading="auto")
-# plt.xlabel("z")
-# plt.ylabel("r")
-# plt.colorbar(label="init_c")
-# plt.tight_layout()
-# plt.show()
-
 setting = {
     'npartype': 0,
     'nRadialZones': nRadialZones,
-    'COL_POROSITY': np.linspace(0.3, 0.35, nRadialZones),
-    'INIT_C': init_c,
+    'COL_POROSITY': np.linspace(0.35, 0.35, nRadialZones), # casema only supports inlet variation
+    # 'INIT_C': init_c,
     # 'COL_POROSITY': np.linspace(0.35, 0.9, nRadialZones),
     # Port 1 with reference bulk 64 rad 32
       # EOC 0->1: Linf=3.94, L1=4.16, L2=4.15
       # EOC 1->2: Linf=4.23, L1=3.25, L2=3.61
       # EOC 2->3: Linf=1.97, L1=1.81, L2=1.89
       # EOC 3->4: Linf=1.66, L1=1.68, L2=1.65
-    'inlet_function': partial(helper.constInlet, const=1.0),
+    'inlet_function': partial(helper.stepInlet, stepSize=1.0, stepStart=1.0),
+    # 'inlet_function': partial(helper.constInlet, const=1.0),
     'WRITE_SOLUTION_LAST': True,
     'WRITE_SOLUTION_BULK': True,
     'tEnd': 200, # 200 for outlet # 25 for bulk
-    'USE_MODIFIED_NEWTON': True
+    'USE_MODIFIED_NEWTON': True,
+    'abstol': 1e-12,
+    'reltol':1e-10
 }
 
 # =============================
@@ -100,13 +93,14 @@ def run_sim(axNElem, radNElem, **kwargs):
 
     sim = Cadet()
     sim.install_path = cadet_path
-    sim.root = model
-    sim.filename = str(output_path / f"sim_ax{axNElem}_rad{radNElem}.h5")
-    sim.save()
+    sim.filename = str(output_path / f"sim_P{axP}_ax{axNElem}_rad{radNElem}.h5")
 
-    ret = sim.run_simulation()
-    if ret.return_code != 0:
-        raise RuntimeError(ret.error_message)
+    if rerun_sims:
+        sim.root = model
+        sim.save()
+        ret = sim.run_simulation()
+        if ret.return_code != 0:
+            raise RuntimeError(ret.error_message)
 
     sim.load_from_file()
 
@@ -550,7 +544,7 @@ def compute_eoc(errors):
     return eoc
 
 
-#%% Bulk EOC
+#%% Run sims
 
 # ==========================================
 # RUN ONE SIMULATION
@@ -596,31 +590,43 @@ result_map = {
 # EXTRACT REFERENCE SOLUTION
 # ==========================================
 
-ref_key = (axial_levels[-1], radial_levels[-1])
-
-ref = result_map[ref_key]
-
-u_ref = ref["u"]
-ax_ref = ref["ax"]
-rad_ref = ref["rad"]
-outlet_ref = ref["outlet"]
-t_ref = ref["t"]
-
-u_ref = u_ref.reshape(len(ax_ref), len(rad_ref))
-
-ax_ref, rad_ref, u_ref = collapse_duplicate_coords_2D(
-    ax_ref,
-    rad_ref,
-    u_ref
-)
-
-# ensure shape = (time, nPorts)
-if outlet_ref.ndim == 1:
-    outlet_ref_use = outlet_ref[:, None]
+if reference is None:
+    ref_key = (axial_levels.pop(), radial_levels.pop())
+    
+    ref = result_map[ref_key]
+    
+    u_ref = ref["u"]
+    ax_ref = ref["ax"]
+    rad_ref = ref["rad"]
+    outlet_ref = ref["outlet"]
+    t_ref = ref["t"]
+    
+    u_ref = u_ref.reshape(len(ax_ref), len(rad_ref))
+    
+    ax_ref, rad_ref, u_ref = collapse_duplicate_coords_2D(
+        ax_ref,
+        rad_ref,
+        u_ref
+    )
+    
+    # ensure shape = (time, nPorts)
+    if outlet_ref.ndim == 1:
+        outlet_ref_use = outlet_ref[:, None]
+    else:
+        outlet_ref_use = outlet_ref
+    
+    dt = t_ref[1] - t_ref[0]
 else:
-    outlet_ref_use = outlet_ref
-
-dt = t_ref[1] - t_ref[0]
+    ref = Cadet()
+    ref.filename = reference
+    ref.load_from_file()
+    outlet_ref_use = []
+    for rad in range(nRadialZones):
+        outlet_ref_use.append(convergence.get_solution(ref, unit='unit_000', which=f'outlet_port_{rad:03d}'))
+    outlet_ref_use = np.column_stack(outlet_ref_use)
+    
+    t_ref = convergence.get_solution_times((ref))
+    dt = t_ref[1] - t_ref[0]
 
 # ==========================================
 # ERROR COMPUTATION
@@ -634,8 +640,7 @@ all_port_errors_Linf = []
 all_port_errors_L1 = []
 all_port_errors_L2 = []
 
-# exclude reference level
-for axN, radN in zip(axial_levels[:-1], radial_levels[:-1]):
+for axN, radN in zip(axial_levels, radial_levels):
 
     res = result_map[(axN, radN)]
 
@@ -726,6 +731,8 @@ for port in range(nPorts):
             f"L1={port_eoc_L1[port][lvl]:.2f}, "
             f"L2={port_eoc_L2[port][lvl]:.2f}"
         )
+
+# %% Bulk EOC
 
 # # =============================
 # # PLOT REFERENCE SOLUTION

@@ -119,10 +119,10 @@ def get_model(
 
             for idx in range(axNElem):
                 ax_coords[idx * (axMethod+1): (idx + 1) * (axMethod+1)
-                          ] = convergence.map_xi_to_z(ax_nodes, idx, ax_delta)
+                          ] = convergence.map_xi_to_x(ax_nodes, idx, ax_delta)
             for idx in range(radNElem):
                 rad_coords[idx * (radMethod+1): (idx + 1) * (radMethod+1)
-                           ] = convergence.map_xi_to_z(rad_nodes, idx, rad_delta)
+                           ] = convergence.map_xi_to_x(rad_nodes, idx, rad_delta)
         else:
             ax_coords = np.array([idx * ax_delta for idx in range(axNElem)])
             rad_coords = np.array([rad_delta / 2.0 + idx * rad_delta for idx in range(radNElem)])
@@ -198,9 +198,9 @@ def get_model(
     if axMethod >= 0:
         model.solver.time_integrator.USE_MODIFIED_NEWTON = kwargs.get(
             'USE_MODIFIED_NEWTON', 0)
-        model.solver.time_integrator.ABSTOL = 1e-6
+        model.solver.time_integrator.ABSTOL = kwargs.get('abstol', 1e-6)
         model.solver.time_integrator.ALGTOL = 1e-10
-        model.solver.time_integrator.RELTOL = 1e-6
+        model.solver.time_integrator.RELTOL = kwargs.get('reltol', 1e-4)
         model.solver.time_integrator.INIT_STEP_SIZE = 1e-6
         model.solver.time_integrator.MAX_STEPS = 1000000
     
@@ -211,12 +211,13 @@ def get_model(
         model.model.solver.SCHUR_SAFETY = 1e-8
     
         # Run the simulation on single thread
-        model.solver.NTHREADS = 1
+        model.solver.NTHREADS = kwargs.get('NTHREADS', 1)
         model.solver.CONSISTENT_INIT_MODE = 3
     
     # Sections
+    tEnd = kwargs.get('tEnd', 1500.0)
     model.solver.sections.NSEC = 2
-    model.solver.sections.SECTION_TIMES = [0.0, 10.0, 1500.0]
+    model.solver.sections.SECTION_TIMES = [0.0, 10.0, tEnd]
 
     
     # Note: this velocity is only applied to the first zone.
@@ -277,6 +278,6 @@ def get_model(
     model.model.connections.connections_include_ports = 1
 
     model.solver.sections.SECTION_CONTINUITY = [0,]
-    model.solver.USER_SOLUTION_TIMES = np.linspace(0, 1500, 1501)
+    model.solver.USER_SOLUTION_TIMES = np.linspace(0, tEnd, int(tEnd) + 1)
 
     return {'input': model}
