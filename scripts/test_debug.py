@@ -20,6 +20,7 @@ import src.MCT as MCT
 import src.chrom_systems as chrom_systems
 import src.twoDimChromatography as twoDimChromatography
 import src.chromatography_sensitivities as chromatography_sensitivities
+import src.radialDG as radialDG
 
 small_test = True
 n_jobs = -1
@@ -33,6 +34,7 @@ run_chromatography_sensitivity_tests = False
 run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_2Dmodels_tests = False
+run_radialDG_tests = True
 
 output_path = Path.cwd() / "output" / "test_cadet-core"
 
@@ -120,3 +122,13 @@ if run_2Dmodels_tests:
     )
     if delete_h5_files:
         convergence.delete_h5_files(str(output_path) + "/2Dchromatography")
+
+if run_radialDG_tests:
+    radialDG.radialDG_tests(
+        n_jobs=n_jobs,
+        small_test=small_test,
+        output_path=str(output_path) + "/radialDG",
+        cadet_path=cadet_path
+    )
+    if delete_h5_files:
+        convergence.delete_h5_files(str(output_path) + "/radialDG")
