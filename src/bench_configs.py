@@ -15,7 +15,7 @@ import copy
 import src.bench_func as bench_func
 import src.utility.convergence as convergence
 
-from src.benchmark_models import settings_2Dchromatography
+from src.benchmark_models import setting_Col2D_lin_1comp_benchmark1
 from src.benchmark_models import settings_columnSystems
 from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
@@ -1017,7 +1017,7 @@ def GRM2D_FV_benchmark(small_test=False, **kwargs):
     
     benchmark_config = {
         'cadet_config_jsons': [
-            settings_2Dchromatography.GRM2D_linBnd_benchmark1(
+            setting_Col2D_lin_1comp_benchmark1.get_model(
                 radNElem=nRadialZones,
                 rad_inlet_profile=None,
                 USE_MODIFIED_NEWTON=0, axMethod=0, **kwargs)
@@ -1032,10 +1032,10 @@ def GRM2D_FV_benchmark(small_test=False, **kwargs):
             '000'
         ],
         'unit_IDs': [ # note that we consider radial zone 0
-            str(nRadialZones + 1 + 0).zfill(3) if kwargs.get('analytical_reference', 0) else '000'
+            str(nRadialZones + 1 + 0).zfill(3)
         ],
         'which': [
-            'outlet' if kwargs.get('analytical_reference', 0) else 'radial_outlet' # outlet_port_000
+            'outlet'
         ],
         'idas_abstol': [
             [1e-10]
@@ -1110,12 +1110,11 @@ def cyclic_systems_tests(n_jobs, output_path,
 
     # The analytical reference for the cyclic case has only ~1e-8 accuracy
     # Note that there is no proven error bound for the cyclic case, only estimations
-    nDisc = 5 if kwargs.get('analytical_reference', False) else 7
+    nDisc = 5 if small_test else 7
 
     benchmark_config = {
         'cadet_config_jsons': [
-            settings_columnSystems.Cyclic_model1(
-                nDisc, 4, 1, analytical_reference=kwargs.get('analytical_reference', False))
+            settings_columnSystems.Cyclic_model1(nDisc, 4, 1)
         ],
         'include_sens': [
             False
@@ -1124,7 +1123,7 @@ def cyclic_systems_tests(n_jobs, output_path,
             [None]
         ],
         'unit_IDs': [
-            '002' if kwargs.get('analytical_reference', False) else '003'
+            '002'
         ],
         'which': [
             'outlet'
@@ -1156,8 +1155,7 @@ def acyclic_systems_tests(n_jobs, output_path,
 
     benchmark_config = {
         'cadet_config_jsons': [
-            settings_columnSystems.Acyclic_model1(
-                nDisc, 4, 1, analytical_reference=kwargs.get('analytical_reference', False))
+            settings_columnSystems.Acyclic_model1(nDisc, 4, 1)
         ],
         'include_sens': [
             False

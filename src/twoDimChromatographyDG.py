@@ -27,6 +27,10 @@ _reference_data_path_ = str(
     Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
 )
 
+# _reference_data_path_ = str(
+#     Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference'
+# )
+
 
 # %% We define multiple settings convering binding modes, surface diffusion and
 # multiple particle types. All settings consider three radial zones.
@@ -34,76 +38,78 @@ _reference_data_path_ = str(
 # radial zones. Ultimately, the discrete maximum norm of the zonal errors is
 # considered to compute the EOC.
 
-def get_settings(small_test):
-    
-    def load_reference(filename):
 
-        return convergence.get_solution(
-            _reference_data_path_ + "/" + filename,
-            unit='unit_000',
-            which='outlet_port_' + str(0).zfill(3)
-        )
-    
+def get_settings(small_test):
     return [
         {  # PURE COLUMN TRANSPORT CASE
-            'film_diffusion': 0.0,
+            'npartype': 0,
             # 'col_dispersion_radial' : 0.0,
             'nRadialZones': 2,
             'name': '2DDPFR2Zone_1Comp',
-            'par_method': 0,
-            'adsorption_model': 'NONE',
-            'surface_diffusion': 0.0,
-            'reference': load_reference('2DDPFR2Zone_1Comp.h5'),
+            # 'reference': convergence.get_solution(
+            #     _reference_data_path_ + '/transport/2DDPFR2Zone_1Comp_DG_axP3Z32_radP3Z16.h5', unit='unit_003', which='outlet'
+            # )
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DDPFR2Zone_1comp.h5', unit='unit_003', which='outlet'
+            ),
             'inlet_function': helper.stepInlet
         },
         {  # 1parType, dynamic binding, no surface diffusion
             'nRadialZones': 3,
             'name': '2DGRM3Zone_dynLin_1Comp',
-            'par_method': 0,
+            'par_method': 3,
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 1,
             'surface_diffusion': 0.0,
-            'reference': load_reference('2DGRM3Zone_dynLin_1Comp.h5'),
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRM3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            ),
             'inlet_function': helper.stepInlet
         },
         {  # 1parType, dynamic binding, with surface diffusion
             'nRadialZones': 3,
             'name': '2DGRMsd3Zone_dynLin_1Comp',
-            'par_method': 0,
+            'par_method': 3,
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 1,
             'surface_diffusion': 1e-11,
-            'reference': load_reference('2DGRMsd3Zone_dynLin_1Comp.h5'),
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRMsd3Zone_dynLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            ),
             'inlet_function': helper.stepInlet
         },
         {  # 1parType, req binding, no surface diffusion
             'nRadialZones': 3,
             'name': '2DGRM3Zone_reqLin_1Comp',
-            'par_method': 0,
+            'par_method': 3,
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 0,
             'surface_diffusion': 0.0,
             'init_cp': [0.0],
             'init_cs': [0.0],
-            'reference': load_reference('2DGRM3Zone_reqLin_1Comp.h5'),
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRM3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            ),
             'inlet_function': helper.stepInlet
         },
         {  # 1parType, req binding, with surface diffusion
             'nRadialZones': 3,
             'name': '2DGRMsd3Zone_reqLin_1Comp',
-            'par_method': 0,
+            'par_method': 3,
             'adsorption_model': 'LINEAR',
             'adsorption.is_kinetic': 0,
             'surface_diffusion': 1e-11,
             'init_cp': [0.0],
             'init_cs': [0.0],
-            'reference': load_reference('2DGRMsd3Zone_reqLin_1Comp.h5'),
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRMsd3Zone_reqLin_1Comp.h5', unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            ),
             'inlet_function': helper.stepInlet
         },
         {  # 4parType:
             'nRadialZones': 3,
             'name': '2DGRM2parType3Zone_1Comp' if small_test else '2DGRM4parType3Zone_1Comp',
-            'par_method': 0,
+            'par_method': 3,
             'npartype': 2 if small_test else 4,
             'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
             'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
@@ -118,10 +124,14 @@ def get_settings(small_test):
             'adsorption.is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
             'adsorption.lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
             'adsorption.lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0],
-            'reference': load_reference('2DGRM2parType3Zone_1Comp.h5' if small_test else '2DGRM4parType3Zone_1Comp.h5'),
+            'reference': convergence.get_solution(
+                _reference_data_path_ + '/2DGRM2parType3Zone_1Comp.h5' if small_test else _reference_data_path_ + '/2DGRM4parType3Zone_1Comp.h5',
+                unit='unit_000', which='outlet_port_' + str(0).zfill(3)
+            ),
             'inlet_function': helper.stepInlet
         }
     ]
+
 
 def GRM2D_linBnd_tests(
         n_jobs, small_test,
@@ -133,7 +143,7 @@ def GRM2D_linBnd_tests(
     # To test only a subset of settings, comment out the corresponding ref_file_name and the setup in `get_settings`
     
     ref_file_names = [
-        '2DDPFR2Zone_1Comp.h5',
+        '2DDPFR2Zone_1Comp.h5', # '2DDPFR2Zone_1Comp.h5' # 'transport/2DDPFR2Zone_1Comp_DG_axP3Z32_radP3Z16.h5'
         '2DGRM3Zone_dynLin_1Comp.h5',
         '2DGRMsd3Zone_dynLin_1Comp.h5',
         '2DGRM3Zone_reqLin_1Comp.h5',
@@ -161,9 +171,9 @@ def GRM2D_linBnd_tests(
     par_discs = []
     refinement_IDs = []
 
-    def GRM2D_FV_Benchmark(small_test=False, **kwargs):
+    def GRM2D_DG_Benchmark(small_test=False, **kwargs):
 
-        nDisc = 4 if small_test else 5
+        nDisc = 3 if small_test else 4
         nRadialZones = kwargs['nRadialZones']
 
         benchmark_config = {
@@ -171,7 +181,7 @@ def GRM2D_linBnd_tests(
                 setting_Col2D_lin_1comp_benchmark1.get_model(
                     radNElem=nRadialZones,
                     rad_inlet_profile=None,
-                    USE_MODIFIED_NEWTON=0, axMethod=0, **kwargs)
+                    USE_MODIFIED_NEWTON=0, axMethod=3, **kwargs)
             ],
             'include_sens': [
                 False
@@ -183,8 +193,7 @@ def GRM2D_linBnd_tests(
                 '000'
             ],
             'unit_IDs': [  # note that we consider radial zone 0
-                str(nRadialZones + 1 +
-                    0).zfill(3)
+                str(nRadialZones + 1 + 0).zfill(3)
             ],
             'which': [
                 'outlet' # outlet_port_000
@@ -193,32 +202,32 @@ def GRM2D_linBnd_tests(
                 [1e-10]
             ],
             'ax_methods': [
-                [0]
+                [3]
             ],
             'ax_discs': [
                 [bench_func.disc_list(4, nDisc)]
             ],
             'rad_methods': [
-                [0]
+                [3]
             ],
             'rad_discs': [
                 [bench_func.disc_list(nRadialZones, nDisc)]
             ],
             'par_methods': [
-                [0]
+                [None]
             ],
             'par_discs': [
-                [bench_func.disc_list(max(1, nRadialZones - 1), nDisc)]
+                [None]
             ]
         }
 
         return benchmark_config
 
-
     # %% create benchmark configurations
 
     for setting in settings:
-        addition = GRM2D_FV_Benchmark(small_test=small_test, **setting)
+        
+        addition = GRM2D_DG_Benchmark(small_test=small_test, **setting)
 
         bench_configs.add_benchmark(
             cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -247,7 +256,7 @@ def GRM2D_linBnd_tests(
         idas_abstol=idas_abstol,
         n_jobs=n_jobs,
         rad_inlet_profile=None,
-        rerun_sims=rerun_sims,
+        rerun_sims=True,
         refinement_IDs=refinement_IDs
     )
 
@@ -285,7 +294,7 @@ def GRM2D_linBnd_tests(
             # get the references at the other ports
             tmp_ref_files = [
                 [convergence.get_solution(
-                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_000', which='outlet_port_' + str(target_zone).zfill(3)
+                    _reference_data_path_ + '/' + ref_file_names[settingIdx], unit='unit_' + str(nRadialZones + 1 + target_zone).zfill(3), which='outlet'
                 )]
             ]
 
@@ -341,20 +350,20 @@ def GRM2D_linBnd_tests(
                 data = json.load(file)
 
             if target_zone == 0:
-                disc = data['convergence']['FV']['outlet']['$N_e^z$']
+                disc = data['convergence']['DG_P3']['outlet']['$N_e^z$']
                 maxError = np.array(
-                    data['convergence']['FV']['outlet']['Max. error'])
+                    data['convergence']['DG_P3']['outlet']['Max. error'])
                 L1Error = np.array(
-                    data['convergence']['FV']['outlet']['$L^1$ error'])
+                    data['convergence']['DG_P3']['outlet']['$L^1$ error'])
                 L2Error = np.array(
-                    data['convergence']['FV']['outlet']['$L^2$ error'])
+                    data['convergence']['DG_P3']['outlet']['$L^2$ error'])
             else:  # maximum norm
                 maxError = np.maximum(maxError, np.array(
-                    data['convergence']['FV']['outlet']['Max. error']))
+                    data['convergence']['DG_P3']['outlet']['Max. error']))
                 L1Error = np.maximum(L1Error, np.array(
-                    data['convergence']['FV']['outlet']['$L^1$ error']))
+                    data['convergence']['DG_P3']['outlet']['$L^1$ error']))
                 L2Error = np.maximum(L2Error, np.array(
-                    data['convergence']['FV']['outlet']['$L^2$ error']))
+                    data['convergence']['DG_P3']['outlet']['$L^2$ error']))
 
         maxEOC = np.insert(
             convergence.calculate_eoc(disc, maxError), 0, 0.0)
@@ -364,12 +373,12 @@ def GRM2D_linBnd_tests(
         with open(target_name, "r") as file:
             target_data = json.load(file)
 
-        target_data['convergence']['FV']['outlet']['Max. error'] = maxError.tolist()
-        target_data['convergence']['FV']['outlet']['Max. EOC'] = maxEOC.tolist()
-        target_data['convergence']['FV']['outlet']['$L^1$ error'] = L1Error.tolist()
-        target_data['convergence']['FV']['outlet']['$L^1$ EOC'] = L1EOC.tolist()
-        target_data['convergence']['FV']['outlet']['$L^2$ error'] = L2Error.tolist()
-        target_data['convergence']['FV']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
+        target_data['convergence']['DG_P3']['outlet']['Max. error'] = maxError.tolist()
+        target_data['convergence']['DG_P3']['outlet']['Max. EOC'] = maxEOC.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^1$ error'] = L1Error.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^1$ EOC'] = L1EOC.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^2$ error'] = L2Error.tolist()
+        target_data['convergence']['DG_P3']['outlet']['$L^2$ EOC'] = L2EOC.tolist()
 
         print("2D chromatography convergence for setting no. ", settingIdx)
         print(target_data)

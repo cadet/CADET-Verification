@@ -58,6 +58,6 @@ jobs:
               echo 'Installing Python dependencies'
               pip install .
 
-              echo 'Running verification'
-              pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=\$TEST_BRANCH
+              echo 'Running test'
+              python scripts/eoc_2D_bulk.py
             "

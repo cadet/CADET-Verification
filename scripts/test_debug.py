@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 
-This scipt is similar to the src/verify.py file, but meant for debugging
+This scipt is similar to the scripts/verify.py file, but meant for debugging
 without pytest fixtures and cadet-rdm
 
 """
 
 #%% Include packages
 from pathlib import Path
+
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import src.utility.convergence as convergence
 from src.utility.versionInfo import print_cadet_versions
