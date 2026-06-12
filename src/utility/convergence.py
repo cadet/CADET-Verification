@@ -40,6 +40,7 @@ def get_cadet_path():
     cadet_bin_path = install_path
     
     if cadet_bin_path.exists():
+        print("CADET-Core found: ", cadet_bin_path)
         return cadet_bin_path
         
     else:

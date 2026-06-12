@@ -43,10 +43,13 @@ def print_cadet_versions(cadet_core_path=None):
         
     if cadet_core_path is not None:
         print(f"::notice::CADET-Core environment version: {jo.version}")
+        print(f"::notice::CADET-Core environment commit hash: {jo.commit_hash}")
         jo.install_path=cadet_core_path
         print(f"::notice::CADET-Core provided cli (not environment) version: {jo.version}")
+        print(f"::notice::CADET-Core provided cli commit hash: {jo.commit_hash}")
     else:
         print(f"::notice::CADET-Core version: {jo.version}")
+        print(f"::notice::CADET-Core commit hash: {jo.commit_hash}")
 
     print(f"::notice::CADET-Python version: {version('CADET-Python')}")
     print(f"::notice::CADET-RDM version: {version('CADET-RDM')}")
