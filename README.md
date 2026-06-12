@@ -9,9 +9,10 @@ The results of the verification studies can be accessed in the [CADET-Verificati
 
 ## Usage
 
+### CADET-Core CD pipeline
+
 CADET-Verification must be executed as part of the **CADET-Core release process** and **on demand**, particularly when critical changes are introduced to the simulator.
 For verification runs as part of the CADET-Core release pipeline, the creation of a dedicated release branch in CADET-Verification is recommended, since this eases handling the resulting data later.
-
 
 To trigger a verification run, manually dispatch the `verify.yml` GitHub Actions workflow.
 The verification workflow runs in a docker container which is created based on a docker image from the [cadet-suite](https://github.com/cadet/CADET-Core/pkgs/container/cadet-suite). The specific docker image to pull from can be specified in the manual dispatch, otherwise the workflow defaults to the latest tag.
@@ -36,6 +37,17 @@ There are some utility functions under `src/utility/compareConvergenceData.py` t
 Additionally, a comparison log `.txt` file should be generated using this functionality.
 
 To conduct a performance benchmark between two versions of CADET-Core, please refer to the file `src/performance_benchmark.py`.
+
+### Local install
+
+Clone the repository, change into the project directory, and run:
+``
+pip install ".[cadet]"
+``
+You can run example scripts from `scipts` directly, for instance:
+``
+python scripts/test_debug.py
+``
 
 ## Contributing
 
