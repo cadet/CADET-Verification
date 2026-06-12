@@ -21,6 +21,10 @@ dependencies = [
 	"pandas",
 	"h5py",
 	"joblib",
+]
+
+[project.optional-dependencies]
+cadet = [
 	"cadet-core>=6.0.0a3",
 	"cadet-python",
 	"cadet-rdm",
