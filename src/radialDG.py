@@ -15,9 +15,7 @@ import numpy as np
 from functools import partial
 
 import src.benchmark_models.setting_radCol1D_DG_transport as setting_DG_transport
-import src.benchmark_models.setting_radCol1D_DG_LRM_SMA_4comp as setting_DG_LRM_SMA
-import src.benchmark_models.setting_radCol1D_DG_GRM_SMA_4comp as setting_DG_GRM_SMA
-import src.benchmark_models.setting_radCol1D_DG_LRMP_SMA_4comp as setting_DG_LRMP_SMA
+import src.benchmark_models.setting_radCol1D_SMA_4comp as setting_SMA
 import src.benchmark_models.setting_radCol1D_DG_LRM_lang_2comp as setting_DG_LRM_lang
 
 import src.bench_func as bench_func
@@ -327,10 +325,10 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
     n_disc_FV_2_GRM_SMA = fv_n_disc if fv_n_disc is not None else (6 if not small_test else 4)
 
     configs_2 = [
-        # (setting_module, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm, n_disc_FV_override, fv_time_integrator_override, consistent_init_mode_fv)
-        (setting_DG_LRM_SMA, 'radLRM_DG_SMA_4comp', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False, None, None, None),
-        (setting_DG_GRM_SMA, 'radGRM_DG_SMA_4comp', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_SMA, None, None),
-        (setting_DG_LRMP_SMA, 'radLRMP_DG_SMA_4comp', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, None, time_integrator, 3),
+        # (particle_type, config_prefix, poly_degs, n_disc_DG, time_integ, is_grm, n_disc_FV_override, fv_time_integrator_override, consistent_init_mode_fv)
+        ('EQUILIBRIUM_PARTICLE', 'radLRM_DG_SMA_4comp', poly_degs_LRM, n_disc_DG_LRM, time_integrator, False, None, None, None),
+        ('GENERAL_RATE_PARTICLE', 'radGRM_DG_SMA_4comp', poly_degs_GRM, n_disc_DG_GRM, time_integrator_strict, True, n_disc_FV_2_GRM_SMA, None, None),
+        ('HOMOGENEOUS_PARTICLE', 'radLRMP_DG_SMA_4comp', poly_degs_LRM, n_disc_DG_LRM, time_integrator_strict, False, None, time_integrator, 3),
     ]
 
     if study2_configs is not None:
@@ -356,8 +354,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
 
     fv_finest_names = {}
 
-    for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm, n_disc_FV_override, fv_ti_override, consistent_init_mode_fv) in enumerate(configs_2):
-        base_model = setting_mod.get_model()
+    for cfg_idx, (particle_type, prefix, poly_degs, n_disc_DG, ti, is_grm, n_disc_FV_override, fv_ti_override, consistent_init_mode_fv) in enumerate(configs_2):
+        base_model = setting_SMA.get_model(particle_type=particle_type)
 
         if consistent_init_mode_fv is not None:
             base_model_fv = copy.deepcopy(base_model)
@@ -431,8 +429,8 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
 
         print("\n--- Study 2: Phase 2 — DG convergence against FV reference ---")
 
-        for cfg_idx, (setting_mod, prefix, poly_degs, n_disc_DG, ti, is_grm, _nfv, _fvti, _cim) in enumerate(configs_2):
-            base_model = setting_mod.get_model()
+        for cfg_idx, (particle_type, prefix, poly_degs, n_disc_DG, ti, is_grm, _nfv, _fvti, _cim) in enumerate(configs_2):
+            base_model = setting_SMA.get_model(particle_type=particle_type)
             if _cim is not None:
                 base_model['input']['solver']['consistent_init_mode'] = 1
             ref_file = fv_finest_names[cfg_idx]
