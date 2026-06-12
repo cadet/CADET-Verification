@@ -8,112 +8,229 @@ This module helps you go from raw binding training pairs to a CADET configuratio
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Callable, Optional, List
 
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from sklearn.model_selection import KFold, LeaveOneOut
+from typing import Literal
 tf.get_logger().setLevel("ERROR")
 
-from src.benchmark_models.settings_data_driven_bnd import AnnWeights
-from src.training_gpr import fit_langmuir, langmuir_isotherm
+def _build_ann_model(input_dim: int, hidden_nodes: int = 16, n_layers: int = 2, learning_rate: float = 0.001) -> Any:
 
+    model = keras.Sequential()
+    model.add(keras.Input(shape=(input_dim,)))
 
-def _custom_loss(lambda_train: float = 500000.0):
-    def loss(y_true: Any, y_pred: Any) -> Any:
-        mse_term = tf.reduce_mean(tf.square(y_true - y_pred))
-        l1_term = tf.reduce_mean(tf.abs(y_true - y_pred))
-        return mse_term + lambda_train * l1_term
-    return loss
+    for i in range(n_layers):
+        model.add(layers.Dense(hidden_nodes, activation="elu", kernel_initializer="he_uniform", bias_initializer="zeros"))
 
+    model.add(layers.Dense(1, activation=None))
 
-def _build_model(input_dim: int, hidden_nodes: int = 75) -> Any:
-    model = keras.Sequential([
-        keras.Input(shape=(input_dim,)),
-        layers.Dense(hidden_nodes, activation="elu", kernel_initializer="random_uniform", bias_initializer="zeros"),
-        layers.Dense(hidden_nodes, activation="elu", kernel_initializer="random_uniform", bias_initializer="zeros"),
-        layers.Dense(1, activation=None),  # no output activation — CADET applies none either
-    ])
     model.compile(
-        loss=_custom_loss(),
-        optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
-        metrics=["mae", "mse"],
+        loss="mse",
+        optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
+        metrics=["mae"],
     )
     return model
 
+def _ANN_to_cadet_weights(model):
+    weights = {}
 
-def _to_cadet_weights(model: Any) -> AnnWeights:
-    k0, b0, k1, b1, k2, b2 = model.get_weights()
-    return AnnWeights(
-        layer_0_kernel=np.asarray(k0),
-        layer_0_bias=np.asarray(b0),
-        layer_1_kernel=np.asarray(k1),
-        layer_1_bias=np.asarray(b1),
-        layer_2_kernel=np.asarray(k2),
-        layer_2_bias=np.asarray(b2),
+    dense_idx = 0
+
+    for layer in model.layers:
+
+        if not hasattr(layer, "get_weights"):
+            continue
+
+        params = layer.get_weights()
+
+        if len(params) == 0:
+            continue
+
+        kernel, bias = params
+
+        weights[f"layer_{dense_idx}"] = {
+            "KERNEL": np.asarray(kernel),
+            "BIAS": np.asarray(bias),
+        }
+
+        dense_idx += 1
+
+    return weights
+
+def cadet_to_keras_weights(cadet_weights):
+    """
+    Convert CADET-style dict back into Keras weight list format.
+    Assumes only Dense layers in correct order.
+    """
+
+    keras_weights = []
+
+    layer_idx = 0
+    while f"layer_{layer_idx}" in cadet_weights:
+        layer = cadet_weights[f"layer_{layer_idx}"]
+
+        kernel = np.asarray(layer["KERNEL"])
+        bias = np.asarray(layer["BIAS"])
+
+        keras_weights.append(kernel)
+        keras_weights.append(bias)
+
+        layer_idx += 1
+
+    return keras_weights
+
+def rebuild_ann_from_cadet_weights(weights, input_dim, hidden_nodes, n_layers):
+
+    model = _build_ann_model(
+        input_dim=input_dim,
+        hidden_nodes=hidden_nodes,
+        n_layers=n_layers,
+        learning_rate=0.0  # inference only
     )
 
+    keras_weights = cadet_to_keras_weights(weights)
+    model.set_weights(keras_weights)
 
-def _pack_cadet_ann_params(weights: AnnWeights, norm_factor: float) -> dict:
-    """Pack ANN weights to the nested structure CADET reads via pushScope("layer_N").
+    return model
 
-    C++ reads NORM_FACTOR as a flat array and layer weights via scoped groups:
-      layer_0/{KERNEL,BIAS}, layer_1/{KERNEL,BIAS}, layer_2/{KERNEL,BIAS}
-    The nested dicts here map directly to those HDF5 groups via CADET Python API.
-    """
-    return {
-        "NORM_FACTOR": np.array([norm_factor]),
-        "layer_0": {"KERNEL": weights.layer_0_kernel, "BIAS": weights.layer_0_bias},
-        "layer_1": {"KERNEL": weights.layer_1_kernel, "BIAS": weights.layer_1_bias},
-        "layer_2": {"KERNEL": weights.layer_2_kernel, "BIAS": weights.layer_2_bias},
-    }
+def _get_splits(X, y, strategy: str, val_ratio: float = 0.2):
+    """Return list of (train_idx, val_idx) splits."""
 
+    n = len(X)
+    idx = np.arange(n)
+
+    if strategy == "random_split":
+        np.random.shuffle(idx)
+        split = int(n * (1 - val_ratio))
+        return [(idx[:split], idx[split:])]
+
+    elif strategy == "k_fold":
+        k = int(1 / val_ratio) if val_ratio > 0 else 5
+        kf = KFold(n_splits=k, shuffle=True)
+        return [(train_idx, val_idx) for train_idx, val_idx in kf.split(X)]
+
+    elif strategy == "leave_one_out":
+        loo = LeaveOneOut()
+        return [(train_idx, val_idx) for train_idx, val_idx in loo.split(X)]
+
+    elif strategy == "none":
+        return [(idx, idx)]  # train on all, validate on all
+
+    else:
+        raise ValueError(f"Unknown training_strategy: {strategy}")
 
 def _train_single_ann(
     X_norm: np.ndarray,
     y: np.ndarray,
-    keq: float,
-    qm: float,
     *,
     hidden_nodes: int,
     epochs: int,
     patience: int,
     max_retries: int,
     acceptance_threshold: float,
-    validation_split: float,
     verbose: int,
-) -> tuple[AnnWeights, float]:
-    """Train one component's ANN, retrying until the integral criterion passes.
+    validation_split: float,
+    training_strategy: Literal[
+        "random_split",
+        "k_fold",
+        "leave_one_out",
+        "none",
+    ] = "random_split",
+    n_layers: int = 2,
+    plot_training_curves: Optional[str] = None,
+    annIdx: Optional[int] = None
+) -> tuple[dict, float]:
+    """Train one ANN with flexible validation strategy."""
 
-    The integral criterion measures how well the ANN reproduces the smooth
-    Langmuir reference curve on a dense grid — not just at the training points.
-    This drives retries because ANN training is non-deterministic (random init).
-    """
-    dense_norm = np.linspace(X_norm.min(), X_norm.max(), 1000)
-    dense_cp = dense_norm / keq
-    ref_cs = langmuir_isotherm(dense_cp, keq, qm)
+    X_norm = np.asarray(X_norm, dtype=float)
+    y = np.asarray(y, dtype=float)
 
-    best_weights: Optional[AnnWeights] = None
+    splits = _get_splits(X_norm, y, training_strategy, val_ratio=validation_split)
+
+    best_weights = None
     best_criterion = float("inf")
+    best_keras_weights: Optional[list] = None  # raw Keras weights for warm-starting
+    base_lr = 0.001
 
-    for _ in range(max_retries):
-        model = _build_model(input_dim=1, hidden_nodes=hidden_nodes)
-        early_stop = keras.callbacks.EarlyStopping(monitor="val_loss", patience=patience)
-        model.fit(
-            X_norm, y,
-            epochs=epochs,
-            validation_split=validation_split,
-            verbose=verbose,
-            callbacks=[early_stop],
-        )
+    for attempt in range(max_retries):
 
-        pred_dense = model.predict(dense_norm.reshape(-1, 1), verbose=0).reshape(-1)
-        criterion = float(np.trapz((ref_cs - pred_dense) ** 2, dense_cp))
+        lr = base_lr * (0.5 ** attempt)
+        print(f"Training attempt {attempt + 1}/{max_retries} with strategy '{training_strategy}', lr={lr:.2e}...")
+        split_criteria = []
+        best_fold_weights: Optional[dict] = None
+        best_fold_criterion = float("inf")
+        best_fold_keras_weights: Optional[list] = None
+
+        # -------------------------------------------------
+        # train + evaluate over all splits
+        # -------------------------------------------------
+        for train_idx, val_idx in splits:
+
+            model = _build_ann_model(input_dim=X_norm.shape[1], hidden_nodes=hidden_nodes, n_layers=n_layers, learning_rate=lr)
+
+            # Warm-start from best weights found so far, perturbed to escape the
+            # previous basin. Noise is proportional to each tensor's std so it
+            # is scale-adaptive regardless of layer size.
+            if best_keras_weights is not None:
+                noisy = [
+                    w + np.random.normal(0, 0.05 * (np.std(w) + 1e-8), w.shape)
+                    for w in best_keras_weights
+                ]
+                model.set_weights(noisy)
+
+            early_stop = keras.callbacks.EarlyStopping(
+                monitor="val_loss",
+                patience=patience,
+                restore_best_weights=True,
+            )
+
+            X_train, y_train = X_norm[train_idx], y[train_idx]
+            X_val, y_val = X_norm[val_idx], y[val_idx]
+
+            history = model.fit(
+                X_train,
+                y_train,
+                epochs=epochs,
+                verbose=verbose,
+                validation_data=(X_val, y_val),
+                callbacks=[early_stop],
+            )
+
+            if isinstance(plot_training_curves, str):
+                plt.figure()
+                plt.semilogy(history.history["loss"], label="train")
+                plt.semilogy(history.history["val_loss"], label="validation")
+                plt.xlabel("Epoch")
+                plt.ylabel("MSE Loss")
+                plt.legend()
+                plt.grid(True)
+                if annIdx is not None:
+                    plt.savefig(plot_training_curves + f"/training_curves_cmop_{annIdx}_attempt{attempt+1}.png")
+                else:
+                    plt.savefig(plot_training_curves + f"/training_curves_attempt{attempt+1}.png")
+                print("Stopped after", len(history.history["loss"]), "epochs")
+                print("Best val_loss =", np.min(history.history["val_loss"]))
+
+            pred_val = model.predict(X_val, verbose=0).reshape(-1)
+            fold_criterion = float(np.mean((y_val - pred_val) ** 2))
+            split_criteria.append(fold_criterion)
+
+            if fold_criterion < best_fold_criterion:
+                best_fold_criterion = fold_criterion
+                best_fold_weights = _ANN_to_cadet_weights(model)
+                best_fold_keras_weights = model.get_weights()
+
+        criterion = float(np.mean(split_criteria))
 
         if criterion < best_criterion:
             best_criterion = criterion
-            best_weights = _to_cadet_weights(model)
+            best_weights = best_fold_weights
+            best_keras_weights = best_fold_keras_weights
 
         if criterion <= acceptance_threshold:
             break
@@ -125,26 +242,28 @@ def _train_single_ann(
 
     return best_weights, best_criterion
 
-
 def train_ann_for_cadet(
     cp: np.ndarray,
     cs: np.ndarray,
     *,
-    hidden_nodes: int = 75,
-    epochs: int = 2000,
-    patience: int = 500,
-    max_retries: int = 5,
+    hidden_nodes: int = 16,
+    epochs: int = 500,
+    patience: int = 50,
     acceptance_threshold: float = 100.0,
     validation_split: float = 0.2,
     verbose: int = 0,
     random_seed: Optional[int] = None,
+    max_retries: int = 2,
+    training_strategy: Literal[
+        "random_split",
+        "k_fold",
+        "leave_one_out",
+        "none",
+    ] = "random_split",
+    n_layers: int = 2,
+    plot_training_curves: Optional[str] = None,
+    normalization_factor: Optional[List[float]] = None,
 ) -> dict:
-    """Train per-component ANN models and return CADET-ready weight dicts.
-
-    Langmuir parameters are auto-fitted from the data to determine the input
-    normalization factor (``keq``) and the Langmuir reference curve used by
-    the integral quality criterion.
-    """
 
     if random_seed is not None:
         tf.keras.utils.set_random_seed(random_seed)
@@ -152,65 +271,54 @@ def train_ann_for_cadet(
     cp = np.asarray(cp, dtype=float)
     cs = np.asarray(cs, dtype=float)
 
-    # -------------------------
-    # normalize cs (outputs)
-    # -------------------------
     if cs.ndim == 1:
         cs = cs.reshape(-1, 1)
-    elif cs.ndim != 2:
-        raise ValueError(f"cs must be 1D or 2D, got {cs.shape}")
 
     N, nBound = cs.shape
 
-    # -------------------------
-    # normalize cp (inputs)
-    # -------------------------
     if cp.ndim == 1:
         cp = cp.reshape(-1, 1)
-        cp_mode = "shared"
-    elif cp.ndim == 2:
-        if cp.shape[0] != N:
-            raise ValueError(f"cp and cs must have same number of rows: {cp.shape}, {cs.shape}")
 
-        if cp.shape[1] == 1:
-            cp_mode = "shared"
-        elif cp.shape[1] == nBound:
-            cp_mode = "per_output"
+    if cp.shape[0] != N:
+        raise ValueError("cp and cs must have same number of rows")
+
+    results = {}
+
+    for i in range(nBound):
+
+        y = cs[:, i]
+        X = cp
+
+        if normalization_factor is not None:
+            norm_factor = normalization_factor[i]
         else:
-            raise ValueError(
-                f"cp has shape {cp.shape} but cs has shape {cs.shape}. "
-                "cp must have either 1 column or match cs columns."
-            )
-    else:
-        raise ValueError(f"cp must be 1D or 2D, got {cp.shape}")
+            norm_factor = 1.0 / (np.max(X, axis=0) + 1e-12)
 
-    # -------------------------
-    # train model
-    # -------------------------
-    # C++ NEURAL_NETWORK has one ANN with nInput=nComp — per-component separate
-    # networks are not supported. Only single-component (nBound=1) is handled here.
-    if nBound != 1:
-        raise NotImplementedError(
-            "train_ann_for_cadet currently only supports nBound=1. "
-            "CADET's NEURAL_NETWORK binding uses a single multi-input ANN (nInput=nComp), "
-            "which requires different training logic for nBound>1."
+        X_norm = X / norm_factor
+
+        weights, _ = _train_single_ann(
+            X_norm,
+            y,
+            hidden_nodes=hidden_nodes,
+            n_layers=n_layers,
+            max_retries=max_retries,
+            acceptance_threshold=acceptance_threshold,
+            verbose=verbose,
+            epochs=epochs,
+            patience=patience,
+            training_strategy=training_strategy,
+            validation_split=validation_split,
+            plot_training_curves=plot_training_curves,
+            annIdx=i
         )
 
-    X_raw = cp  # (N, 1)
-    y = cs[:, 0]
+        results[f"bound_state_{i:03d}"] = { "NORM_FACTOR": norm_factor }
 
-    keq, qm = fit_langmuir(X_raw.reshape(-1), y)
-    X_norm = X_raw * keq  # CADET NORM_FACTOR = keq multiplies the input
+        for layer in range(n_layers+1):
 
-    weights, _ = _train_single_ann(
-        X_norm, y, keq, qm,
-        hidden_nodes=hidden_nodes,
-        epochs=epochs,
-        patience=patience,
-        max_retries=max_retries,
-        acceptance_threshold=acceptance_threshold,
-        validation_split=validation_split,
-        verbose=verbose,
-    )
+            results[f"bound_state_{i:03d}"][f"layer_{layer}"] = {
+                "KERNEL": weights[f"layer_{layer}"]["KERNEL"],
+                "BIAS": weights[f"layer_{layer}"]["BIAS"],
+            }
 
-    return _pack_cadet_ann_params(weights, norm_factor=keq)
+    return results
