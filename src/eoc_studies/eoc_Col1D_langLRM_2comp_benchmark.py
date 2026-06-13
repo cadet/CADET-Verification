@@ -27,8 +27,8 @@ def compute_eoc(errors, refinements, spatial_method):
     for i in range(1, len(errors)):
         #calculate degree of freedoms (DoF) by: aXNelem * (p+1) * (nComp + nBound) + InletDoF
         #in this case: LRM with 2comp: nComp = nBound = 2
-        n_prev = 8 * refinements[i-1] * (spatial_method + 1) * 4 + 2
-        n_curr = 8 * refinements[i]   * (spatial_method + 1) * 4 + 2
+        n_prev = refinements[i-1] * (spatial_method + 1) * 4 + 2
+        n_curr = refinements[i]   * (spatial_method + 1) * 4 + 2
         eoc = np.log(errors[i] / errors[i-1]) / np.log(n_prev / n_curr)
         eoc_values.append(eoc)
     return eoc_values
@@ -46,8 +46,8 @@ def build_eoc_table(spatial_method, refinements, t_ref, ref_solution, output_pat
     return pd.DataFrame({
         "Method":      method_label,
         "Refinement":  refinements,
-        "N elements":  [8 * r for r in refinements],
-        "DoF":         [8*r*(spatial_method +1)*4 + 2 for r in refinements],
+        "N elements":  [r for r in refinements],
+        "DoF":         [r*(spatial_method +1)*4 + 2 for r in refinements],
         "L-inf error": errors,
         "EOC":         [f"{e:.2f}" if e is not None else "-" for e in eoc_values]
     })
@@ -67,29 +67,29 @@ def run_single_simulation(method_bulk, n_ref, output_path):
         raise
 
 # ── main study ─────────────────────────────────────────────────────────────────
-def eoc_display_testing(ref, output_path, n_jobs, small_test):
+def eoc_display_testing(output_path, n_jobs, small_test):
     os.makedirs(output_path, exist_ok=True)
-
     # ── 1. Reference simulation (must finish before others) ───────────────────
-    print(f"Running reference simulation (method=5, ref={ref})...")
+    ref_polydeg   = 10
+    ref_refinement = 300
+    print(f"Running reference simulation (method={ref_polydeg}, refinement={ref_refinement})...")
     sim = Cadet()
-    sim.root = get_model(spatial_method_bulk=5, refinement=ref)
-    sim.filename = f"{output_path}/temp_method5_ref{ref}.h5"
+    sim.root = get_model(spatial_method_bulk=ref_polydeg, refinement=ref_refinement)
+    sim.filename = f"{output_path}/temp_method{ref_polydeg}_ref{ref_refinement}.h5"
     sim.save()
     sim.run_simulation()
     sim.load_from_file()
     print("  reference done.")
-
     # ── 2. Build list of all (method, refinement) combinations ────────────────
-    refinements    = [1, 2, 4, 8, 16] if small_test else [1, 2, 4, 8, 16, 32, 64, 128]
-    spatial_methods = [(0, "FV"), (3, "DG P3")]
+    refinements_FV = [32, 64, 128, 256, 512, 1024, 2048, 4096] if not small_test else [32, 64, 128, 256]
+    refinements_DG = [8, 16, 32, 64, 128, 256, 512, 1024]      if not small_test else [8, 16, 32, 64]
 
+    spatial_methods = [(0, "FV", refinements_FV), (3, "DG P3", refinements_DG)]
     all_runs = [
         (method_bulk, n_ref)
-        for method_bulk, _ in spatial_methods
+        for method_bulk, _, refinements in spatial_methods
         for n_ref in refinements
     ]
-
     # ── 3. Run all simulations in parallel ────────────────────────────────────
     print(f"\nStarting {len(all_runs)} simulations with n_jobs={n_jobs}...")
     Parallel(n_jobs=n_jobs)(
@@ -97,21 +97,17 @@ def eoc_display_testing(ref, output_path, n_jobs, small_test):
         for method_bulk, n_ref in all_runs
     )
     print("All simulations done.")
-
     # ── 4. Load reference and build EOC tables ────────────────────────────────
     print("\nLoading reference solution...")
-    t_ref, ref_solution = load_from_h5(5, ref, output_path)
-
+    t_ref, ref_solution = load_from_h5(ref_polydeg, ref_refinement, output_path)
     print("\nBuilding FV table...")
-    table_FV = build_eoc_table(0, refinements, t_ref, ref_solution, output_path)
+    table_FV = build_eoc_table(0, refinements_FV, t_ref, ref_solution, output_path)
     print("\n=== FV EOC Table ===")
     print(table_FV.to_string(index=False))
-
     print("\nBuilding DG P3 table...")
-    table_dg = build_eoc_table(3, refinements, t_ref, ref_solution, output_path)
+    table_dg = build_eoc_table(3, refinements_DG, t_ref, ref_solution, output_path)
     print("\n=== DG P3 EOC Table ===")
     print(table_dg.to_string(index=False))
-
     # ── 5. Save tables to disk ────────────────────────────────────────────────
     table_FV.to_csv(f"{output_path}/eoc_FV.csv",    index=False)
     table_dg.to_csv(f"{output_path}/eoc_DG_P3.csv", index=False)
@@ -120,8 +116,7 @@ def eoc_display_testing(ref, output_path, n_jobs, small_test):
 # ── entry point ────────────────────────────────────────────────────────────────
 def mainFunc(n_jobs, cadet_path, small_test, output_path):
     Cadet.cadet_path = cadet_path
-    ref_refinement = 32 if small_test else 64
-    eoc_display_testing(ref_refinement, output_path, n_jobs, small_test)
+    eoc_display_testing(output_path, n_jobs, small_test)
 
 # mainFunc(n_jobs=-1,
 #          cadet_path = r"(...)",

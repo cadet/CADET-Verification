@@ -11,7 +11,7 @@ import numpy as np
 
 def get_model(spatial_method_bulk, refinement=1, **kwargs):
     
-    axNElem = 8 * refinement
+    axNElem = refinement
     
     model = Dict()
     
