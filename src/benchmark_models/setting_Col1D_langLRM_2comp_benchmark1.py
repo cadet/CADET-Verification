@@ -14,7 +14,7 @@ def get_model(
         refinement=1,
         **kwargs):
     
-    axNElem = 8 * refinement                                   #number of axial discretization elements
+    axNElem =  refinement                                   #number of axial discretization elements
     
     model = Dict()
     
