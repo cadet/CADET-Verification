@@ -81,10 +81,11 @@ def eoc_display_testing(output_path, n_jobs, small_test):
     sim.load_from_file()
     print("  reference done.")
     # ── 2. Build list of all (method, refinement) combinations ────────────────
-    refinements_FV = [32, 64, 128, 256, 512, 1024, 2048, 4096] if not small_test else [32, 64, 128, 256]
-    refinements_DG = [8, 16, 32, 64, 128, 256, 512, 1024]      if not small_test else [8, 16, 32, 64]
+    refinements_FV = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536] if not small_test else [32, 64, 128, 256]
+    refinements_DGP3 = [8, 16, 32, 64, 128, 256, 512, 1024]                                 if not small_test else [8, 16, 32, 64]
+    refinements_DGP4 = [8, 16, 32, 64, 128, 256, 512, 1024]                               if not small_test else [8, 16, 32, 64]
 
-    spatial_methods = [(0, "FV", refinements_FV), (3, "DG P3", refinements_DG)]
+    spatial_methods = [(0, "FV", refinements_FV), (3, "DG P3", refinements_DGP3), (4, "DG P4", refinements_DGP4)]
     all_runs = [
         (method_bulk, n_ref)
         for method_bulk, _, refinements in spatial_methods
@@ -105,12 +106,18 @@ def eoc_display_testing(output_path, n_jobs, small_test):
     print("\n=== FV EOC Table ===")
     print(table_FV.to_string(index=False))
     print("\nBuilding DG P3 table...")
-    table_dg = build_eoc_table(3, refinements_DG, t_ref, ref_solution, output_path)
+    table_dgp3 = build_eoc_table(3, refinements_DGP3, t_ref, ref_solution, output_path)
     print("\n=== DG P3 EOC Table ===")
-    print(table_dg.to_string(index=False))
+    print(table_dgp3.to_string(index=False))
+    print("\nBuilding DG P4 table...")
+    table_dgp4 = build_eoc_table(4, refinements_DGP4, t_ref, ref_solution, output_path)
+    print("\n=== DG P3 EOC Table ===")
+    print(table_dgp4.to_string(index=False))
     # ── 5. Save tables to disk ────────────────────────────────────────────────
     table_FV.to_csv(f"{output_path}/eoc_FV.csv",    index=False)
-    table_dg.to_csv(f"{output_path}/eoc_DG_P3.csv", index=False)
+    table_dgp3.to_csv(f"{output_path}/eoc_DG_P3.csv", index=False)
+    table_dgp4.to_csv(f"{output_path}/eoc_DG_P4.csv", index=False)
+
     print(f"\nEOC tables saved to {output_path}")
 
 # ── entry point ────────────────────────────────────────────────────────────────
