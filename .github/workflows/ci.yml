@@ -30,34 +30,35 @@ jobs:
       PYTEST_ARGS: ""
 
     steps:
-      - name: Checkout (for Codecov upload context)
-        uses: actions/checkout@v4
-
-      - name: Run tests in Docker (with coverage)
+      - name: Run test in Docker
         run: |
           docker pull "$DOCKER_IMAGE"
 
           docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
             -e REPOSITORY="$REPOSITORY" \
             -e COMMIT_SHA="$COMMIT_SHA" \
             -e TEST_BRANCH="$TEST_BRANCH" \
+            -e PYTEST_ARGS="$PYTEST_ARGS" \
             "$DOCKER_IMAGE" \
             bash -c "
               set -e
 
+              echo 'Creating workspace...'
+              mkdir -p /tmp/cadet-verification
+              cd /tmp/cadet-verification
+
               echo 'Cloning CADET-Verification'
               git clone https://github.com/$REPOSITORY.git .
+              git fetch origin $COMMIT_SHA || true
               git checkout $COMMIT_SHA
 
-              echo 'Installing Python dependencies + coverage tooling'
+              echo 'Installing Python dependencies'
               pip install . pytest pytest-cov
 
               echo 'Running unit tests with coverage'
               pytest test/ \
                 --cov=. \
-                --cov-report=xml:/workspace/coverage.xml
+                --cov-report=xml:/tmp/cadet-verification/coverage.xml
 
               echo 'Running integration tests'
               pytest -s $PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=$TEST_BRANCH
