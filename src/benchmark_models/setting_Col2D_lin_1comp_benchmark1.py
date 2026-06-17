@@ -52,7 +52,7 @@ def get_model(
         column.PAR_TYPE_VOLFRAC = kwargs.get('par_type_volfrac', 1.0)
         # column.PAR_TYPE_VOLFRAC_MULTIPLEX = 0
 
-    column.COL_DISPERSION_AXIAL = 5.75e-8
+    column.COL_DISPERSION_AXIAL = kwargs.get('col_dispersion_axial', 5.75e-8)
     column.COL_DISPERSION_RADIAL = kwargs.get('col_dispersion_radial', 5e-8)
     
     for parType in range(column.NPARTYPE):
@@ -216,13 +216,17 @@ def get_model(
     
     # Sections
     tEnd = kwargs.get('tEnd', 1500.0)
+    tSec1 = kwargs.get('tSec1', 10.0)
     model.solver.sections.NSEC = 2
-    model.solver.sections.SECTION_TIMES = [0.0, 10.0, tEnd]
+    model.solver.sections.SECTION_TIMES = [0.0, tSec1, tEnd]
 
     
     # Note: this velocity is only applied to the first zone.
     # Other zones might have different velocity depending on the porosity
-    zone0Velocity = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
+    if 'velocity' in kwargs:
+        zone0Velocity = kwargs['velocity']
+    else:
+        zone0Velocity = 3.45 / (100.0 * 60.0)  # 3.45 cm/min
     column.VELOCITY = zone0Velocity
     
     # get connections matrix
@@ -278,6 +282,6 @@ def get_model(
     model.model.connections.connections_include_ports = 1
 
     model.solver.sections.SECTION_CONTINUITY = [0,]
-    model.solver.USER_SOLUTION_TIMES = np.linspace(0, tEnd, int(tEnd) + 1)
+    model.solver.USER_SOLUTION_TIMES = kwargs.get('USER_SOLUTION_TIMES', np.linspace(0, tEnd, int(tEnd) + 1))
 
     return {'input': model}

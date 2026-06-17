@@ -6,9 +6,11 @@ The connections generation assumes the 2D column to be the unit with index 000
 
 """
 
+from typing import Callable
+
 import numpy as np
 from scipy.special import legendre
-
+from src.utility import convergence
 
 def stepInlet(zoneIdx, stepSize=1.0, stepStart=1.0):
     return float(stepStart + zoneIdx * stepSize)
@@ -200,4 +202,66 @@ def generate_connections_matrix(rad_method, rad_cells,
                                 rad, 0, -1, -1, flowRates[rad]]
     
     return connections, rad_coords
+
+
+def compute_DG_coords(method, n_cells, col_length):
+    ax_coords = []
+    
+    nAxNodes = (method + 1)
+    nAxPoints = nAxNodes * n_cells
+    
+    if method > 0:
+        nodes, _ = lgl_nodes_weights(method)
+        deltaX = col_length / n_cells
+        for ax in range(n_cells):
+            for node in range(method + 1):
+                ax_coords.append(ax + nodes[node] / (method + 1))
+                ax_coords.append(convergence.map_xi_to_x(nodes[node], ax * deltaX, deltaX))
+    else:
+        deltaX = col_length / nAxPoints
+        for ax in range(nAxPoints):
+            ax_coords.append(ax * deltaX + deltaX / 2.0)
+    
+    return ax_coords
+
+
+def init_state_2D(method, axNElem, radNElem, L, RHO, init_function:Callable=None):
+    """Initializes the state vector for equidistant 2D settings.
+    
+    Parameters
+    ----------
+    axNElem : int
+        number of axial elements
+    radNElem : int
+        number of radial elements
+    L : float
+        column length
+    RHO : float
+        column radius
+    init_function : function, optional
+        function that takes in the axial and radial coordinates and returns the initial value at this point. 
+        If None, the state vector is initialized with zeros.
+    
+    Returns
+    -------
+    List of float
+        Initial state vector.
+    """
+    
+    nStatePoints = (method + 1) * axNElem * radNElem
+    
+    if init_function is None:
+        return [0.0] * nStatePoints
+    
+    state_vector = []
+
+    axCoords = compute_DG_coords(method, axNElem, L)
+    radCoords = compute_DG_coords(method, radNElem, RHO)
+
+    for ax in axCoords:
+        for rad in radCoords:
+            for node in range(method + 1):
+                state_vector.append(init_function(ax, rad))
+    
+    return state_vector
 

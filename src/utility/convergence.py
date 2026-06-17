@@ -1212,7 +1212,7 @@ def get_interpolated_solution(simulation_name, output_coords, polyDeg, nCells, u
 
 
 def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coords, polyDeg, nCells):
-    """Calculate weighted error of solution.
+    """ DG interpolation for nodal elements.
 
     Parameters
     ----------
@@ -1336,11 +1336,11 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
 def get_interpolated_solution_2d(
     orig_values,
     orig_coords,
-    domain,
+    domain: tuple,
     output_coords,
-    polyDeg,
-    nCellsX,
-    nCellsY
+    polyDeg: int,
+    nCellsX: int,
+    nCellsY: int
 ):
     """
     2D tensor-product DG interpolation for structured nodal data.
@@ -1399,10 +1399,8 @@ def get_interpolated_solution_2d(
     nodes, _ = LGL_NodesWeights(polyDeg)
     bw = barycentric_weights(polyDeg)
 
-    # assume structured coordinates:
-    # orig_coords[i,j] = [x_i, y_j]
-    x_coords = orig_coords[:, 0, 0] if orig_coords.ndim == 3 else orig_coords[:, 0]
-    y_coords = orig_coords[0, :, 1] if orig_coords.ndim == 3 else orig_coords[:, 1]
+    x_coords = orig_coords[:, 0]
+    y_coords = orig_coords[:, 1]
 
     for k, (x, y) in enumerate(output_coords):
 
@@ -1428,8 +1426,8 @@ def get_interpolated_solution_2d(
         # nodal hit check (fast structured)
         # -----------------------------------
         if (
-            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, iy0:iy0+nNodes, 0], x)) and
-            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, iy0:iy0+nNodes, 1], y))
+            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, 0], x)) and
+            np.any(np.isclose(orig_coords[iy0:iy0+nNodes, 1], y))
         ):
             # fallback exact node match (rare)
             ix = np.argmin(np.abs(x_coords - x))
