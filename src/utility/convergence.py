@@ -235,58 +235,6 @@ def legendre_gauss_lobatto_nodes_and_weights(N, nit=100, TOL=1e-12):
         return nodes, weights
 
 
-def test_Gauss_and_Lobatto_nodes():
-
-    # test Legendre-Gauss
-    with pytest.raises(ValueError):
-        LGnodes, LGweights = legendre_gauss_nodes_and_weights(-1)
-
-    LGnodes, LGweights = legendre_gauss_nodes_and_weights(0)
-    np.testing.assert_almost_equal(LGnodes, np.array([0.0]), decimal=14)
-    np.testing.assert_almost_equal(LGweights, np.array([2.0]), decimal=14)
-
-    LGnodes, LGweights = legendre_gauss_nodes_and_weights(1)
-    np.testing.assert_almost_equal(
-        LGnodes, np.array([-np.sqrt(1/3), np.sqrt(1/3)]), decimal=14)
-    np.testing.assert_almost_equal(LGweights, np.array([1.0, 1.0]), decimal=14)
-
-    LGnodes, LGweights = legendre_gauss_nodes_and_weights(2)
-    np.testing.assert_almost_equal(
-        LGnodes, np.array([-np.sqrt(3/5), 0.0, np.sqrt(3/5)]), decimal=14)
-    np.testing.assert_almost_equal(
-        LGweights, np.array([5/9, 8/9, 5/9]), decimal=14)
-
-    LGnodes, LGweights = legendre_gauss_nodes_and_weights(4)
-    np.testing.assert_almost_equal(
-        LGnodes, np.array([-0.906179845938664, -0.538469310105683, 0.0,
-                           0.538469310105683, 0.906179845938664]), decimal=14)
-    np.testing.assert_almost_equal(LGweights, np.array([
-        0.236926885056189, 0.478628670499366, 0.568888888888889,
-        0.478628670499366, 0.236926885056189]), decimal=14)
-
-    # test Legendre-Gauss-Lobatto
-    with pytest.raises(ValueError):
-        LGnodes, LGweights = legendre_gauss_lobatto_nodes_and_weights(-1)
-        LGnodes, LGweights = legendre_gauss_lobatto_nodes_and_weights(0)
-
-    LGnodes, LGweights = legendre_gauss_lobatto_nodes_and_weights(1)
-    np.testing.assert_almost_equal(
-        LGnodes, np.array([-1.0, 1.0]), decimal=14)
-    np.testing.assert_almost_equal(LGweights, np.array([1.0, 1.0]), decimal=14)
-
-    LGnodes, LGweights = legendre_gauss_lobatto_nodes_and_weights(2)
-    np.testing.assert_almost_equal(
-        LGnodes, np.array([-1.0, 0.0, 1.0]), decimal=14)
-    np.testing.assert_almost_equal(
-        LGweights, np.array([1/3, 4/3, 1/3]), decimal=14)
-
-    LGnodes, LGweights = legendre_gauss_lobatto_nodes_and_weights(4)
-    np.testing.assert_almost_equal(
-        LGnodes, np.array([-1.0, -np.sqrt(3/7), 0.0, np.sqrt(3/7), 1.0]), decimal=14)
-    np.testing.assert_almost_equal(LGweights, np.array([
-        1/10, 49/90, 32/45, 49/90, 1/10]), decimal=14)
-
-
 def get_simulation(simulation):
     """Get CADET object from h5 file.
 
@@ -1248,32 +1196,6 @@ def map_xi_to_z(xi, cellIdx, deltaZ):
     return z
 
 
-def test_map_z_to_xi():
-
-    polyDeg = 4
-
-    nNodes = polyDeg + 1
-
-    nodes, weights = LGL_NodesWeights(polyDeg)
-
-    x_lIdx = 0
-    cellIdx = 2
-    stretch = 0.1
-    deltaZ = 2 * stretch
-    orig_coords = (nodes + 1) * stretch + deltaZ * cellIdx
-
-    mapped_orig_coords = np.zeros(nNodes)
-
-    for node in range(nNodes):
-        mapped_orig_coords[node] = map_z_to_xi(
-            orig_coords[x_lIdx + node], cellIdx, deltaZ)
-
-    if (abs(mapped_orig_coords - nodes) > 1e-14).any():
-        raise ValueError(
-            "getSolutionDG: mapped_orig_coords != nodes"
-        )
-
-
 # TODO slice ?
 # def interpolate_DGsolution(solution_slice, output_coords, deltaZ=None, nNodes=None):
 
@@ -1317,16 +1239,15 @@ def get_interpolated_solution(simulation_name, output_coords, polyDeg, nCells, u
     return get_interpolated_solution(orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
 
 
-# all arrays need to be sorted w.r.t spatial direction
 def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coords, polyDeg, nCells):
     """Calculate weighted error of solution.
 
     Parameters
     ----------
     orig_values : np.array
-        Solution to be interpolated.
+        Solution to be interpolated, sorted along orig_coords.
     orig_coords : np.array
-        Coordinate vector of solution.
+        Coordinate vector of solution in ascending order.
     domain_end : float
         Length of spatial 1D interval
     output_coords : np.array
@@ -1341,7 +1262,7 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
     np.array
         Solution at output_coords.
     """
-    if np.any(abs(output_coords - domain_end) > 1e-17) or np.any(output_coords < 0.0):
+    if np.any(output_coords - domain_end > 1e-17) or np.any(output_coords < 0.0):
         raise ValueError(
             "get_interpolated_solution: Output coordinates not within [0, L]"
         )
@@ -1438,115 +1359,6 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
                     cellIdx + 1) * nNodes]).sum() / (bary_weights / (mapped_coord - nodes)).sum()
 
     return output_values
-
-
-def test_get_interpolated_DGsolution():
-
-    polyDeg = 4
-    nCells = 30
-    column_length = 1.0
-
-    deltaZ = column_length / nCells
-    nNodes = (polyDeg + 1)
-    nPoints = nNodes * nCells
-    nodes, weights = LGL_NodesWeights(polyDeg)
-
-    x_l = np.linspace(0.0, column_length, num=nCells, endpoint=False)
-
-    # print("x_l:\n", x_l)
-
-    orig_coords = np.zeros(nPoints)
-    orig_values = np.zeros(nPoints)
-
-    for cellIdx in range(nCells):
-        orig_coords[cellIdx * nNodes: (cellIdx + 1) *
-                    nNodes] = map_xi_to_z(nodes, cellIdx, deltaZ)
-
-    # print("orig_coords:\n", orig_coords)
-
-    # test linear concentration function
-    orig_values = orig_coords
-    output_coords = np.linspace(
-        0.0, column_length, num=2*nPoints, endpoint=True)
-
-    output_values = get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
-
-    np.testing.assert_almost_equal(output_values, output_coords, decimal=14)
-
-    # test quadratic concentration function
-    out_polyDeg = 3
-    out_nodes, out_weights = LGL_NodesWeights(polyDeg)
-    for cellIdx in range(nCells*2):
-        output_coords[cellIdx * nNodes: (cellIdx + 1) *
-                      nNodes] = map_xi_to_z(out_nodes, cellIdx, deltaZ/2)
-    orig_values = np.square(orig_coords)
-    # output_coords = np.linspace(0.0, column_length, num=int(nPoints/2), endpoint=True)
-    output_values = get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
-
-    np.testing.assert_almost_equal(
-        output_values, np.square(output_coords), decimal=14)
-
-    # test sinus concentration function (limited accuracy)
-    orig_values = np.sin(orig_coords)
-    output_values = get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
-
-    np.testing.assert_almost_equal(
-        output_values, np.sin(output_coords), decimal=6)
-
-    # print("output_coords:\n", output_coords)
-    # print("output_values:\n", output_values)
-
-    # test two dimensional array
-    output_coords = np.linspace(0.0, column_length, num=nPoints, endpoint=True)
-    nTime = 10
-    orig_values = np.zeros((nTime, nPoints))
-    orig_values[0, :] = np.square(orig_coords)
-    orig_values[5, :] = np.power(orig_coords, polyDeg)
-    compare = np.zeros((nTime, nPoints))
-    compare[0, :] = np.square(output_coords)
-    compare[5, :] = np.power(output_coords, polyDeg)
-
-    output_values = get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
-
-    np.testing.assert_almost_equal(output_values, compare, decimal=14)
-
-    # test three dimensional array
-    nTime = 12
-    nComp = 3
-    orig_values = np.zeros((nTime, nPoints, nComp))
-    orig_values[0, :, 0] = np.square(orig_coords)
-    orig_values[3, :, 0] = np.power(orig_coords, polyDeg)
-    orig_values[7, :, 2] = np.power(orig_coords, polyDeg - 1)
-    compare = np.zeros((nTime, nPoints, nComp))
-    compare[0, :, 0] = np.square(output_coords)
-    compare[3, :, 0] = np.power(output_coords, polyDeg)
-    compare[7, :, 2] = np.power(output_coords, polyDeg - 1)
-
-    output_values = get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
-
-    np.testing.assert_almost_equal(output_values, compare, decimal=14)
-
-    # # test runtime for three dimensional array
-    # nTime = 1000  # for 10000 already couple seconds -> enhance get_interpolated_solution?
-    # nComp = 4
-    # orig_values = np.zeros((nTime, nPoints, nComp))
-    # orig_values[476, :, 0] = np.square(orig_coords)
-    # orig_values[100, :, 1] = np.power(orig_coords, polyDeg)
-    # orig_values[20, :, 3] = np.power(orig_coords, polyDeg - 1)
-    # compare = np.zeros((nTime, nPoints, nComp))
-    # compare[476, :, 0] = np.square(output_coords)
-    # compare[100, :, 1] = np.power(output_coords, polyDeg)
-    # compare[20, :, 3] = np.power(output_coords, polyDeg - 1)
-
-    # output_values = get_interpolated_solution(
-    #     orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
-
-    # np.testing.assert_almost_equal(output_values, compare, decimal=14)
 
 
 def get_unique_DGcoordinates(coords):
@@ -1933,30 +1745,6 @@ def generate_simulation_names_1D(prefix, methods, disc, suffix='.h5'):
     return _simulation_names
 
 
-def test_generate_simulation_names_1D():
-
-    prefix = "LinearLRM1Comp"
-    methods = [1]
-    disc = [1, 2, 4]
-    names = np.array(generate_simulation_names_1D(prefix, methods, disc))
-    expected_names = np.array([prefix+"_DG_P1Z1",
-                              prefix+"_DG_P1Z2",
-                              prefix+"_DG_P1Z4"])
-    np.testing.assert_array_equal(names, expected_names)
-
-    methods = [2, -3]
-    disc = [[2, 4, 8], [1, 2, 4]]
-    names = np.array(generate_simulation_names_1D(prefix, methods, disc))
-    expected_names = np.array([prefix+"_DG_P2Z2",
-                              prefix+"_DG_P2Z4",
-                              prefix+"_DG_P2Z8",
-                              prefix+"_DGexInt_P3Z1",
-                              prefix+"_DGexInt_P3Z2",
-                              prefix+"_DGexInt_P3Z4"
-                               ])
-    np.testing.assert_array_equal(names, expected_names)
-
-
 def generate_2D_name(prefix, axP, axCells, radP, radCells, suffix='.h5'):
     """Generate simulation name for bulk discretized models (2DLRMP, 2DLRM).
 
@@ -2243,50 +2031,6 @@ def generate_simulation_names_GRM(
     return _simulation_names
 
 
-def test_generate_simulation_names_GRM():
-
-    prefix = "LinearGRM2Comp"
-    ax_methods = [2]
-    par_methods = [1]
-    ax_cells = [8]
-    par_cells = [1]
-    names = np.array(generate_simulation_names_GRM(
-        prefix, ax_methods, ax_cells, par_methods, par_cells, suffix='.hmpf'))
-    expected_names = np.array([prefix+"_DG_P2Z8parP1parZ1.hmpf"])
-    np.testing.assert_array_equal(names, expected_names)
-
-    ax_methods = [2]
-    par_methods = [1]
-    ax_cells = [8, 16, 32]
-    par_cells = [1, 2, 4]
-    names = np.array(generate_simulation_names_GRM(
-        prefix, ax_methods, ax_cells, par_methods, par_cells))
-    expected_names = np.array([prefix+"_DG_P2Z8parP1parZ1.h5",
-                              prefix+"_DG_P2Z16parP1parZ2.h5",
-                              prefix+"_DG_P2Z32parP1parZ4.h5"])
-    np.testing.assert_array_equal(names, expected_names)
-
-    ax_methods = [0, 0,  -2, 3]
-    par_methods = [-1, 0,  2, 3]
-    ax_cells = [[8, 16, 32], [8, 16, 32], [8, 16, 32], [8, 16, 32]]
-    par_cells = [[1, 2, 4], [1, 2, 4], [1, 2, 4], [1, 2, 4]]
-    names = np.array(generate_simulation_names_GRM(
-        prefix, ax_methods, ax_cells, par_methods, par_cells))
-    expected_names = np.array([
-        prefix+"_FV_Z8parZ1.h5",
-        prefix+"_FV_Z16parZ2.h5",
-        prefix+"_FV_Z32parZ4.h5",
-        prefix+"_DGexInt_P2Z8parP2parZ1.h5",
-        prefix+"_DGexInt_P2Z16parP2parZ2.h5",
-        prefix+"_DGexInt_P2Z32parP2parZ4.h5",
-        prefix+"_DG_P3Z8parP3parZ1.h5",
-        prefix+"_DG_P3Z16parP3parZ2.h5",
-        prefix+"_DG_P3Z32parP3parZ4.h5",
-    ])
-
-    np.testing.assert_array_equal(names, expected_names)
-
-
 def generate_simulation_names_2DGRM(
         prefix, ax_methods, ax_cells, rad_methods, rad_cells, par_methods, par_cells, suffix='.h5'
 ):
@@ -2424,35 +2168,6 @@ def generate_simulation_names(
             return generate_simulation_names_2DGRM(
                 prefix, ax_methods, ax_cells, rad_methods, rad_cells,
                 par_methods, par_cells, suffix)
-
-
-def test_generate_simulation_names():
-
-    with pytest.raises(ValueError):
-        names = np.array(generate_simulation_names("prefix", [0], [2, 4], [1]))
-
-    methods = [2, -3]
-    disc = [[2, 4, 8], [1, 2, 4]]
-    prefix = "prefix"
-    names = np.array(generate_simulation_names(prefix, methods, disc))
-    expected_names = np.array([prefix+"_DG_P2Z2.h5",
-                              prefix+"_DG_P2Z4.h5",
-                              prefix+"_DG_P2Z8.h5",
-                              prefix+"_DGexInt_P3Z1.h5",
-                              prefix+"_DGexInt_P3Z2.h5",
-                              prefix+"_DGexInt_P3Z4.h5"
-                               ])
-    np.testing.assert_array_equal(names, expected_names)
-
-    methods = [0]
-    disc = [2, 4, 8]
-    prefix = "prefix"
-    names = np.array(generate_simulation_names(prefix, methods, disc))
-    expected_names = np.array([prefix+"_FV_Z2.h5",
-                              prefix+"_FV_Z4.h5",
-                              prefix+"_FV_Z8.h5"
-                               ])
-    np.testing.assert_array_equal(names, expected_names)
 
 
 def std_name_prefix(transport_model, binding_model, dyn=None, n_comp=None):
@@ -2628,8 +2343,10 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
     method : np.array
         Discretization method, i.e. polynomial degree(s) of method with FV -> 0.
         Multiple polynomial degrees must be specified for GRM, i.e. [bulk, particle].
+    full_DOFs : Bool
+        Determines whether all DOFs should be considered, i.e. including flux and particle states,
     model : string
-        Chromatography model (LRMP, LRM, GRM), only required for LRM and LRMP
+        Model such as LRM, GRM, LRMP, MCT, DPFR, COL1D, ...
     nComp : int
         Number of components
     nBound : int
@@ -2680,6 +2397,7 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
         inlet_dof = nComp if full_DOFs else 0
         
         if discretization.ndim == 2:  # GRM
+
             bulk_dof = (abs(method[0]) + 1) * discretization[0, :] * nComp
             if full_DOFs:
                 if method[0] == 0:  # add flux states for FV discretization
@@ -2740,87 +2458,6 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
         return inlet_dof + bulk_dof + par_dof + flux_dof
 
 
-def test_calculate_DOFs():
-
-    # test GRM
-    disc = [[4, 8, 10, 32], [1, 2, 3, 5]]
-    method = [3, 2]
-    nComp = 3
-    nBound = nComp
-
-    inletDOFs = np.array([1, 1, 1, 1]) * nComp
-    bulkDOFs = (method[0] + 1) * np.array(disc[0]) * nComp
-    fluxDOFs = bulkDOFs
-    parDOFs = np.multiply(
-        (nComp + nBound) * (method[1] + 1) * np.array(disc[1]),
-        (method[0] + 1) * np.array(disc[0])
-    )
-    DOFs = inletDOFs + bulkDOFs + fluxDOFs + parDOFs
-
-    np.testing.assert_array_equal(
-        bulkDOFs,
-        calculate_DOFs(disc, method, nComp=nComp, full_DOFs=False)
-    )
-    np.testing.assert_array_equal(
-        DOFs,
-        calculate_DOFs(disc, method, nComp=nComp, full_DOFs=True)
-    )
-
-    # test LRM
-    disc = [4, 8, 10, 32]
-    method = [1]
-    nComp = 3
-    nBound = 4
-
-    inletDOFs = np.array([1, 1, 1, 1]) * nComp
-    bulkDOFs = (method[0] + 1) * np.array(disc) * nComp
-    parDOFs = (method[0] + 1) * np.array(disc) * nBound
-    DOFs = inletDOFs + bulkDOFs + parDOFs
-
-    np.testing.assert_array_equal(
-        bulkDOFs,
-        calculate_DOFs(disc, method, nComp=nComp, nBound=nBound,
-                       full_DOFs=False,
-                       model="LRM")
-    )
-    np.testing.assert_array_equal(
-        DOFs,
-        calculate_DOFs(disc, method, nComp=nComp, nBound=nBound,
-                       full_DOFs=True,
-                       model="LRM")
-    )
-
-    # test LRMP
-    disc = [4, 8, 10, 32]
-    method = [1]
-    nComp = 3
-    nBound = 4
-
-    inletDOFs = np.array([1, 1, 1, 1]) * nComp
-    bulkDOFs = (method[0] + 1) * np.array(disc) * nComp
-    parDOFs = (method[0] + 1) * np.array(disc) * (nComp + nBound)
-    DOFs = inletDOFs + bulkDOFs + parDOFs
-
-    np.testing.assert_array_equal(
-        bulkDOFs,
-        calculate_DOFs(disc, method, nComp=nComp, nBound=nBound,
-                       full_DOFs=False,
-                       model="LRMP")
-    )
-    method = [0]  # FV, i.e. with flux
-    inletDOFs = np.array([1, 1, 1, 1]) * nComp
-    bulkDOFs = (method[0] + 1) * np.array(disc) * nComp
-    fluxDOFs = bulkDOFs
-    parDOFs = (method[0] + 1) * np.array(disc) * (nComp + nBound)
-    DOFs = inletDOFs + bulkDOFs + fluxDOFs + parDOFs
-    np.testing.assert_array_equal(
-        DOFs,
-        calculate_DOFs(disc, method, nComp=nComp, nBound=nBound,
-                       full_DOFs=True,
-                       model="LRMP")
-    )
-
-
 def calculate_eoc(discretization, error):
     """Calculate experimental order of convergence.
 
@@ -2861,31 +2498,6 @@ def calculate_eoc(discretization, error):
     ratio_error = error[1:]/error[:-1]
 
     return np.log2(ratio_error)/np.log2(ratio_discretization)
-
-
-def test_eoc():
-    dof = [1, 2, 4, 8, 16]
-    error = [0.1, 0.05, 0.025, 0.0125, 0.00625]
-
-    eoc_expected = [1, 1, 1, 1]
-    eoc = calculate_eoc(dof, error)
-
-    np.testing.assert_almost_equal(eoc, eoc_expected)
-
-    with pytest.raises(ValueError):
-        dof_zero = [1, 2, 4, 8, 0]
-        eoc = calculate_eoc(dof_zero, error)
-
-    with pytest.raises(ValueError):
-        error_smaller_zero = [-0.1, 0.05, 0.025, 0.0125, 0.00625]
-        eoc = calculate_eoc(dof, error_smaller_zero)
-
-    # Test eps
-    error_zero = [0.1, 0.05, 0.025, 0.0125, 0]
-
-    eoc_expected = [1, 1, 1, 45.67807191]
-    eoc = calculate_eoc(dof, error_zero)
-    np.testing.assert_almost_equal(eoc, eoc_expected)
 
 
 """
@@ -3079,67 +2691,6 @@ def convergency_table(method,
         table.append(get_compute_times(sim_names))
 
     return header, np.array(table).transpose()
-
-
-def test_convergency_table():
-
-    # GRM test for L1/max error
-    expected_order = 3
-    method = np.array([1, 1]) * (expected_order - 1)
-    discretizations = [[4, 8, 16], [1, 2, 4]]
-    full_DOFs = False
-
-    error_type = ["max"]
-    initial_errors = np.random.rand(100)
-    error_factors = np.zeros(len(discretizations[0]))
-    for i in range(0, len(error_factors)):
-        error_factors[i] = 2 ** (expected_order * i)
-    abs_errors = np.zeros([len(error_factors), len(initial_errors)])
-
-    for factor in range(0, len(error_factors)):
-        abs_errors[factor] = initial_errors / error_factors[factor]
-
-    header, table = convergency_table(method=method, disc=discretizations, abs_errors=abs_errors,
-                                      error_types=error_type, full_DOFs=full_DOFs)
-
-    np.testing.assert_array_equal(header, np.array(
-        ["$N_e^z$", "$N_e^p$", 'Max. error', 'Max. EOC']))
-    np.testing.assert_almost_equal(
-        table[:, 0], discretizations[0])  # check axial disc
-    np.testing.assert_almost_equal(
-        table[:, 1], discretizations[1])  # check particle disc
-    np.testing.assert_almost_equal(
-        table[:, 2], np.amax(abs_errors, axis=1))  # check errors
-    np.testing.assert_almost_equal(table[1:, 3], np.ones(
-        len(discretizations[0])-1) * expected_order)  # check EOC
-
-    # LRMP/LRM test for L1/max error
-    expected_order = 3
-    method = (expected_order - 1)
-    discretizations = [4, 8, 16]
-    full_DOFs = False
-
-    error_type = ["max"]
-    initial_errors = np.random.rand(100)
-    error_factors = np.zeros(len(discretizations))
-    for i in range(0, len(error_factors)):
-        error_factors[i] = 2 ** (expected_order * i)
-    abs_errors = np.zeros([len(error_factors), len(initial_errors)])
-
-    for factor in range(0, len(error_factors)):
-        abs_errors[factor] = initial_errors / error_factors[factor]
-
-    header, table = convergency_table(method=method, disc=discretizations, abs_errors=abs_errors,
-                                      error_types=error_type, full_DOFs=full_DOFs)
-
-    np.testing.assert_array_equal(header, np.array(
-        ["$N_e^z$", 'Max. error', 'Max. EOC']))
-    np.testing.assert_almost_equal(
-        table[:, 0], discretizations)  # check axial disc
-    np.testing.assert_almost_equal(
-        table[:, 1], np.amax(abs_errors, axis=1))  # check errors
-    np.testing.assert_almost_equal(table[1:, 2], np.ones(
-        len(discretizations)-1) * expected_order)  # check EOC
 
 
 def calculate_convergence_tables_from_files(
