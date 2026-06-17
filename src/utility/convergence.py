@@ -3617,14 +3617,3 @@ def delete_h5_files(directory, exclude_files=None):
         print("No .h5 files deleted in the {directory} directory.")
     else:
         print(f"Deleted {deleted_files} .h5 file(s) in the {directory} directory.")
-
-
-if __name__ == '__main__':
-
-    test_eoc()
-    test_calculate_DOFs()
-    test_convergency_table()
-    test_get_unique_DGsolution()
-    test_map_x_to_xi()
-    test_get_interpolated_DGsolution()
-    test_Gauss_and_Lobatto_nodes()
