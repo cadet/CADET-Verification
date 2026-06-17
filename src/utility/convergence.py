@@ -1355,6 +1355,127 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
     return output_values
 
 
+def get_interpolated_solution_2d(
+    orig_values,
+    orig_coords,
+    domain,
+    output_coords,
+    polyDeg,
+    nCellsX,
+    nCellsY
+):
+    """
+    2D tensor-product DG interpolation for structured nodal data.
+    """
+
+    Lx, Ly = domain
+    output_coords = np.asarray(output_coords)
+
+    # ---------------------------
+    # Handle extra dimensions
+    # ---------------------------
+    if orig_values.ndim == 4:  # time x X x Y x comp
+        T, Nx, Ny, C = orig_values.shape
+        out = np.zeros((T, len(output_coords), C))
+
+        for t in range(T):
+            for c in range(C):
+                out[t, :, c] = get_interpolated_solution_2d(
+                    orig_values[t, :, :, c],
+                    orig_coords,
+                    domain,
+                    output_coords,
+                    polyDeg,
+                    nCellsX,
+                    nCellsY
+                )
+        return out
+
+    if orig_values.ndim == 3:  # time x X x Y
+        T, Nx, Ny = orig_values.shape
+        out = np.zeros((T, len(output_coords)))
+
+        for t in range(T):
+            out[t, :] = get_interpolated_solution_2d(
+                orig_values[t],
+                orig_coords,
+                domain,
+                output_coords,
+                polyDeg,
+                nCellsX,
+                nCellsY
+            )
+        return out
+
+    # ---------------------------
+    # steady case: (Nx, Ny)
+    # ---------------------------
+    Nx, Ny = orig_values.shape
+    out = np.zeros(len(output_coords))
+
+    dx = Lx / nCellsX
+    dy = Ly / nCellsY
+
+    nNodes = polyDeg + 1
+
+    nodes, _ = LGL_NodesWeights(polyDeg)
+    bw = barycentric_weights(polyDeg)
+
+    # assume structured coordinates:
+    # orig_coords[i,j] = [x_i, y_j]
+    x_coords = orig_coords[:, 0, 0] if orig_coords.ndim == 3 else orig_coords[:, 0]
+    y_coords = orig_coords[0, :, 1] if orig_coords.ndim == 3 else orig_coords[:, 1]
+
+    for k, (x, y) in enumerate(output_coords):
+
+        # -----------------------------------
+        # find DG cell indices
+        # -----------------------------------
+        cx = min(int(x / dx), nCellsX - 1)
+        cy = min(int(y / dy), nCellsY - 1)
+
+        # local coordinates in reference element
+        xi = map_x_to_xi(x, cx * dx, dx)
+        eta = map_x_to_xi(y, cy * dy, dy)
+
+        # -----------------------------------
+        # global DOF ranges
+        # -----------------------------------
+        ix0 = cx * nNodes
+        iy0 = cy * nNodes
+
+        block = orig_values[ix0:ix0 + nNodes, iy0:iy0 + nNodes]
+
+        # -----------------------------------
+        # nodal hit check (fast structured)
+        # -----------------------------------
+        if (
+            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, iy0:iy0+nNodes, 0], x)) and
+            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, iy0:iy0+nNodes, 1], y))
+        ):
+            # fallback exact node match (rare)
+            ix = np.argmin(np.abs(x_coords - x))
+            iy = np.argmin(np.abs(y_coords - y))
+            out[k] = orig_values[ix, iy]
+            continue
+
+        # -----------------------------------
+        # 1D Lagrange basis in each direction
+        # -----------------------------------
+        Lx = bw / (xi - nodes)
+        Ly = bw / (eta - nodes)
+
+        Lx /= np.sum(Lx)
+        Ly /= np.sum(Ly)
+
+        # -----------------------------------
+        # tensor product evaluation
+        # -----------------------------------
+        out[k] = np.sum(block * np.outer(Lx, Ly))
+
+    return out
+
+
 def get_unique_DGcoordinates(coords):
 
     return np.unique(coords)
