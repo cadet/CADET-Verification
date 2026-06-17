@@ -307,3 +307,88 @@ def test_get_interpolated_DGsolution():
         orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
 
     np.testing.assert_almost_equal(output_values, compare, decimal=14)
+def test_get_interpolated_solution_2d_dg_grid():
+
+    # -------------------------
+    # DG parameters
+    # -------------------------
+    Lx, Ly = 1.0, 1.0
+    polyDeg = 3
+    nCellsX, nCellsY = 2, 2
+
+    nNodes = polyDeg + 1
+
+    # -------------------------
+    # reference DG nodes
+    # -------------------------
+    nodes, weights = convergence.LGL_NodesWeights(polyDeg)
+
+    # -------------------------
+    # build DG grid in x/y
+    # -------------------------
+    dx = Lx / nCellsX
+    dy = Ly / nCellsY
+
+    Nx = nCellsX * nNodes
+    Ny = nCellsY * nNodes
+
+    # structured coordinates aligned with DG nodes
+    orig_coords = np.zeros((Nx, Ny, 2))
+
+    for cx in range(nCellsX):
+        for cy in range(nCellsY):
+
+            for i in range(nNodes):
+                for j in range(nNodes):
+
+                    ix = cx * nNodes + i
+                    iy = cy * nNodes + j
+
+                    # map reference LGL node -> physical cell
+                    xi = nodes[i]
+                    eta = nodes[j]
+
+                    x = cx * dx + 0.5 * (xi + 1) * dx
+                    y = cy * dy + 0.5 * (eta + 1) * dy
+
+                    orig_coords[ix, iy, 0] = x
+                    orig_coords[ix, iy, 1] = y
+
+    # -------------------------
+    # polynomial DG test function
+    # (must be exactly representable in degree p)
+    # -------------------------
+    def u(x, y):
+        return 1 + 2*x + 3*y + x*y + x**2 + y**2
+
+    orig_values = np.zeros((Nx, Ny))
+
+    for i in range(Nx):
+        for j in range(Ny):
+            orig_values[i, j] = u(orig_coords[i, j, 0], orig_coords[i, j, 1])
+
+    # -------------------------
+    # test points
+    # -------------------------
+    np.random.seed(0)
+    Nout = 100
+    output_coords = np.random.rand(Nout, 2)
+
+    # -------------------------
+    # call interpolation
+    # -------------------------
+    out = convergence.get_interpolated_solution_2d(
+        orig_values,
+        orig_coords,
+        (Lx, Ly),
+        output_coords,
+        polyDeg,
+        nCellsX,
+        nCellsY
+    )
+
+    exact = np.array([u(x, y) for x, y in output_coords])
+    
+    np.testing.assert_almost_equal(
+        out, exact, decimal=14
+    )
