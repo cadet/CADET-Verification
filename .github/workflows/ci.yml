@@ -28,11 +28,18 @@ jobs:
       REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       TEST_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
       PYTEST_ARGS: ""
+
     steps:
-      - name: Run test in Docker
+      - name: Checkout (for Codecov upload context)
+        uses: actions/checkout@v4
+
+      - name: Run tests in Docker (with coverage)
         run: |
           docker pull "$DOCKER_IMAGE"
+
           docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
             -e REPOSITORY="$REPOSITORY" \
             -e COMMIT_SHA="$COMMIT_SHA" \
             -e TEST_BRANCH="$TEST_BRANCH" \
@@ -40,27 +47,24 @@ jobs:
             bash -c "
               set -e
 
-              echo \"Using CADET-Verification commit: \$COMMIT_SHA\"
-              echo \"Using CADET-Verification repository: \$REPOSITORY\"
-              echo \"Using branch for ProjectRepo: \$TEST_BRANCH\"
-
-              echo 'Creating and entering workspace...'
-              mkdir -p /tmp/cadet-verification && cd /tmp/cadet-verification
-
               echo 'Cloning CADET-Verification'
-              git clone https://github.com/\$REPOSITORY.git .
-              git fetch origin \$COMMIT_SHA || true
-              git checkout \$COMMIT_SHA
+              git clone https://github.com/$REPOSITORY.git .
+              git checkout $COMMIT_SHA
 
-              echo 'Checked out revision:'
-              git rev-parse HEAD
+              echo 'Installing Python dependencies + coverage tooling'
+              pip install . pytest pytest-cov
 
-              echo 'Installing Python dependencies'
-              pip install .
+              echo 'Running unit tests with coverage'
+              pytest test/ \
+                --cov=. \
+                --cov-report=xml:/workspace/coverage.xml
 
-              echo 'Running unit tests'
-              python -m pytest test/
-
-              echo 'Running integration tests: verify cadet-core'
-              pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=\$TEST_BRANCH
+              echo 'Running integration tests'
+              pytest -s $PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=$TEST_BRANCH
             "
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: true
