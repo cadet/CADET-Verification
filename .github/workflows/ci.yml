@@ -35,6 +35,8 @@ jobs:
           docker pull "$DOCKER_IMAGE"
 
           docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
             -e REPOSITORY="$REPOSITORY" \
             -e COMMIT_SHA="$COMMIT_SHA" \
             -e TEST_BRANCH="$TEST_BRANCH" \
@@ -58,7 +60,7 @@ jobs:
               echo 'Running unit tests with coverage'
               pytest test/ \
                 --cov=. \
-                --cov-report=xml:/tmp/cadet-verification/coverage.xml
+                --cov-report=xml:/workspace/coverage.xml
 
               echo 'Running integration tests'
               pytest -s $PYTEST_ARGS scripts/verify_cadet-core.py --branch-name=$TEST_BRANCH
