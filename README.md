@@ -1,5 +1,10 @@
 # CADET-Verification
 
+[![GitHub release](https://img.shields.io/github/release/cadet/CADET-Verification.svg)](https://github.com/cadet/CADET-Verification/releases)
+[![CI](https://github.com/cadet/CADET-Verification/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cadet/CADET-Verification/actions/workflows/ci.yml?query=branch%3Amaster)
+[![Codecov](https://codecov.io/gh/cadet/CADET-Verification/graph/badge.svg?token=NKLJL03PA5)](https://codecov.io/gh/cadet/CADET-Verification/graph)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14651341.svg)](https://doi.org/10.5281/zenodo.14651341)
+
 This repository is subjected to the CADET-Core simulator and includes a comprehensive suite of tests that extend beyond the scope of a typical CI pipeline.
 CADET-Verification verifies the implementation, models and methods within CADET-Core via order-of-convergence tests and the recreation of validated case studies.
 CADET-Verification is part of the deployment pipeline of CADET-Core and must additionally be run on demand, i.e. when critical changes are made to the simulator.
