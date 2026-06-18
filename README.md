@@ -1,7 +1,7 @@
 # CADET-Verification
 
 [![GitHub release](https://img.shields.io/github/release/cadet/CADET-Verification.svg)](https://github.com/cadet/CADET-Verification/releases)
-[![CI](https://github.com/cadet/CADET-Verification/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cadet/CADET-Verification/actions/workflows/ci.yml?query=branch%3Amaster)
+[![CI](https://github.com/cadet/CADET-Verification/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cadet/CADET-Verification/actions/workflows/ci.yml?query=branch%3Amaster)
 [![Codecov](https://codecov.io/gh/cadet/CADET-Verification/graph/badge.svg?token=NKLJL03PA5)](https://codecov.io/gh/cadet/CADET-Verification/graph)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14651341.svg)](https://doi.org/10.5281/zenodo.14651341)
 
