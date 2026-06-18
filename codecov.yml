@@ -8,7 +8,7 @@ coverage:
         informational: false
     patch:
       default:
-        target: auto
+        target: 90%
         threshold: 0%
         base: auto
         informational: false
