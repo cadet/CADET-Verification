@@ -2410,11 +2410,11 @@ def calculate_DOFs(discretization, method=np.array([3]), nComp=1,
         elif discretization.ndim in [0, 1]:  # LRM or LRMP or DPFR
             bulk_dof = (abs(method) + 1) * discretization * nComp
             if full_DOFs:
-                if model == "LRMP":
+                if model.upper() == "LRMP":
                     par_dof = (nComp + nBound) * abs(method+1) * discretization
                     if method == 0:  # add flux states for FV discretization
                         flux_dof = bulk_dof
-                elif model == "LRM" or model == "COL1D" or model == "DPFR":
+                elif model.upper() in ("LRM", "COL1D", "DPFR"):
                     par_dof = nBound * abs(method+1) * discretization
                 else:
                     raise ValueError(
