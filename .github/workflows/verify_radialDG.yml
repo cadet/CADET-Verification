@@ -169,7 +169,7 @@ jobs:
       fail-fast: false
       matrix:
         polydeg: [1, 2, 3, 4, 5]
-        node_type: [CGL, LGL]
+        node_type: [CHEBYSHEV_GAUSS_LOBATTO, LEGENDRE_GAUSS_LOBATTO]
     defaults:
       run:
         shell: bash -l {0}
