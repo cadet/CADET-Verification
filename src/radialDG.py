@@ -80,7 +80,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
             return 'EQUILIBRIUM_PARTICLE'
 
     def refine_DG(config_data, disc_idx, setting_name,
-                  polyDeg, node_type='CGL',
+                  polyDeg, node_type='CHEBYSHEV_GAUSS_LOBATTO',
                   nelem_start=2, time_integrator=None,
                   unit_id='001',
                   refine_par=False,
@@ -200,7 +200,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
     poly_degs_1 = list(range(1, 6)) if not small_test else [1, 2]
     if study1_polydegs is not None:
         poly_degs_1 = [p for p in poly_degs_1 if p in study1_polydegs]
-    node_types_1 = study1_node_types if study1_node_types is not None else ['CGL', 'LGL']
+    node_types_1 = study1_node_types if study1_node_types is not None else ['CHEBYSHEV_GAUSS_LOBATTO', 'LEGENDRE_GAUSS_LOBATTO']
 
     if not small_test:
         _n_disc_1 = {1: 10, 2: 10, 3: 8, 4: 7, 5: 7}
@@ -473,7 +473,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
                     [partial(refine_DG,
                              setting_name=name,
                              polyDeg=polyDeg,
-                             node_type='CGL',
+                             node_type='CHEBYSHEV_GAUSS_LOBATTO',
                              nelem_start=_nelem_start,
                              time_integrator=ti,
                              refine_par=is_grm)]
@@ -588,7 +588,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
                         [partial(refine_DG,
                                  setting_name=name,
                                  polyDeg=p,
-                                 node_type='CGL',
+                                 node_type='CHEBYSHEV_GAUSS_LOBATTO',
                                  nelem_start=dg_discs[0],
                                  time_integrator=time_integrator_strict)]
                     ],
