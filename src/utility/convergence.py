@@ -465,28 +465,6 @@ def get_solution_times(simulation):
         )
     )
 
-def get_commit_hash(simulation):
-    """Get compute time from simulation
-
-    Parameters
-    ----------
-    simulation : string or CADET object
-        specifies the simulation of interest
-
-    Returns
-    -------
-    np.array
-        Solution vector.
-    """
-    
-    simRoot = get_simulation(simulation).root
-    commit_info = sim_go_to(simRoot, ['meta', 'cadet_commit']).decode('utf-8')
-    
-    if commit_info == 'GITDIR-NOTFOUND':
-        commit_info = 'v.' + sim_go_to(simRoot, ['meta', 'cadet_version']).decode('utf-8') + ' commit'
-    
-    return commit_info
-
 
 def get_compute_time(simulation):
     """Get compute time from simulation

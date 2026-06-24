@@ -781,9 +781,7 @@ def run_convergence_analysis_from_configs(
         backend(delayed(run_simulation_in_verification)(sim, cadet_path)
                 for sim in zip(sims))
 
-        commit_hash = convergence.get_commit_hash(
-            convergence.get_simulation(sims[0].filename)
-            )
+        commit_hash = convergence.get_simulation(sims[0].filename).commit_hash
 
     return run_convergence_analysis_core(
         commit_hash=commit_hash,

@@ -26,7 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 cadet = [
 	"cadet-core>=6.0.0a3",
-	"cadet-python>=1.2",
+	"cadet-python>=1.3",
 	"cadet-rdm>=1.1.2",
 ]
 
