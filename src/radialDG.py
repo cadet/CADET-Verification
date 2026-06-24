@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-EOC tests for radial DG discretization.
+EOC tests for radial chromatography.
 
 Studies:
   1. Pure bulk transport CGL vs LGL — convergence to FV WENO3 reference
@@ -197,7 +197,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
     #  Study 1: Pure transport CGL vs LGL — convergence to FV WENO3 reference
     # ===========================================================================
 
-    poly_degs_1 = list(range(1, 6)) if not small_test else [1, 2]
+    poly_degs_1 = list(range(1, 6)) if not small_test else [3]
     if study1_polydegs is not None:
         poly_degs_1 = [p for p in poly_degs_1 if p in study1_polydegs]
     node_types_1 = study1_node_types if study1_node_types is not None else ['CHEBYSHEV_GAUSS_LOBATTO', 'LEGENDRE_GAUSS_LOBATTO']
@@ -209,7 +209,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
 
     base_model_transport = setting_DG_transport.get_model()
 
-    _fv_ncol_1 = 131072 if not small_test else 32
+    _fv_ncol_1 = 131072 if not small_test else 128
     fv_name_1 = 'radCol1D_FV_WENO3_transport_1comp'
     ref_file_1 = convergence.generate_1D_name(fv_name_1, 0, _fv_ncol_1)
 
@@ -313,13 +313,12 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
     par_discs = []
     disc_refinement_functions = []
 
-    poly_degs_GRM = list(range(1, 5)) if not small_test else [1, 2]
+    poly_degs_GRM = list(range(1, 5)) if not small_test else [3]
     n_disc_DG_GRM = 6 if not small_test else 4
 
-    poly_degs_LRM = list(range(1, 6)) if not small_test else [1, 2]
+    poly_degs_LRM = list(range(1, 6)) if not small_test else [3]
     n_disc_DG_LRM = 10 if not small_test else 4
 
-    _fv_start_2 = fv_start_ncol if fv_start_ncol is not None else 4
     n_disc_FV_2 = fv_n_disc if fv_n_disc is not None else (17 if not small_test else 4)
 
     n_disc_FV_2_GRM_SMA = fv_n_disc if fv_n_disc is not None else (6 if not small_test else 4)
@@ -528,7 +527,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
     par_discs = []
     disc_refinement_functions = []
 
-    poly_degs_3 = [3, 4, 5] if not small_test else [1, 2]
+    poly_degs_3 = [3, 4, 5] if not small_test else [3]
     if study3_polydegs is not None:
         poly_degs_3 = [p for p in poly_degs_3 if p in study3_polydegs]
 
