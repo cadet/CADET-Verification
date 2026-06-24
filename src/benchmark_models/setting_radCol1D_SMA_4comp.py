@@ -28,7 +28,7 @@ import numpy as np
 from addict import Dict
 
 
-def get_model(particle_type='GENERAL_RATE_PARTICLE'):
+def get_model(particle_type='GENERAL_RATE_PARTICLE', col_dispersion_dep=None):
 
     valid = ('EQUILIBRIUM_PARTICLE', 'HOMOGENEOUS_PARTICLE', 'GENERAL_RATE_PARTICLE')
     if particle_type not in valid:
@@ -93,11 +93,16 @@ def get_model(particle_type='GENERAL_RATE_PARTICLE'):
         col.col_dispersion = [1e-4] * ncomp
         col.velocity_coeff = 2.0 / 60.0
         # Variable dispersion: D(rho) = D0 * (r_in / rho)
-        col.col_dispersion_dep = 'RADIAL_RECIPROCAL_POWER_LAW'
-        col.col_dispersion_dep_base = 1.0
-        col.col_dispersion_dep_exponent = 1.0
-        col.col_dispersion_dep_rinner = r_in
-        col.col_dispersion_dep_length = r_out - r_in
+        if col_dispersion_dep is not None:
+            if not col_dispersion_dep == 'RADIAL_RECIPROCAL_POWER_LAW':
+                raise ValueError(
+                    f"Only col_dispersion_dep implemented is 'RADIAL_RECIPROCAL_POWER_LAW', "
+                    f"got {col_dispersion_dep!r}")
+            col.col_dispersion_dep = 'RADIAL_RECIPROCAL_POWER_LAW'
+            col.col_dispersion_dep_base = 1.0
+            col.col_dispersion_dep_exponent = 1.0
+            col.col_dispersion_dep_rinner = r_in
+            col.col_dispersion_dep_length = r_out - r_in
 
         pt.has_film_diffusion = 0
         pt.has_pore_diffusion = 0
