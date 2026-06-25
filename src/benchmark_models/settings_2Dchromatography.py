@@ -16,7 +16,7 @@ import copy
 
 from cadet import Cadet
 
-from src.utility import convergence
+from utility import convergence
 
 # =============================================================================
 # Definition of helper functions

@@ -13,8 +13,8 @@ import os
 from joblib import Parallel, delayed
 import copy
 
-import src.utility.convergence as convergence
-from src.benchmark_models import settings_2Dchromatography
+import utility.convergence as convergence
+from benchmark_models import settings_2Dchromatography
 
 
 # %% Import packages and define helper functions
