@@ -35,7 +35,7 @@ def chromatography_sensitivity_tests(
     par_methods = []
     par_discs = []
 
-    addition = bench_configs.radial_flow_benchmark(
+    addition = bench_configs.radial_flow_benchmark_fv(
         small_test=True, sensitivities=True)
 
     bench_configs.add_benchmark(
@@ -114,7 +114,7 @@ def chromatography_sensitivity_tests(
     par_methods = []
     par_discs = []
     
-    addition = bench_configs.radial_flow_benchmark(
+    addition = bench_configs.radial_flow_benchmark_fv(
         small_test=True, sensitivities=True)
 
     bench_configs.add_benchmark(
