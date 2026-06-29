@@ -1,25 +1,23 @@
-.idea
-*diskcache*
-*tmp*
-.ipynb_checkpoints
-__pycache__
-*.ipynb
-output
-output_cached
-.idea
-*diskcache*
-*tmp*
-.ipynb_checkpoints
-__pycache__
-*.ipynb
-/output/
-/output_cached/
+# IDE
+.idea/
 *.spyproject
-.idea
-*diskcache*
-*tmp*
-.ipynb_checkpoints
-__pycache__
+
+# Python
+__pycache__/
+.ipynb_checkpoints/
 *.ipynb
+
+# Temporary files
+*tmp*
+*diskcache*
+
+# Project outputs
 /output/
 /output_cached/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
