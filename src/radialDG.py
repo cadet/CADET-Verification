@@ -221,7 +221,7 @@ def radialDG_tests(n_jobs, small_test, output_path, cadet_path,
                 nCol_start=_fv_ncol_1,
                 equivolume=True,
                 time_integrator=time_integrator_strict)
-            fv_ref_model.run()
+            fv_ref_model.run_simulation()
             print(f"  Study 1 FV reference computed ({_fv_ncol_1} cells).")
         except Exception:
             print(f"\n*** Study 1 FV REF FAILED ***\n{traceback.format_exc()}")
