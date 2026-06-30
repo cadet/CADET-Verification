@@ -12,18 +12,19 @@ import os
 import json
 import copy
 
-import src.bench_func as bench_func
-import src.utility.convergence as convergence
+import bench_func as bench_func
+import utility.convergence as convergence
 
-from src.benchmark_models import settings_2Dchromatography
-from src.benchmark_models import settings_columnSystems
-from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
-from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
-from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
-from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
-from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
-from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
-from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
+from benchmark_models import settings_2Dchromatography
+from benchmark_models import settings_columnSystems
+from benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
+from benchmark_models import setting_Col1D_lin_1comp_benchmark1
+from benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
+from benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
+from benchmark_models import setting_radCol1D_lin_1comp_benchmark1
+from benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
+from benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
+from benchmark_models import setting_Col1D_langLRM_2comp_benchmark1
 
 
 # %% benchmark templates
@@ -43,6 +44,7 @@ _benchmark_settings_ = [
     'LRM_reqSMA_4comp_benchmark1',
     'LRMP_reqSMA_4comp_benchmark1',
     'GRM_reqSMA_4comp_benchmark1',
+    'LRM_langmuir_2comp_benchmark1'
 ]
 
 # %%
@@ -196,19 +198,16 @@ def run_benchmark(
 
 # %% FV benchmark configuration used in CADET-Core tests
 
-def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
+def fv_benchmark(small_test=False, sensitivities=False, ref_filepaths=None):
+    n_settings = 9
 
-    # Load analytical references for linear 1-component benchmarks
-    if ref_filepath is not None:
-        ref_LRM = convergence.get_solution(ref_filepath+'/LRM_dynLin_1comp_benchmark1.h5')
-        ref_LRMP = convergence.get_solution(ref_filepath+'/LRMP_dynLin_1comp_benchmark1.h5')
-        ref_GRM = convergence.get_solution(ref_filepath+'/GRM_dynLin_1comp_benchmark1.h5')
-        ref_GRMsd = convergence.get_solution(ref_filepath+'/GRMsd_dynLin_1comp_benchmark1.h5')
-    else:
-        ref_LRM = None
-        ref_LRMP = None
-        ref_GRM = None
-        ref_GRMsd = None
+    if ref_filepaths is None:
+        ref_filepaths = [None] * n_settings
+
+    if len(ref_filepaths) != n_settings:
+        raise ValueError(
+            f"length of ref_filepaths: {len(ref_filepaths)} does not match n_settings: {n_settings}"
+        )
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -254,7 +253,10 @@ def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
                 'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
                 'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
                 'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
-            })
+            }),
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                spatial_method_bulk=0
+                )
         ],
         'cadet_config_names': [
             'LRM_dynLin_1comp_benchmark1',
@@ -264,24 +266,26 @@ def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
             'LRM_reqSMA_4comp_benchmark1',
             'LRMP_reqSMA_4comp_benchmark1',
             'GRM_reqSMA_4comp_benchmark1',
-            'GRM_4parTypeLin_4comp_benchmark1'
+            'GRM_4parTypeLin_4comp_benchmark1',
+            'LRM_langmuir_2comp_benchmark1'
+
         ],
-        'include_sens': [True] * 8 if sensitivities else [False] * 8,
+        'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
-            [None], [None], [None], [None]
+            [convergence.get_solution(path)] if path is not None else [None]
+             for path in ref_filepaths
         ],
         'unit_IDs': [
-            '001', '001', '001', '001', '000', '000', '000', '001'
+            '001', '001', '001', '001', '000', '000', '000', '001', '001'
         ],
         'which': [
-            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
         ],
         'idas_abstol': [
-            [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]
+            [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6], [1e-10]
         ],
         'ax_methods': [
-            [0], [0], [0], [0], [0], [0], [0], [0]
+            [0], [0], [0], [0], [0], [0], [0], [0], [0]
         ],
         'ax_discs': [
             [bench_func.disc_list(8, 8 if not small_test else 3)],
@@ -291,10 +295,11 @@ def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
             [bench_func.disc_list(8, 6 if not small_test else 3)],
             [bench_func.disc_list(8, 6 if not small_test else 3)],
             [bench_func.disc_list(8, 6 if not small_test else 3)],
-            [bench_func.disc_list(8, 4 if not small_test else 3)]
+            [bench_func.disc_list(8, 4 if not small_test else 3)],
+            [bench_func.disc_list(32, 9 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [None], [0], [0], [None], [None], [0], [0]
+            [None], [None], [0], [0], [None], [None], [0], [0], [None]
         ],
         'par_discs': [
             [None],
@@ -304,10 +309,11 @@ def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
             [None],
             [None],
             [bench_func.disc_list(1, 6 if not small_test else 3)],
-            [bench_func.disc_list(1, 4 if not small_test else 3)]
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            [None]
         ],
         'disc_refinement_functions' : [
-            [bench_func.create_object_from_config] for _ in range(8)
+            [bench_func.create_object_from_config] for _ in range(n_settings)
             ]
     }
 
@@ -317,21 +323,19 @@ def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
+def dg_benchmark(small_test=False, sensitivities=False, ref_filepaths=None):
+    
+    n_settings = 9
 
-    # Load analytical references for linear 1-component benchmarks
-    if ref_filepath is not None:
-        ref_LRM = convergence.get_solution(ref_filepath+'/LRM_dynLin_1comp_benchmark1.h5')
-        ref_LRMP = convergence.get_solution(ref_filepath+'/LRMP_dynLin_1comp_benchmark1.h5')
-        ref_GRM = convergence.get_solution(ref_filepath+'/GRM_dynLin_1comp_benchmark1.h5')
-        ref_GRMsd = convergence.get_solution(ref_filepath+'/GRMsd_dynLin_1comp_benchmark1.h5')
-    else:
-        ref_LRM = None
-        ref_LRMP = None
-        ref_GRM = None
-        ref_GRMsd = None
+    if ref_filepaths is None:
+        ref_filepaths = [None] * n_settings
 
-    n_settings = 8
+    if len(ref_filepaths) != n_settings:
+        raise ValueError(
+            f"length of ref_filepaths: {len(ref_filepaths)} does not match n_settings: {n_settings}"
+        )
+
+    
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -377,7 +381,10 @@ def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
                  'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
                  'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
                  'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
-             })
+             }),
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                spatial_method_bulk=3
+                )
         ],
         'cadet_config_names': [
             'LRM_dynLin_1comp_benchmark1',
@@ -387,24 +394,25 @@ def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
             'LRM_reqSMA_4comp_benchmark1',
             'LRMP_reqSMA_4comp_benchmark1',
             'GRM_reqSMA_4comp_benchmark1',
-            'GRM_2parTypeLin_4comp_benchmark1' if small_test else 'GRM_4parTypeLin_4comp_benchmark1'
+            'GRM_4parTypeLin_4comp_benchmark1',
+            'LRM_langmuir_2comp_benchmark1'
         ],
         'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
         'ref_files': [
-            [ref_LRM], [ref_LRMP], [ref_GRM], [ref_GRMsd],
-            [None], [None], [None], [None]
+            [convergence.get_solution(path)] if path is not None else [None]
+             for path in ref_filepaths
         ],
         'unit_IDs': [
-            '001', '001', '001', '001', '000', '000', '000', '001'
+            '001', '001', '001', '001', '000', '000', '000', '001', '001'
         ],
         'which': [
             'outlet'
         ] * n_settings,
         'idas_abstol': [
-           [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]
+           [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-10], [1e-8], [1e-6], [1e-10]
         ],
         'ax_methods': [
-            [3], [3], [3], [3], [3], [3], [3], [2]
+            [3], [3], [3], [3], [3], [3], [3], [2], [3]
         ],
         'ax_discs': [
             [bench_func.disc_list(1, 8 if not small_test else 3)],
@@ -414,10 +422,11 @@ def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 5 if not small_test else 3)],
-            [bench_func.disc_list(2, 4 if not small_test else 3)]
+            [bench_func.disc_list(2, 4 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)]
         ],
         'par_methods': [
-            [None], [None], [3], [3], [None], [None], [3], [2]
+            [None], [None], [3], [3], [None], [None], [3], [2], [None]
         ],
         'par_discs': [
             [None],
@@ -427,10 +436,11 @@ def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
             [None],
             [None],
             [bench_func.disc_list(1, 5 if not small_test else 3)],
-            [bench_func.disc_list(1, 4 if not small_test else 3)]
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            [None]
         ],
         'disc_refinement_functions' : [
-            [bench_func.create_object_from_config] for _ in range(8)
+            [bench_func.create_object_from_config] for _ in range(n_settings)
             ]
     }
 

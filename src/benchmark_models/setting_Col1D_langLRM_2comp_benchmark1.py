@@ -11,7 +11,7 @@ import numpy as np
 
 def get_model(spatial_method_bulk, refinement=1, **kwargs):
     
-    axNElem = 8 * refinement
+    axNElem = refinement
     
     model = Dict()
     
@@ -52,7 +52,7 @@ def get_model(spatial_method_bulk, refinement=1, **kwargs):
         column.discretization.RECONSTRUCTION = 'WENO'
         column.discretization.weno.BOUNDARY_MODEL = 0
         column.discretization.weno.WENO_EPS = 1e-10
-        column.discretization.weno.WENO_ORDER = 2
+        column.discretization.weno.WENO_ORDER = 3
         column.discretization.GS_TYPE = 1
         column.discretization.MAX_KRYLOV = 0
         column.discretization.MAX_RESTARTS = 10
@@ -91,12 +91,12 @@ def get_model(spatial_method_bulk, refinement=1, **kwargs):
     model.input.solver.sections.nsec = 2
     model.input.solver.sections.section_continuity = [ 0 ]
     model.input.solver.sections.section_times = [ 0.0, 12.0, 40.0 ]
-    model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
-    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-10)
+    model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-10)
+    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-08)
     model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
-    model.input.solver.time_integrator.MAX_STEPS = 10000
-    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-10)
-    model.input.solver.user_solution_times = np.linspace(0.0, 40.0, 40*4 + 1)
+    model.input.solver.time_integrator.MAX_STEPS = 1000000
+    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-08)
+    model.input.solver.user_solution_times = np.linspace(0.0, 40.0, 40*10 + 1)
     
     #%% auxiliary units: inlet and outlet
     model.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'

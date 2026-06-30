@@ -1,0 +1,40 @@
+"""
+This script computes reverence solutions for chromatography models and saves them to
+CADET-Core_reference
+"""
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "benchmark_models"))
+
+from setting_Col1D_langLRM_2comp_benchmark1 import get_model
+from cadet import Cadet
+
+
+
+def compute_reference_langmuir(spatial_method=10, refinement=300):
+    output_dir = os.path.join("data", "CADET-Core_reference", "chromatography", "langmuir_LRM")
+    output_file = os.path.join(output_dir, f"reference_method{spatial_method}_ref{refinement}.h5")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Running reference: spatial_method={spatial_method}, refinement={refinement}")
+    print(f"Output: {output_file}")
+
+    sim = Cadet()
+    sim.root = get_model(spatial_method_bulk=spatial_method, refinement=refinement)
+    sim.filename = output_file
+    sim.save()
+
+    return_code = sim.run_simulation()
+    if return_code.return_code != 0:
+        raise RuntimeError(f"CADET failed:\n{return_code.stderr}")
+
+    sim.load_from_file()
+    print("Done.")
+
+    return sim
+
+
+if __name__ == "__main__":
+    compute_reference_langmuir(spatial_method=10, refinement=300)

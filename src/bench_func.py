@@ -13,8 +13,8 @@ import os
 from joblib import Parallel, delayed
 import copy
 
-import src.utility.convergence as convergence
-from src.benchmark_models import settings_2Dchromatography
+import utility.convergence as convergence
+from benchmark_models import settings_2Dchromatography
 
 
 # %% Import packages and define helper functions
@@ -580,29 +580,20 @@ def run_convergence_analysis_from_configs(
         output_path=None,
         cadet_path=None,
         cadet_configs=None,
-        cadet_config_names=[
-            'configuration_LRM_dynLin_1comp_sensbenchmark1_FV_Z256.json',
-            'configuration_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json'
-        ],
-        include_sens=[True, True],
-        ref_files=[[None, None], [None, None]],
-        unit_IDs=['001', '001'],
-        which=['outlet', 'outlet'],
-        ax_methods=[
-        [0, 3],
-        [0, 3]
-        ],
-        ax_discs=[
-            [disc_list(8, 3), disc_list(1, 3)],
-            [disc_list(8, 3), disc_list(4, 3)]
-        ],
+        cadet_config_names=None,
+        include_sens=None,
+        ref_files=None,
+        unit_IDs=None,
+        which=None,
+        ax_methods=None,
+        ax_discs=None,
         par_methods=None,
         par_discs=None,
         rad_methods=None,
         rad_discs=None,
         idas_abstol=None,
         n_jobs=-1,
-        rerun_sims=True,
+        rerun_sims=False, #for debugging
         **kwargs
 ):
     """ Runs convergence analyses for the specified models and methods
@@ -781,7 +772,10 @@ def run_convergence_analysis_from_configs(
         backend(delayed(run_simulation_in_verification)(sim, cadet_path)
                 for sim in zip(sims))
 
-        commit_hash = convergence.get_simulation(sims[0].filename).commit_hash
+        try:
+            commit_hash = convergence.get_simulation(sims[0].filename).commit_hash
+        except AttributeError:
+            commit_hash = None
 
     return run_convergence_analysis_core(
         commit_hash=commit_hash,

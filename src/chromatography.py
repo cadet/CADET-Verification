@@ -8,9 +8,15 @@ This script defines chromatography tests.
 # %% Include packages
 import os
 from pathlib import Path
+import re
+from joblib import Parallel, delayed
+import numpy as np
 
-import src.bench_configs as bench_configs
-import src.bench_func as bench_func
+from cadet import Cadet
+#from cadetrdm import ProjectRepo
+
+import bench_configs as bench_configs
+import bench_func as bench_func
 
 
 # %% Reference data paths
@@ -22,7 +28,7 @@ reference_data_path = str(
 # %% Run with CADET-RDM
 
 def chromatography_tests(n_jobs, small_test, sensitivities,
-                         output_path, cadet_path):
+                         output_path, cadet_path, ref_filepaths = None):
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -41,19 +47,15 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
     par_discs = []
     disc_refinement_functions = []
 
-    addition = bench_configs.radial_flow_benchmark(small_test=small_test)
+    """ addition = bench_configs.radial_flow_benchmark(small_test=small_test)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
         ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
         cadet_config_names=cadet_config_names, addition=addition,
     disc_refinement_functions = disc_refinement_functions)
-
-    addition = bench_configs.fv_benchmark(
-        small_test=small_test, sensitivities=sensitivities,
-        ref_filepath=reference_data_path
-        )
-
+ """
+    addition = bench_configs.fv_benchmark(small_test=small_test, ref_filepaths = ref_filepaths)
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
         ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
@@ -61,10 +63,7 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         disc_refinement_functions = disc_refinement_functions
         )
     
-    addition = bench_configs.dg_benchmark(
-        small_test=small_test, sensitivities=sensitivities,
-        ref_filepath=reference_data_path
-        )
+    addition = bench_configs.dg_benchmark(small_test=small_test, ref_filepaths = ref_filepaths)
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
