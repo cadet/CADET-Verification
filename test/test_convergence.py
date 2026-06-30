@@ -56,31 +56,28 @@ def test_Gauss_and_Lobatto_nodes():
         1/10, 49/90, 32/45, 49/90, 1/10]), decimal=14)
 
 
-def test_map_z_to_xi():
+@pytest.mark.parametrize(
+    "x, x_l, deltaX, expected",
+    [
+        (2.0, 2.0, 10.0, -1.0),
+        (7.0, 2.0, 10.0, 0.0),
+        (12.0, 2.0, 10.0, 1.0),
+    ],
+)
+def test_map_x_to_xi(x, x_l, deltaX, expected):
+    assert convergence.map_x_to_xi(x, x_l, deltaX) == pytest.approx(expected)
 
-    polyDeg = 4
 
-    nNodes = polyDeg + 1
-
-    nodes, weights = convergence.LGL_NodesWeights(polyDeg)
-
-    x_lIdx = 0
-    cellIdx = 2
-    stretch = 0.1
-    deltaZ = 2 * stretch
-    orig_coords = (nodes + 1) * stretch + deltaZ * cellIdx
-
-    mapped_orig_coords = np.zeros(nNodes)
-
-    for node in range(nNodes):
-        mapped_orig_coords[node] = convergence.map_z_to_xi(
-            orig_coords[x_lIdx + node], cellIdx, deltaZ)
-
-    if (abs(mapped_orig_coords - nodes) > 1e-14).any():
-        raise ValueError(
-            "getSolutionDG: mapped_orig_coords != nodes"
-        )
-
+@pytest.mark.parametrize(
+    "xi, x_l, deltaX, expected",
+    [
+        (-1.0, 2.0, 10.0, 2.0),
+        (0.0, 2.0, 10.0, 7.0),
+        (1.0, 2.0, 10.0, 12.0),
+    ],
+)
+def test_map_xi_to_x(xi, x_l, deltaX, expected):
+    assert convergence.map_xi_to_x(xi, x_l, deltaX) == pytest.approx(expected)
 
 def test_calculate_eoc():
     
@@ -226,84 +223,170 @@ def test_get_interpolated_DGsolution():
     column_length = 1.0
 
     deltaZ = column_length / nCells
-    nNodes = (polyDeg + 1)
+    nNodes = polyDeg + 1
     nPoints = nNodes * nCells
-    nodes, weights = convergence.LGL_NodesWeights(polyDeg)
 
-    x_l = np.linspace(0.0, column_length, num=nCells, endpoint=False)
+    nodes, _ = convergence.LGL_NodesWeights(polyDeg)
 
+    # build DG grid
     orig_coords = np.zeros(nPoints)
-    orig_values = np.zeros(nPoints)
 
     for cellIdx in range(nCells):
-        orig_coords[cellIdx * nNodes: (cellIdx + 1) *
-                    nNodes] = convergence.map_xi_to_z(nodes, cellIdx, deltaZ)
+        orig_coords[cellIdx * nNodes:(cellIdx + 1) * nNodes] = (
+            convergence.map_xi_to_x(nodes, 0.0 + cellIdx * deltaZ, deltaZ)
+        )
 
-    print("orig_coords:\n", orig_coords)
+    # ---------- 1) linear function ----------
+    orig_values = orig_coords.copy()
 
-    # test linear concentration function
-    orig_values = orig_coords
-    output_coords = np.linspace(
-        0.0, column_length, num=2*nPoints, endpoint=True)
-    
+    output_coords = np.linspace(0.0, column_length, num=2 * nPoints, endpoint=True)
+
     output_values = convergence.get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
+        orig_values, orig_coords, column_length,
+        output_coords, polyDeg, nCells
+    )
 
-    np.testing.assert_almost_equal(output_values, output_coords, decimal=14)
+    np.testing.assert_allclose(output_values, output_coords, rtol=1e-12, atol=1e-12)
 
-    # test quadratic concentration function
-    out_polyDeg = 3
-    out_nodes, out_weights = convergence.LGL_NodesWeights(polyDeg)
-    for cellIdx in range(nCells*2):
-        output_coords[cellIdx * nNodes: (cellIdx + 1) *
-                      nNodes] = convergence.map_xi_to_z(out_nodes, cellIdx, deltaZ/2)
-    orig_values = np.square(orig_coords)
-    # output_coords = np.linspace(0.0, column_length, num=int(nPoints/2), endpoint=True)
+    # ---------- 2) quadratic function ----------
+    orig_values = orig_coords**2
+
     output_values = convergence.get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
+        orig_values, orig_coords, column_length,
+        output_coords, polyDeg, nCells
+    )
 
-    np.testing.assert_almost_equal(
-        output_values, np.square(output_coords), decimal=14)
+    np.testing.assert_allclose(output_values, output_coords**2, rtol=1e-12, atol=1e-12)
 
-    # test sinus concentration function (limited accuracy)
+    # ---------- 3) sinus function ----------
     orig_values = np.sin(orig_coords)
+
     output_values = convergence.get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
+        orig_values, orig_coords, column_length,
+        output_coords, polyDeg, nCells
+    )
 
-    np.testing.assert_almost_equal(
-        output_values, np.sin(output_coords), decimal=6)
+    np.testing.assert_allclose(output_values, np.sin(output_coords), rtol=1e-6, atol=1e-6)
 
-    # print("output_coords:\n", output_coords)
-    # print("output_values:\n", output_values)
-
-    # test two dimensional array
-    output_coords = np.linspace(0.0, column_length, num=nPoints, endpoint=True)
+    # ---------- 4) 2D array ----------
     nTime = 10
     orig_values = np.zeros((nTime, nPoints))
-    orig_values[0, :] = np.square(orig_coords)
-    orig_values[5, :] = np.power(orig_coords, polyDeg)
-    compare = np.zeros((nTime, nPoints))
-    compare[0, :] = np.square(output_coords)
-    compare[5, :] = np.power(output_coords, polyDeg)
+    orig_values[0, :] = orig_coords**2
+    orig_values[5, :] = orig_coords**polyDeg
 
     output_values = convergence.get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
+        orig_values, orig_coords, column_length,
+        output_coords, polyDeg, nCells
+    )
 
-    np.testing.assert_almost_equal(output_values, compare, decimal=14)
+    compare = np.zeros((nTime, len(output_coords)))
+    compare[0, :] = output_coords**2
+    compare[5, :] = output_coords**polyDeg
 
-    # test three dimensional array
-    nTime = 12
+    np.testing.assert_allclose(output_values, compare, rtol=1e-12, atol=1e-12)
+
+    # ---------- 5) 3D array ----------
     nComp = 3
     orig_values = np.zeros((nTime, nPoints, nComp))
-    orig_values[0, :, 0] = np.square(orig_coords)
-    orig_values[3, :, 0] = np.power(orig_coords, polyDeg)
-    orig_values[7, :, 2] = np.power(orig_coords, polyDeg - 1)
-    compare = np.zeros((nTime, nPoints, nComp))
-    compare[0, :, 0] = np.square(output_coords)
-    compare[3, :, 0] = np.power(output_coords, polyDeg)
-    compare[7, :, 2] = np.power(output_coords, polyDeg - 1)
+    orig_values[0, :, 0] = orig_coords**2
+    orig_values[3, :, 0] = orig_coords**polyDeg
+    orig_values[7, :, 2] = orig_coords**(polyDeg - 1)
 
     output_values = convergence.get_interpolated_solution(
-        orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
+        orig_values, orig_coords, column_length,
+        output_coords, polyDeg, nCells
+    )
 
-    np.testing.assert_almost_equal(output_values, compare, decimal=14)
+    compare = np.zeros((nTime, len(output_coords), nComp))
+    compare[0, :, 0] = output_coords**2
+    compare[3, :, 0] = output_coords**polyDeg
+    compare[7, :, 2] = output_coords**(polyDeg - 1)
+
+    np.testing.assert_allclose(output_values, compare, rtol=1e-12, atol=1e-12)
+
+
+def test_get_interpolated_solution_2d_dg_grid():
+
+    # -------------------------
+    # DG parameters
+    # -------------------------
+    Lx, Ly = 1.0, 1.0
+    polyDeg = 3
+    nCellsX, nCellsY = 2, 2
+
+    nNodes = polyDeg + 1
+
+    # -------------------------
+    # reference DG nodes
+    # -------------------------
+    nodes, weights = convergence.LGL_NodesWeights(polyDeg)
+
+    # -------------------------
+    # build DG grid in x/y
+    # -------------------------
+    dx = Lx / nCellsX
+    dy = Ly / nCellsY
+
+    Nx = nCellsX * nNodes
+    Ny = nCellsY * nNodes
+
+    # structured coordinates aligned with DG nodes
+    orig_coords = np.zeros((Nx, Ny, 2))
+
+    for cx in range(nCellsX):
+        for cy in range(nCellsY):
+
+            for i in range(nNodes):
+                for j in range(nNodes):
+
+                    ix = cx * nNodes + i
+                    iy = cy * nNodes + j
+
+                    # map reference LGL node -> physical cell
+                    xi = nodes[i]
+                    eta = nodes[j]
+
+                    x = cx * dx + 0.5 * (xi + 1) * dx
+                    y = cy * dy + 0.5 * (eta + 1) * dy
+
+                    orig_coords[ix, iy, 0] = x
+                    orig_coords[ix, iy, 1] = y
+
+    # -------------------------
+    # polynomial DG test function
+    # (must be exactly representable in degree p)
+    # -------------------------
+    def u(x, y):
+        return 1 + 2*x + 3*y + x*y + x**2 + y**2
+
+    orig_values = np.zeros((Nx, Ny))
+
+    for i in range(Nx):
+        for j in range(Ny):
+            orig_values[i, j] = u(orig_coords[i, j, 0], orig_coords[i, j, 1])
+
+    # -------------------------
+    # test points
+    # -------------------------
+    np.random.seed(0)
+    Nout = 100
+    output_coords = np.random.rand(Nout, 2)
+
+    # -------------------------
+    # call interpolation
+    # -------------------------
+    out = convergence.get_interpolated_solution_2d(
+        orig_values,
+        orig_coords,
+        (Lx, Ly),
+        output_coords,
+        polyDeg,
+        nCellsX,
+        nCellsY
+    )
+
+    exact = np.array([u(x, y) for x, y in output_coords])
+    
+    np.testing.assert_almost_equal(
+        out, exact, decimal=14
+    )

@@ -14,7 +14,7 @@ from joblib import Parallel, delayed
 import copy
 
 import src.utility.convergence as convergence
-from src.benchmark_models import settings_2Dchromatography
+import src.benchmark_models.helper_setup_2Dmodels as helper2D
 
 
 # %% Import packages and define helper functions
@@ -304,23 +304,23 @@ def create_object_from_config(
                 if kwargs.get('rad_inlet_profile', None) is None:
                     # if we have more than 1 inlet, there are radial zones defined
                     n_units = config_data['input']['model']['nunits']
-                    nInlets = n_units - 2 if kwargs.get('analytical_reference', 0) else n_units - 1
-                    add_inlet_per_port = nInlets if nInlets > 2 else False
+                    nInlets = int((n_units - 1) / 2)
+                    add_inlet_per_port = nInlets
                 else:
                     add_inlet_per_port = kwargs.get('rad_inlet_profile')
-                    nOutlets = 1 if kwargs.get('analytical_reference', 0) else 0
+                    nOutlets = 1
                     n_units = (rad_method + 1 ) * rad_cells + 1 + nOutlets
                 config_data['input']['model'].nunits = n_units
                 
-                connections, rad_coords = settings_2Dchromatography.generate_connections_matrix(
+                connections, rad_coords = helper2D.generate_connections_matrix(
                     rad_method=rad_method, rad_cells=rad_cells,
                     velocity=config_data['input']['model']['unit_' +
                                                            tmpID].VELOCITY,
                     porosity=config_data['input']['model']['unit_' +
-                                                           tmpID].COL_POROSITY,
+                                                           tmpID].COL_POROSITY[0],
                     col_radius=config_data['input']['model']['unit_' +
                                                              tmpID].COL_RADIUS,
-                    add_inlet_per_port=add_inlet_per_port, add_outlet=int(kwargs.get('analytical_reference', 0))
+                    add_inlet_per_port=add_inlet_per_port, add_outlet=True
                 )
 
                 if add_inlet_per_port is True:

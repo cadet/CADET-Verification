@@ -1158,20 +1158,14 @@ def barycentric_weights(polyDeg):
     return baryWeights
 
 
-def map_z_to_xi(z, cellIdx, deltaZ):
+def map_x_to_xi(x, x_l, deltaX):
 
-    z_l = cellIdx * deltaZ
-    xi = 2.0 * (z - z_l) / deltaZ - 1.0
-
-    return xi
+    return 2.0 * (x - x_l) / deltaX - 1.0
 
 
-def map_xi_to_z(xi, cellIdx, deltaZ):
+def map_xi_to_x(xi, x_l, deltaX):
 
-    z_l = cellIdx * deltaZ
-    z = deltaZ * (xi + 1.0) / 2.0 + z_l
-
-    return z
+    return deltaX * (xi + 1.0) / 2.0 + x_l
 
 
 # TODO slice ?
@@ -1199,7 +1193,7 @@ def map_xi_to_z(xi, cellIdx, deltaZ):
 #         # Coordinate not in DG coordinates -> interpolate!
 
 #         # get coordinate w.r.t to reference element
-#         mapped_coord = coord * map_z_to_xi(coord, cellIdx, deltaZ)
+#         mapped_coord = coord * map_x_to_xi(coord, cellIdx, deltaZ)
 
 #         # calculate value at coord using using barycentric form
 #         output_values[outputIdx] = (bary_weights / (mapped_coord - nodes) * orig_values).sum() / (bary_weights / (mapped_coord - nodes)).sum()
@@ -1331,12 +1325,133 @@ def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coord
             # Interpolate value if coordinate is not in DG coordinates
             if not nodeHit:
                 # get coordinate w.r.t to reference element
-                mapped_coord = map_z_to_xi(coord, cellIdx, deltaZ)
+                mapped_coord = map_x_to_xi(coord, cellIdx*deltaZ, deltaZ)
                 # calculate value at coord using using barycentric form
                 output_values[outputIdx] = (bary_weights / (mapped_coord - nodes) * orig_values[cellIdx * nNodes: (
                     cellIdx + 1) * nNodes]).sum() / (bary_weights / (mapped_coord - nodes)).sum()
 
     return output_values
+
+
+def get_interpolated_solution_2d(
+    orig_values,
+    orig_coords,
+    domain,
+    output_coords,
+    polyDeg,
+    nCellsX,
+    nCellsY
+):
+    """
+    2D tensor-product DG interpolation for structured nodal data.
+    """
+
+    Lx, Ly = domain
+    output_coords = np.asarray(output_coords)
+
+    # ---------------------------
+    # Handle extra dimensions
+    # ---------------------------
+    if orig_values.ndim == 4:  # time x X x Y x comp
+        T, Nx, Ny, C = orig_values.shape
+        out = np.zeros((T, len(output_coords), C))
+
+        for t in range(T):
+            for c in range(C):
+                out[t, :, c] = get_interpolated_solution_2d(
+                    orig_values[t, :, :, c],
+                    orig_coords,
+                    domain,
+                    output_coords,
+                    polyDeg,
+                    nCellsX,
+                    nCellsY
+                )
+        return out
+
+    if orig_values.ndim == 3:  # time x X x Y
+        T, Nx, Ny = orig_values.shape
+        out = np.zeros((T, len(output_coords)))
+
+        for t in range(T):
+            out[t, :] = get_interpolated_solution_2d(
+                orig_values[t],
+                orig_coords,
+                domain,
+                output_coords,
+                polyDeg,
+                nCellsX,
+                nCellsY
+            )
+        return out
+
+    # ---------------------------
+    # steady case: (Nx, Ny)
+    # ---------------------------
+    Nx, Ny = orig_values.shape
+    out = np.zeros(len(output_coords))
+
+    dx = Lx / nCellsX
+    dy = Ly / nCellsY
+
+    nNodes = polyDeg + 1
+
+    nodes, _ = LGL_NodesWeights(polyDeg)
+    bw = barycentric_weights(polyDeg)
+
+    # assume structured coordinates:
+    # orig_coords[i,j] = [x_i, y_j]
+    x_coords = orig_coords[:, 0, 0] if orig_coords.ndim == 3 else orig_coords[:, 0]
+    y_coords = orig_coords[0, :, 1] if orig_coords.ndim == 3 else orig_coords[:, 1]
+
+    for k, (x, y) in enumerate(output_coords):
+
+        # -----------------------------------
+        # find DG cell indices
+        # -----------------------------------
+        cx = min(int(x / dx), nCellsX - 1)
+        cy = min(int(y / dy), nCellsY - 1)
+
+        # local coordinates in reference element
+        xi = map_x_to_xi(x, cx * dx, dx)
+        eta = map_x_to_xi(y, cy * dy, dy)
+
+        # -----------------------------------
+        # global DOF ranges
+        # -----------------------------------
+        ix0 = cx * nNodes
+        iy0 = cy * nNodes
+
+        block = orig_values[ix0:ix0 + nNodes, iy0:iy0 + nNodes]
+
+        # -----------------------------------
+        # nodal hit check (fast structured)
+        # -----------------------------------
+        if (
+            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, iy0:iy0+nNodes, 0], x)) and
+            np.any(np.isclose(orig_coords[ix0:ix0+nNodes, iy0:iy0+nNodes, 1], y))
+        ):
+            # fallback exact node match (rare)
+            ix = np.argmin(np.abs(x_coords - x))
+            iy = np.argmin(np.abs(y_coords - y))
+            out[k] = orig_values[ix, iy]
+            continue
+
+        # -----------------------------------
+        # 1D Lagrange basis in each direction
+        # -----------------------------------
+        Lx = bw / (xi - nodes)
+        Ly = bw / (eta - nodes)
+
+        Lx /= np.sum(Lx)
+        Ly /= np.sum(Ly)
+
+        # -----------------------------------
+        # tensor product evaluation
+        # -----------------------------------
+        out[k] = np.sum(block * np.outer(Lx, Ly))
+
+    return out
 
 
 def get_unique_DGcoordinates(coords):
@@ -2541,18 +2656,23 @@ def convergency_table(method,
     table = []
     # Infer dimensionality of table
     if disc.ndim == 2:
-        if len(disc) == 3 and (transport_model is not None and re.search("2D", transport_model)): # 2DGRM
-            nDisc = disc.shape[1]
-            header.append("$N_e^r$")
-            header.append("$N_e^p$")
-            table.append(disc[0])
-            table.append(disc[1])
-            table.append(disc[2])
-        elif len(disc) == 2 and (transport_model is not None and re.search("2D", transport_model)): # 2D LRM or LRMP
-            nDisc = disc.shape[1]
-            header.append("$N_e^r$")
-            table.append(disc[0])
-            table.append(disc[1])
+        if transport_model is not None and re.search("2D", transport_model):
+            if len(disc) == 3: # 2DGRM
+                nDisc = disc.shape[1]
+                header.append("$N_e^r$")
+                header.append("$N_e^p$")
+                table.append(disc[0])
+                table.append(disc[1])
+                table.append(disc[2])
+            elif len(disc) == 2: # 2D LRM or LRMP
+                nDisc = disc.shape[1]
+                header.append("$N_e^r$")
+                table.append(disc[0])
+                table.append(disc[1])
+            else:
+                raise ValueError(
+                    "Discretization must be n x 2/3 matrix for 2D models."
+                )
         elif len(disc) == 2: # GRM
             nDisc = disc.shape[1]
             header.append("$N_e^p$")
@@ -3060,7 +3180,7 @@ def recalculate_results(file_path, model,
     if transport_model is None:
         try:
             transport_model = re.search(
-                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT|DPFR',
+                '2DLRM(?!P)|2DLRMP|2DGRM|LRM(?!P)|LRMP|GRM|COL1D|COL2D|MCT|2DDPFR|DPFR',
                 model,
                 re.IGNORECASE).group(0)
         except:
@@ -3475,14 +3595,3 @@ def delete_h5_files(directory, exclude_files=None):
         print("No .h5 files deleted in the {directory} directory.")
     else:
         print(f"Deleted {deleted_files} .h5 file(s) in the {directory} directory.")
-
-
-if __name__ == '__main__':
-
-    test_eoc()
-    test_calculate_DOFs()
-    test_convergency_table()
-    test_get_unique_DGsolution()
-    test_map_z_to_xi()
-    test_get_interpolated_DGsolution()
-    test_Gauss_and_Lobatto_nodes()
