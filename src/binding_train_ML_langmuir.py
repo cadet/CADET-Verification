@@ -13,14 +13,15 @@ from typing import Any, Callable, Dict, List, Literal, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from cadet import Cadet
 
 import src.benchmark_models.setting_Col1D_langLRM_2comp_benchmark1 as langmuir_2Comp_setting
 import src.benchmark_models.settings_data_driven_bnd as langmuir_1Comp_setting
-from src.training_gpr import train_gpr_for_cadet, rebuild_gpr_from_cadet_weights, to_gpy_array
-from src.training_ann import train_ann_for_cadet, rebuild_ann_from_cadet_weights
+from src.surrogate_models import ANNSurrogate, BaseSurrogate, GPRSurrogate
+from src.training_gpr import train_gpr_for_cadet
+from src.training_spline import train_spline_for_cadet
 
 
 def multi_component_langmuir_equilibrium(
@@ -125,6 +126,8 @@ def run_hybrid_sim_analysis(
         )
 
     elif binding_model == "ANN" and training_results is None:
+        from src.training_ann import train_ann_for_cadet
+
         training_results = train_ann_for_cadet(
             cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
             normalization_factor=normalization_factor, epochs=epochs, patience=patience,
@@ -234,6 +237,48 @@ def run_hybrid_sim_analysis(
 
     return simMechanistic, simHybrid
     
+def _error_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+    """Compute the standard surrogate error metrics."""
+
+    mse = mean_squared_error(y_true, y_pred)
+    return {
+        "MSE": mse,
+        "RMSE": float(np.sqrt(mse)),
+        "MAE": float(mean_absolute_error(y_true, y_pred)),
+        "R2": float(r2_score(y_true, y_pred)),
+        "MAX_ERROR": float(np.max(np.abs(y_true - y_pred))),
+    }
+
+
+def _reshape_structured_surface(cp: np.ndarray, values: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Reshape a 2D structured grid for surface plotting."""
+
+    cp = np.asarray(cp, dtype=float)
+    values = np.asarray(values, dtype=float).reshape(-1)
+
+    if cp.ndim != 2 or cp.shape[1] != 2:
+        raise ValueError("Surface plotting requires a 2D input grid.")
+    if cp.shape[0] != values.shape[0]:
+        raise ValueError("Input coordinates and values must contain the same number of samples.")
+
+    axis_0 = np.unique(cp[:, 0])
+    axis_1 = np.unique(cp[:, 1])
+    if axis_0.size * axis_1.size != cp.shape[0]:
+        raise ValueError("Surface plotting requires a full Cartesian product grid.")
+
+    grid = np.empty((axis_0.size, axis_1.size), dtype=float)
+    index_0 = {float(value): idx for idx, value in enumerate(axis_0)}
+    index_1 = {float(value): idx for idx, value in enumerate(axis_1)}
+
+    for sample, value in zip(cp, values):
+        i = index_0[float(sample[0])]
+        j = index_1[float(sample[1])]
+        grid[i, j] = value
+
+    X, Y = np.meshgrid(axis_0, axis_1, indexing="ij")
+    return X, Y, grid
+
+
 def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", surrogate_model="surrogate", stateIdx=None):
     
     cp = np.asarray(cp)
@@ -244,19 +289,11 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="la
         raise ValueError(f"cp shape {cp.shape}, cs_true shape {cs_true.shape} and cs_pred shape {cs_pred.shape} are not compatible with surface plotting, expected cp.ndim == 2, cs_true.ndim == 1 and cs_pred.ndim == 1")
     if cs_true.shape[0] != len(cs_pred) or cs_true.shape[0] != cp.shape[0]:
         raise ValueError(f"cs_true shape {cs_true.shape} and cs_pred shape {cs_pred.shape} are not compatible, expected same number of samples, and compatible with cp shape {cp.shape}")
-    if int(np.sqrt(cp.shape[0]))**2 != cp.shape[0]:
-        raise ValueError(f"cp shape {cp.shape} is not compatible with surface plotting, needs integer square root number of points in cp.shape[0]")
     if cp.shape[1] != 2:
         raise ValueError(f"cp shape {cp.shape} is not compatible with surface plotting, needs cp.shape[1] == 2")
 
-    grid_x = int(np.sqrt(cp.shape[0]))
-    grid_y = grid_x
-
-    X = cp[:, 0].reshape(grid_x, grid_y)
-    Y = cp[:, 1].reshape(grid_x, grid_y)
-
-    Z_true = cs_true[:].reshape(grid_x, grid_y)
-    Z_pred = cs_pred[:].reshape(grid_x, grid_y)
+    X, Y, Z_true = _reshape_structured_surface(cp, cs_true)
+    _, _, Z_pred = _reshape_structured_surface(cp, cs_pred)
     Z_err = np.abs(Z_true - Z_pred)
 
     # -------------------------
@@ -279,7 +316,7 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="la
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(X, Y, Z_pred, cmap='viridis')
-    ax.set_title(f"ANN prediction - state {stateIdx}")
+    ax.set_title(f"{surrogate_model} prediction - state {stateIdx}")
     ax.set_xlabel("$c^p_1$")
     ax.set_ylabel("$c^p_2$")
     ax.set_zlabel("$c^s$")
@@ -303,9 +340,7 @@ def plot_surface_comparison(cp, cs_true, cs_pred, output_dir, isotherm_model="la
 
 def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="langmuir", surrogate_model="surrogate"):
 
-    mse = mean_squared_error(cs_true, cs_pred)
-    r2 = r2_score(cs_true, cs_pred)
-    max_err = np.max(np.abs(cs_true - cs_pred))
+    metrics = _error_metrics(np.asarray(cs_true).reshape(-1), np.asarray(cs_pred).reshape(-1))
 
     plt.figure()
     plt.plot(cp, cs_true, label=f"True {isotherm_model}", color='green')
@@ -313,7 +348,7 @@ def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="lan
     plt.xlabel("cp")
     plt.ylabel("cs")
     plt.title(f"Isotherm comparison")
-    plt.text(0.25, 0.15, f"MSE: {mse:.3e}\nR2: {r2:.3f}\nMax abs error: {max_err:.3e}",
+    plt.text(0.25, 0.15, f"MSE: {metrics['MSE']:.3e}\nRMSE: {metrics['RMSE']:.3e}\nMAE: {metrics['MAE']:.3e}\nR2: {metrics['R2']:.3f}\nMax abs error: {metrics['MAX_ERROR']:.3e}",
             transform=plt.gca().transAxes, fontsize=10,
             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     plt.savefig(output_dir + f"/{surrogate_model}_{isotherm_model}1Comp_isotherm_comparison.png")
@@ -321,9 +356,11 @@ def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="lan
 
     metrics = {
         "bound_state_000": {
-            "MSE": mse,
-            "R2": r2,
-            "MAX_ERROR": max_err
+            "MSE": metrics["MSE"],
+            "RMSE": metrics["RMSE"],
+            "MAE": metrics["MAE"],
+            "R2": metrics["R2"],
+            "MAX_ERROR": metrics["MAX_ERROR"],
         }
     }
     
@@ -332,140 +369,126 @@ def isotherm_comparison_1D(cp, cs_true, cs_pred, output_dir, isotherm_model="lan
 def evaluate_surrogate_vs_isotherm(
         cp,
         cs_true,
-        training_results,
-        surrogate_model: str,
-        output_path: str,
+        surrogate: BaseSurrogate | None = None,
+        output_path: str = "",
         isotherm_model="langmuir",
+        surrogate_model: Optional[str] = None,
+        training_results: Optional[Dict[str, Any]] = None,
         **kwargs
         ):
-    
-    if cp.ndim == 1:
-        n_states = 1
-    elif cp.ndim > 2:
-        raise ValueError(f"cp shape {cp.shape} is not compatible with evaluation, expected cp.ndim == 1 or cp.ndim == 2")
+    """Evaluate a surrogate against the exact isotherm and generate plots."""
+
+    cp_array = np.asarray(cp, dtype=float)
+    cs_true_array = np.asarray(cs_true, dtype=float)
+    cs_true_was_1d = cs_true_array.ndim == 1
+    if cs_true_was_1d:
+        cs_true_array = cs_true_array.reshape(-1, 1)
+
+    if cp_array.ndim == 1:
+        n_inputs = 1
+    elif cp_array.ndim == 2:
+        n_inputs = cp_array.shape[1]
     else:
-        n_states = cs_true.shape[1]
-    
-    cs_pred = np.zeros(cs_true.shape)
-    metrics = {}
-    models = []
-
-    if n_states == 1:
-
-        if surrogate_model == "ANN":
-
-            state = training_results[f"bound_state_000"]
-
-            model = rebuild_ann_from_cadet_weights(
-                state,
-                input_dim=1,
-                hidden_nodes=kwargs["hidden_nodes"],
-                n_layers=kwargs["n_layers"]
-            )
-
-            if "normalization_factor" in kwargs and kwargs["normalization_factor"] is not None:
-                norm_factor = kwargs["normalization_factor"][0]
-            else:
-                norm_factor = 1.0 / (np.max(cp) + 1e-12)
-            X = cp / norm_factor
-            cs_pred = model.predict(X, verbose=0).reshape(-1)
-
-            models.append(model)
-
-        elif surrogate_model == "GPR":
-
-            model = rebuild_gpr_from_cadet_weights(
-                cp=to_gpy_array(cp),
-                cs_comp=to_gpy_array(cs_true),
-                weights=training_results,
-                kernel_name=kwargs["kernel_name"],
-                boundIdx=0
-            )
-
-            cs_pred, _ = model.predict(to_gpy_array(cp))
-            cs_pred = cs_pred.reshape(-1)
-            
-            models.append(model)
-
-        else:
-            raise ValueError(f"Invalid surrogate model {surrogate_model}, expected 'ANN' or 'GPR'")
-
-        metric = isotherm_comparison_1D(
-            cp=cp,
-            cs_true=cs_true,
-            cs_pred=cs_pred,
-            output_dir=output_path,
-            surrogate_model=surrogate_model,
-            isotherm_model=isotherm_model
+        raise ValueError(
+            f"cp shape {cp_array.shape} is not compatible with evaluation, expected cp.ndim == 1 or cp.ndim == 2"
         )
 
-        metrics["bound_state_000"] = metric
-    
-    else: # multi-component case
-
-        cs_pred_all = np.zeros_like(cs_true)
-
-        for i in range(n_states):
-
-            if "normalization_factor" in kwargs and kwargs["normalization_factor"] is not None:
-                norm_factor = kwargs["normalization_factor"][i]
+    if surrogate is None:
+        if surrogate_model == "ANN":
+            surrogate = ANNSurrogate.from_training_results(
+                training_results or {},
+                hidden_nodes=kwargs.get("hidden_nodes"),
+                n_layers=kwargs.get("n_layers"),
+                normalization_factor=kwargs.get("normalization_factor"),
+            )
+        elif surrogate_model == "GPR":
+            surrogate = GPRSurrogate.from_training_results(
+                training_results or {},
+                cp=cp_array,
+                cs=cs_true_array,
+                kernel_name=kwargs["kernel_name"],
+            )
+        elif surrogate_model == "Spline":
+            if isinstance(training_results, dict) and "model" in training_results:
+                surrogate = training_results["model"]
             else:
-                norm_factor = 1.0 / (np.max(cp, axis=0) + 1e-12)
-            X = cp / norm_factor
+                surrogate = train_spline_for_cadet(cp_array, cs_true_array)["model"]
+        else:
+            raise ValueError("A surrogate object must be provided for evaluation.")
 
-            if surrogate_model == "ANN":
+    cs_pred_array = np.asarray(surrogate.predict(cp_array), dtype=float)
+    if cs_pred_array.ndim == 1:
+        cs_pred_array = cs_pred_array.reshape(-1, 1)
+    if cs_pred_array.shape != cs_true_array.shape:
+        raise ValueError(
+            f"Surrogate prediction shape {cs_pred_array.shape} does not match reference shape {cs_true_array.shape}."
+        )
 
-                model = rebuild_ann_from_cadet_weights(
-                    weights=training_results[f"bound_state_{i:03d}"],
-                    input_dim=X.shape[1],
-                    hidden_nodes=kwargs["hidden_nodes"],
-                    n_layers=kwargs["n_layers"]
-                )
+    metrics: Dict[str, Dict[str, float]] = {}
+    surrogate_label = getattr(surrogate, "name", surrogate_model or "surrogate")
 
-            elif surrogate_model == "GPR":
+    for i in range(cs_true_array.shape[1]):
+        y_true = cs_true_array[:, i]
+        y_pred = cs_pred_array[:, i]
+        metrics[f"bound_state_{i:03d}"] = _error_metrics(y_true, y_pred)
 
-                model = rebuild_gpr_from_cadet_weights(
-                    cp=cp,
-                    cs_comp=to_gpy_array(cs_true[:, i]),
-                    weights=training_results,
-                    kernel_name=kwargs["kernel_name"],
-                    boundIdx=i
-                )
-
-            models.append(model)
-
-            if surrogate_model == "ANN":
-                y_pred = model.predict(X, verbose=0).reshape(-1)
-            elif surrogate_model == "GPR":
-                y_pred, _ = model.predict(cp)
-                y_pred = y_pred.reshape(-1)
-
-            y_true = cs_true[:, i]
-
+        if n_inputs == 1:
+            cp_plot = cp_array.reshape(-1)
+            isotherm_comparison_1D(
+                cp=cp_plot,
+                cs_true=y_true,
+                cs_pred=y_pred,
+                output_dir=output_path,
+                surrogate_model=surrogate_label,
+                isotherm_model=isotherm_model,
+            )
+        elif n_inputs == 2:
             plot_surface_comparison(
-                cp=cp,
+                cp=cp_array,
                 cs_true=y_true,
                 cs_pred=y_pred,
                 output_dir=output_path,
                 isotherm_model=isotherm_model,
-                surrogate_model=surrogate_model,
-                stateIdx=i
+                surrogate_model=surrogate_label,
+                stateIdx=i,
             )
 
-            cs_pred_all[:, i] = y_pred
+    cs_pred = cs_pred_array.reshape(-1) if cs_true_was_1d else cs_pred_array
+    return cs_pred, metrics, [surrogate]
 
-            # metrics
-            mse = mean_squared_error(y_true, y_pred)
-            r2 = r2_score(y_true, y_pred)
-            max_err = np.max(np.abs(y_true - y_pred))
 
-            metrics[f"bound_state_{i:03d}"] = {
-                "MSE": mse,
-                "R2": r2,
-                "MAX_ERROR": max_err
-            }
+def _build_ann_surrogate(
+    training_results: Dict[str, Any],
+    *,
+    hidden_nodes: int,
+    n_layers: int,
+    normalization_factor: Optional[List[float]],
+) -> ANNSurrogate:
+    """Rebuild an ANN surrogate for evaluation."""
 
-    return cs_pred, metrics, models
+    return ANNSurrogate.from_training_results(
+        training_results,
+        hidden_nodes=hidden_nodes,
+        n_layers=n_layers,
+        normalization_factor=normalization_factor,
+    )
+
+
+def _build_gpr_surrogate(
+    training_results: Dict[str, Any],
+    *,
+    cp: np.ndarray,
+    cs: np.ndarray,
+    kernel_name: str,
+) -> GPRSurrogate:
+    """Rebuild a GPR surrogate for evaluation."""
+
+    return GPRSurrogate.from_training_results(
+        training_results,
+        cp=cp,
+        cs=cs,
+        kernel_name=kernel_name,
+    )
 
 #######################################################################################
 # 1comp Langmuir binding isotherm GPR analysis
@@ -495,12 +518,12 @@ def binding_train_GPR_langmuir1Comp(cadet_path: str, output_dir: str):
                 add_noise=add_noise,
                 )
 
+    surrogate = _build_gpr_surrogate(training_results, cp=cp, cs=cs, kernel_name=kernel)
+
     cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
         cp=cp,
         cs_true=cs,
-        surrogate_model="GPR",
-        training_results=training_results,
-        kernel_name=kernel,
+        surrogate=surrogate,
         output_path=output_dir,
         isotherm_model="langmuir"
     )
@@ -557,12 +580,12 @@ def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
                 add_noise=add_noise,
                 )
 
+    surrogate = _build_gpr_surrogate(training_results, cp=cp, cs=cs, kernel_name=kernel)
+
     cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
         cp=cp,
         cs_true=cs,
-        surrogate_model="GPR",
-        training_results=training_results,
-        kernel_name=kernel,
+        surrogate=surrogate,
         output_path=output_dir,
         isotherm_model="langmuir"
     )
@@ -604,6 +627,8 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
     
     os.makedirs(plot_training_curves, exist_ok=True)
 
+    from src.training_ann import train_ann_for_cadet
+
     training_results = train_ann_for_cadet(
                 cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
                 normalization_factor=normalization_factor, epochs=epochs, patience=patience,
@@ -611,14 +636,17 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
                 plot_training_curves=plot_training_curves
                 )
 
-    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
-        cp=cp,
-        cs_true=cs,
-        surrogate_model="ANN",
-        training_results=training_results,
+    surrogate = _build_ann_surrogate(
+        training_results,
         hidden_nodes=hidden_nodes,
         n_layers=n_layers,
         normalization_factor=normalization_factor,
+    )
+
+    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
+        cp=cp,
+        cs_true=cs,
+        surrogate=surrogate,
         output_path=plot_training_curves,
         isotherm_model="langmuir"
     )
@@ -677,6 +705,8 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
 
     os.makedirs(plot_training_curves, exist_ok=True)
 
+    from src.training_ann import train_ann_for_cadet
+
     training_results = train_ann_for_cadet(
                 cp, cs, hidden_nodes=hidden_nodes, n_layers=n_layers,
                 normalization_factor=normalization_factor, epochs=epochs, patience=patience,
@@ -684,14 +714,17 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
                 plot_training_curves=plot_training_curves
                 )
 
-    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
-        cp=cp,
-        cs_true=cs,
-        surrogate_model="ANN",
-        training_results=training_results,
+    surrogate = _build_ann_surrogate(
+        training_results,
         hidden_nodes=hidden_nodes,
         n_layers=n_layers,
         normalization_factor=normalization_factor,
+    )
+
+    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
+        cp=cp,
+        cs_true=cs,
+        surrogate=surrogate,
         output_path=plot_training_curves,
         isotherm_model="langmuir"
     )
@@ -710,6 +743,39 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
         hidden_nodes=hidden_nodes,
     )
 
+#######################################################################################
+# Langmuir 2Comp binding isotherm Spline analysis
+#######################################################################################
+
+def binding_train_Spline_langmuir2Comp(cadet_path: str, output_dir: str):
+    NTRAIN = 10
+    cpMax = 10.0
+
+    Ka, Kd, Qmax = get_langmuir_parameters(langmuir_2Comp_setting.get_model)
+    print(f"Ka: {Ka}, Kd: {Kd}, Qmax: {Qmax}")
+    c_sample = np.linspace(0, cpMax, NTRAIN)
+    cp = np.array([[c1_i, c2_j] for c1_i in c_sample for c2_j in c_sample])
+    cs = multi_component_langmuir_equilibrium(cp=cp, keq=Ka/Kd, qmax=Qmax)
+
+    output_dir = str(output_dir) + f"/langmuir2comp/Spline"
+    os.makedirs(output_dir, exist_ok=True)
+
+    training_results = train_spline_for_cadet(cp, cs)
+    surrogate = training_results["model"]
+
+    cs_pred, metrics, models = evaluate_surrogate_vs_isotherm(
+        cp=cp,
+        cs_true=cs,
+        surrogate=surrogate,
+        output_path=output_dir,
+        isotherm_model="langmuir",
+    )
+
+    print("\n=== Summary metrics ===")
+    for k, v in metrics.items():
+        print(k, v)
+
+    return cs_pred, metrics, models
 
 
 ###
