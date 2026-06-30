@@ -189,6 +189,13 @@ def transport_tests(n_jobs, small_test,
         'max_steps' : 500
         }
     
+    time_integrator_DG = {
+        'ABSTOL' : 1e-12, 'RELTOL' : 1e-10, 'ALGTOL' : 1e-10,
+        'USE_MODIFIED_NEWTON' : True,
+        'init_step_size' : 1e-8,
+        'max_steps' : 1500
+        }
+
     spatial_discretization_WENO3 = {
         'NCOL': 8,
         'SPATIAL_METHOD' : 'FV', 'RECONSTRUCTION' : 'WENO',
@@ -221,6 +228,13 @@ def transport_tests(n_jobs, small_test,
     spatial_discretization_KORENNonEq['NonEq'] = True
     spatial_discretization_KORENNonEq['grid_function'] = grid_function
 
+    spatial_discretization_DG = {
+        'POLYDEG': 3, 'NELEM': 2,
+        'SPATIAL_METHOD' : 'DG', 'POLYNOMIAL_INTEGRATION_TYPE' : 0,
+        'USE_ANALYTIC_JACOBIAN': True, 'USE_MODIFIED_NEWTON' : True,
+        'grid_function' : partial(grid_equidistant)
+        }
+
     def refine_discretization(config_data, disc_idx, setting_name,
                               spatial_discretization,
                               time_integrator=None,
@@ -246,7 +260,8 @@ def transport_tests(n_jobs, small_test,
         if time_integrator is not None:
             config_data['input']['solver']['time_integrator'] = time_integrator
             
-        nCol = 8 * 2** (disc_idx)
+        spatialMethod = 0 if spatial_discretization['SPATIAL_METHOD'] == 'FV' else spatial_discretization['POLYDEG']
+        nCol = spatial_discretization['NCOL'] * 2** (disc_idx) if spatialMethod == 0 else spatial_discretization['NELEM'] * 2** (disc_idx)
         
         unit_type = config_data['input']['model']['unit_' + unit_id]['unit_type']
         match = re.search(r"(FRUSTUM|RADIAL)", unit_type)
@@ -282,9 +297,13 @@ def transport_tests(n_jobs, small_test,
         config_data['input']['model']['unit_' + unit_id]['discretization'].update(
             {k: v for k, v in spatial_discretization.items() if k not in {'NonEq', 'grid_function'}}
             )
-        config_data['input']['model']['unit_' + unit_id]['discretization']['NCOL'] = nCol
         
-        config_name = convergence.generate_1D_name(setting_name, 0, nCol)
+        if spatial_discretization['SPATIAL_METHOD'] == 'DG':
+            config_data['input']['model']['unit_' + unit_id]['discretization']['NELEM'] = nCol
+            config_name = convergence.generate_1D_name(setting_name, spatial_discretization['POLYDEG'], nCol)
+        elif spatial_discretization['SPATIAL_METHOD'] == 'FV':
+            config_data['input']['model']['unit_' + unit_id]['discretization']['NCOL'] = nCol
+            config_name = convergence.generate_1D_name(setting_name, 0, nCol)
 
         model = Cadet()
         model.root.input = copy.deepcopy(config_data['input'])
@@ -301,7 +320,12 @@ def transport_tests(n_jobs, small_test,
     
     #%% Axial flow transport
 
-    nNumMethods = 6
+    nNumMethods = 7
+
+    axial_ref_file = _reference_data_path_ + "/axCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z256.h5"
+    axial_ref = convergence.get_solution(
+        axial_ref_file, unit='unit_001', which='outlet'
+    )
     
     addition = {
             'cadet_config_jsons': [
@@ -311,17 +335,18 @@ def transport_tests(n_jobs, small_test,
                 'COL1D_transport_1comp_benchmark1'
             ],
             'include_sens': [False],
-            'ref_files': [[None] * nNumMethods],
+            'ref_files': [[axial_ref] * nNumMethods],
             'unit_IDs': ['001'],
             'which': ['outlet'],
-            'ax_methods': [[0] * nNumMethods],
+            'ax_methods': [[0, 0, 0, 0, 0, 0, 3]],
             'ax_discs': [[
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3)
+                bench_func.disc_list(8, 10 if not small_test else 3),
+                bench_func.disc_list(2, 7 if not small_test else 3)
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
@@ -353,6 +378,11 @@ def transport_tests(n_jobs, small_test,
                          setting_name="COL1D_transport_1comp_KORENnonEq_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
                          time_integrator=time_integrator
+                         ),
+                partial(refine_discretization,
+                         setting_name="COL1D_transport_1comp_DGP3_benchmark1",
+                         spatial_discretization=copy.deepcopy(spatial_discretization_DG),
+                         time_integrator=time_integrator_DG
                          )
                 ]]
         }
@@ -365,7 +395,7 @@ def transport_tests(n_jobs, small_test,
 
     #%% Radial flow transport
 
-    nNumMethods = 6
+    nNumMethods = 7
 
     spatial_discretization_WENO2NonEq['grid_function'] = grid_radial_equivolume
     spatial_discretization_WENO3NonEq['grid_function'] = grid_radial_equivolume
@@ -387,14 +417,15 @@ def transport_tests(n_jobs, small_test,
             'ref_files': [[radial_ref] * nNumMethods],
             'unit_IDs': ['001'],
             'which': ['outlet'],
-            'ax_methods': [[0] * nNumMethods],
+            'ax_methods': [[0, 0, 0, 0, 0, 0, 3]],
             'ax_discs': [[
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3)
+                bench_func.disc_list(8, 10 if not small_test else 3),
+                bench_func.disc_list(2, 7 if not small_test else 3)
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
@@ -426,6 +457,11 @@ def transport_tests(n_jobs, small_test,
                          setting_name="radCOL1D_transport_1comp_KORENnonEq_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
                          time_integrator=time_integrator
+                         ),
+                partial(refine_discretization,
+                         setting_name="radCOL1D_transport_1comp_DGP3_benchmark1",
+                         spatial_discretization=copy.deepcopy(spatial_discretization_DG),
+                         time_integrator=time_integrator_DG
                          )
                 ]]
         }
