@@ -14,7 +14,10 @@ import src.bench_func as bench_func
 
 
 # %% Reference data paths
-reference_data_path = str(
+reference_data_path_CADETCORE = str(
+    Path(__file__).resolve().parent.parent / 'data' / 'CADET-Core_reference' / 'chromatography'
+)
+reference_data_path_CASEMA = str(
     Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
 )
 
@@ -41,17 +44,29 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
     par_discs = []
     disc_refinement_functions = []
 
-    addition = bench_configs.radial_flow_benchmark(small_test=small_test)
+    addition = bench_configs.radial_flow_benchmark_fv(
+        small_test=small_test, ref_filepath=reference_data_path_CADETCORE
+        )
 
     bench_configs.add_benchmark(
         cadet_configs, include_sens, ref_files, unit_IDs, which,
         ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
         cadet_config_names=cadet_config_names, addition=addition,
-    disc_refinement_functions = disc_refinement_functions)
+        disc_refinement_functions=disc_refinement_functions)
 
-    addition = bench_configs.fv_benchmark(
+    addition = bench_configs.radial_flow_benchmark_dg(
+        small_test=small_test, ref_filepath=reference_data_path_CADETCORE
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions=disc_refinement_functions)
+
+    addition = bench_configs.axial_flow_benchmark_fv(
         small_test=small_test, sensitivities=sensitivities,
-        ref_filepath=reference_data_path
+        ref_filepath=reference_data_path_CASEMA
         )
 
     bench_configs.add_benchmark(
@@ -61,9 +76,9 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         disc_refinement_functions = disc_refinement_functions
         )
     
-    addition = bench_configs.dg_benchmark(
+    addition = bench_configs.axial_flow_benchmark_dg(
         small_test=small_test, sensitivities=sensitivities,
-        ref_filepath=reference_data_path
+        ref_filepath=reference_data_path_CASEMA
         )
 
     bench_configs.add_benchmark(

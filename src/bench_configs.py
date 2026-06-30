@@ -35,7 +35,8 @@ _benchmark_settings_ = [
     'chromatography_benchmark_without_GRMLWE',
     'linear_chromatography_benchmark',
     'LWE_chromatography_benchmark',
-    'radial_flow_benchmark',
+    'radial_flow_benchmark_fv',
+    'radial_flow_benchmark_dg',
     # Individual settings
     'LRM_dynLin_1comp_benchmark1',
     'LRMP_dynLin_1comp_benchmark1',
@@ -196,7 +197,7 @@ def run_benchmark(
 
 # %% FV benchmark configuration used in CADET-Core tests
 
-def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
+def axial_flow_benchmark_fv(small_test=False, sensitivities=False, ref_filepath=None):
 
     # Load analytical references for linear 1-component benchmarks
     if ref_filepath is not None:
@@ -317,7 +318,7 @@ def fv_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
 # %% DG benchmark configuration used in CADET-Core tests
 
 
-def dg_benchmark(small_test=False, sensitivities=False, ref_filepath=None):
+def axial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=None):
 
     # Load analytical references for linear 1-component benchmarks
     if ref_filepath is not None:
@@ -572,10 +573,17 @@ def sensitivity_benchmark2(spatial_method, small_test):
 
     return benchmark_config
 
-# %% Radial flow (FV) benchmark configuration used in CADET-Core tests
 
+def radial_flow_benchmark_fv(small_test=False, sensitivities=False, ref_filepath=None):
 
-def radial_flow_benchmark(small_test=False, sensitivities=False):
+    if ref_filepath is not None:
+        ref_LRM = convergence.get_solution(ref_filepath+'/radLRM_dynLin_1comp_benchmark1_DG_P3Z256.h5')
+        ref_LRMP = convergence.get_solution(ref_filepath+'/radLRMP_dynLin_1comp_benchmark1_DG_P3Z128.h5')
+        ref_GRM = convergence.get_solution(ref_filepath+'/radGRM_dynLin_1comp_benchmark1_cDG_P3Z128_DGexInt_parP3parZ16.h5')
+    else:
+        ref_LRM = None
+        ref_LRMP = None
+        ref_GRM = None
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -611,7 +619,7 @@ def radial_flow_benchmark(small_test=False, sensitivities=False):
         ],
         'include_sens': [True] * 3 if sensitivities else [False] * 3,
         'ref_files': [
-            [None], [None], [None]
+            [ref_LRM], [ref_LRMP], [ref_GRM]
         ],
         'unit_IDs': [
             '001', '001', '001'
@@ -637,6 +645,86 @@ def radial_flow_benchmark(small_test=False, sensitivities=False):
             [None],
             [None],
             [bench_func.disc_list(1, 5 if not small_test else 3)]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(3)
+            ]
+    }
+
+    return benchmark_config
+
+
+def radial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=None):
+
+    if ref_filepath is not None:
+        ref_LRM = convergence.get_solution(ref_filepath+'/radLRM_dynLin_1comp_benchmark1_DG_P3Z256.h5')
+        ref_LRMP = convergence.get_solution(ref_filepath+'/radLRMP_dynLin_1comp_benchmark1_DG_P3Z128.h5')
+        ref_GRM = convergence.get_solution(ref_filepath+'/radGRM_dynLin_1comp_benchmark1_cDG_P3Z128_DGexInt_parP3parZ16.h5')
+    else:
+        ref_LRM = None
+        ref_LRMP = None
+        ref_GRM = None
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_radCol1D_LRM_lin_1comp_benchmark1.get_sensbenchmark1(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_GRM_sensbenchmark1(
+                spatial_method_bulk=0, spatial_method_par=0
+                )
+        ] if sensitivities else [
+            setting_radCol1D_LRM_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type="HOMOGENEOUS_PARTICLE"
+                ),
+            setting_radCol1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, spatial_method_par=0,
+                particle_type="GENERAL_RATE_PARTICLE"
+                )
+        ],
+        'cadet_config_names': [
+            'radLRM_dynLin_1comp_sensbenchmark1',
+            'radLRMP_dynLin_1comp_sensbenchmark1',
+            'radGRM_dynLin_1comp_sensbenchmark1'
+        ] if sensitivities else [
+            'radLRM_dynLin_1comp_benchmark1',
+            'radLRMP_dynLin_1comp_benchmark1',
+            'radGRM_dynLin_1comp_benchmark1'
+        ],
+        'include_sens': [True] * 3 if sensitivities else [False] * 3,
+        'ref_files': [
+            [ref_LRM], [ref_LRMP], [ref_GRM]
+        ],
+        'unit_IDs': [
+            '001', '001', '001'
+        ],
+        'which': [
+            'outlet', 'outlet', 'outlet'
+        ],
+        'idas_abstol': [
+            [1e-10], [1e-10], [1e-10]
+        ],
+        'ax_methods': [
+            [3], [3], [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(2, 7 if not small_test else 3)],
+            [bench_func.disc_list(2, 5 if not small_test else 3)],
+            [bench_func.disc_list(8, 4 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None], [None], [3]
+        ],
+        'par_discs': [
+            [None],
+            [None],
+            [bench_func.disc_list(1, 4 if not small_test else 3)]
         ],
         'disc_refinement_functions' : [
             [bench_func.create_object_from_config] for _ in range(3)
