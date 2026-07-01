@@ -9,8 +9,6 @@ This script defines chromatography tests.
 import os
 from pathlib import Path
 
-from cadet import Cadet
-
 import src.bench_configs as bench_configs
 import src.bench_func as bench_func
 
