@@ -8,15 +8,11 @@ This script defines chromatography tests.
 # %% Include packages
 import os
 from pathlib import Path
-import re
-from joblib import Parallel, delayed
-import numpy as np
 
 from cadet import Cadet
-#from cadetrdm import ProjectRepo
 
-import bench_configs as bench_configs
-import bench_func as bench_func
+import src.bench_configs as bench_configs
+import src.bench_func as bench_func
 
 
 # %% Reference data paths
