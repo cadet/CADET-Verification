@@ -12,19 +12,19 @@ import os
 import json
 import copy
 
-import bench_func as bench_func
-import utility.convergence as convergence
+from src import bench_func
+from src.utility import convergence
 
-from benchmark_models import settings_2Dchromatography
-from benchmark_models import settings_columnSystems
-from benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
-from benchmark_models import setting_Col1D_lin_1comp_benchmark1
-from benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
-from benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
-from benchmark_models import setting_radCol1D_lin_1comp_benchmark1
-from benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
-from benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
-from benchmark_models import setting_Col1D_langLRM_2comp_benchmark1
+from src.benchmark_models import settings_2Dchromatography
+from src.benchmark_models import settings_columnSystems
+from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
+from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
+from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
+from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
+from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
+from src.benchmark_models import setting_Col1D_langLRM_2comp_benchmark1
 
 
 # %% benchmark templates
