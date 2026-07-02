@@ -29,7 +29,6 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.solver.max_restarts = np.int32(10)
     model.root.input.model.solver.schur_safety = np.float64(1e-08)
     
-    
     model.root.input.model.unit_000.unit_type = np.bytes_(b'INLET')
     model.root.input.model.unit_000.inlet_type = np.bytes_(b'PIECEWISE_CUBIC_POLY')
     model.root.input.model.unit_000.ncomp = np.int32(1)
@@ -41,7 +40,6 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.unit_000.sec_001.cube_coeff = np.array([0.])
     model.root.input.model.unit_000.sec_001.lin_coeff = np.array([0.])
     model.root.input.model.unit_000.sec_001.quad_coeff = np.array([0.])
-    
     
     model.root.input.model.unit_001.unit_type = np.bytes_(b'COLUMN_MODEL_1D')
     model.root.input.model.unit_001.npartype = np.int32(1)
@@ -74,6 +72,7 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.unit_001.particle_type_000.init_cp = np.array([0.])
     model.root.input.model.unit_001.particle_type_000.nbound = np.array([1])
     model.root.input.model.unit_001.particle_type_000.adsorption_model = np.bytes_(b'SPLINE_INTERPOLATION')
+    model.root.input.model.unit_001.particle_type_000.adsorption.interpolation_mode = np.bytes_(b'COMPETITIVE_REGULAR_GRID')
     model.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = np.int32(1)
     model.root.input.model.unit_001.particle_type_000.adsorption.spline_kkin = np.float64(1.0)
     model.root.input.model.unit_001.particle_type_000.adsorption.cp_vals_comp_000 = np.array([
@@ -86,10 +85,8 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.unit_001.particle_type_000.discretization.ncells = np.int32(15)
     model.root.input.model.unit_001.particle_type_000.discretization.par_disc_type = np.bytes_(b'EQUIDISTANT_PAR')
     
-    
     model.root.input.model.unit_002.unit_type = np.bytes_(b'OUTLET')
     model.root.input.model.unit_002.ncomp = np.int32(1)
-    
     
     model.root.input['return'].split_components_data = np.int32(0)
     model.root.input['return'].split_ports_data = np.int32(0)
@@ -120,7 +117,6 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     # model.root.input['return'].unit_002.write_solution_particle = np.int32(1)
     # model.root.input['return'].unit_002.write_solution_solid = np.int32(1)
     # model.root.input['return'].unit_002.write_solution_volume = np.int32(1)
-    
     
     model.root.input.solver.nthreads = np.int32(1)
     model.root.input.solver.sections.nsec = np.int32(2)
@@ -157,37 +153,3 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
             plt.close()
         
     return model
-
-#%% Simulation result comparison to reference solution
-
-# cadet_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
-
-# model = get_model(cadet_path, save_model=True)
-
-# data = model.run_simulation()
-
-# if not data.return_code == 0:
-#     print("Simulation failed with: " + data.error_message)
-#     print(data.log)
-# else:
-    
-#     model.load()
-    
-#     # data
-    
-#     time = model.root.output.solution.solution_times
-#     outlet = model.root.output.solution.unit_001.solution_outlet
-    
-#     model_old = Cadet()
-#     model_old.filename = r'C:\Users\jmbr\OneDrive\Desktop\Hybrid models\2026 Dev Work\Input Files\Splines\Spline_knots_Shallow_7.h5'
-#     model_old.load_from_file()
-#     outlet_old = model_old.root.output.solution.unit_001.solution_outlet
-    
-#     plt.plot(time, outlet, label='new sim')
-#     plt.plot(time, outlet_old, label='old sim', linestyle='dashed')
-#     plt.xlabel(r'Time, $min$')
-#     plt.ylabel(r'Concentration, $g/L$')
-#     plt.legend(frameon=0)
-#     plt.show()
-    
-#     print("absolute max. difference: " + str(np.max(abs(outlet_old - outlet))))
