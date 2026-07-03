@@ -12,7 +12,7 @@ Similar verification studies were published in Zhang et al.
 
 '''
 
-import mpmath as mp # used to compute a high precision reference solution
+from mpmath import mp # used to compute a high precision reference solution
 from scipy.interpolate import UnivariateSpline
 import numpy as np
 import matplotlib.pyplot as plt
