@@ -133,7 +133,7 @@ def aggregation_EOC_test(cadet_path, small_test, output_path):
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
         
         sim_times.append(model.root.meta.time_sim)
@@ -208,7 +208,7 @@ def fragmentation_EOC_test(cadet_path, small_test, output_path):
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
         
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
@@ -312,7 +312,7 @@ def aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path):
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
         sim = model.root.output.solution.unit_001.solution_outlet[-1, :]
         
@@ -377,7 +377,7 @@ def PBM_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path, 
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
             raise Exception(f"{model.filename} simulation failed")
         model.load_from_file()
     else:
@@ -459,7 +459,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, referenc
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
     else:
         model = Cadet()
@@ -492,7 +492,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, referenc
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        raise Exception(return_data.error_message)
+        raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
     model.load_from_file()
 
     c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1, :]
@@ -516,7 +516,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, referenc
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -557,7 +557,7 @@ def DPFR_constAggregation_EOC_test(cadet_path, small_test, output_path, referenc
         model.save()
         return_return_data = model.run_simulation()
         if not return_return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -619,7 +619,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        raise Exception(return_data.error_message)
+        raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
@@ -647,7 +647,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
     else:
         model = Cadet()
@@ -679,7 +679,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -720,7 +720,7 @@ def DPFR_constFragmentation_EOC_test(cadet_path, small_test, output_path, refere
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -780,7 +780,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        raise Exception(return_data.error_message)
+        raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
     model.load_from_file()
 
     t = model.root.input.solver.user_solution_times
@@ -809,7 +809,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
     else:
         model = Cadet()
@@ -840,7 +840,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(
@@ -882,7 +882,7 @@ def DPFR_NGGR_aggregation_EOC_test(cadet_path, small_test, output_path, referenc
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(
@@ -946,7 +946,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
     model.save()
     return_data = model.run_simulation()
     if not return_data.return_code == 0:
-        raise Exception(return_data.error_message)
+        raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
     model.load_from_file()
     c_x = model.root.output.solution.unit_002.solution_outlet[-1, :]
 
@@ -973,7 +973,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
     else:
         model = Cadet()
@@ -1004,7 +1004,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])
@@ -1045,7 +1045,7 @@ def DPFR_aggregation_fragmentation_EOC_test(cadet_path, small_test, output_path,
         model.save()
         return_data = model.run_simulation()
         if not return_data.return_code == 0:
-            raise Exception(return_data.error_message)
+            raise Exception(f"{model.filename} simulation failed with {return_data.error_message}")
         model.load_from_file()
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1, :])

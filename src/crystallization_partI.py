@@ -89,7 +89,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_p
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"{model.filename} simulation failed")
+            raise Exception(f"{model.filename} simulation failed with {data.error_message}")
         model.load_from_file()
     
         c_x_reference = model.root.output.solution.unit_001.solution_outlet[-1,1:-1]
@@ -118,7 +118,7 @@ def get_EOC_simTimes(N_x_ref, N_x_test, target_model, xmax, cadet_path, output_p
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"{model.filename} simulation failed")
+            raise Exception(f"{model.filename} simulation failed with {data.error_message}")
         model.load_from_file() 
 
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -315,7 +315,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"{model.filename} simulation failed")
+            raise Exception(f"{model.filename} simulation failed with {data.error_message}")
         model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -361,7 +361,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"{model.filename} simulation failed")
+            raise Exception(f"{model.filename} simulation failed with {data.error_message}")
         model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
@@ -389,7 +389,7 @@ def DPFR_PBM_primarySecondaryNucleationGrowth_EOC_test(
         data = model.run_simulation()
         if not data.return_code == 0:
             print(data.error_message)
-            raise Exception(f"{model.filename} simulation failed")
+            raise Exception(f"{model.filename} simulation failed with {data.error_message}")
         model.load_from_file() 
     
         n_xs.append(model.root.output.solution.unit_001.solution_outlet[-1,1:-1])
