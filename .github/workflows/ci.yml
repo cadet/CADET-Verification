@@ -30,6 +30,14 @@ jobs:
       PYTEST_ARGS: ""
 
     steps:
+      # Codecov needs the repository in the workspace to find codecov.yml and
+      # to upload the repo file network used for path-fixing the report.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPOSITORY }}
+          ref: ${{ env.COMMIT_SHA }}
+
       - name: Run test in Docker
         run: |
           docker pull "$DOCKER_IMAGE"
@@ -70,5 +78,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
+          disable_search: true
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true

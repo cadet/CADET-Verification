@@ -33,3 +33,8 @@ cadet = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["src*"]
+
+[tool.coverage.run]
+# Store repo-relative paths so codecov can map the report to the repo tree,
+# independent of where the tests run (e.g. /tmp/cadet-verification in CI).
+relative_files = true
