@@ -38,6 +38,7 @@ include = ["src*"]
 # Store repo-relative paths so codecov can map the report to the repo tree,
 # independent of where the tests run (e.g. /tmp/cadet-verification in CI).
 relative_files = true
+source = ["src", "scripts", "test"]
 # The verification tests run the model groups in joblib (loky) worker
 # processes; without this patch their execution is invisible to coverage.
 patch = ["subprocess"]
