@@ -76,6 +76,7 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     model.root.input.model.unit_001.particle_type_000.adsorption_model = np.bytes_(b'SPLINE_INTERPOLATION')
     model.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = np.int32(1)
     model.root.input.model.unit_001.particle_type_000.adsorption.spline_kkin = np.float64(1.0)
+    model.root.input.model.unit_001.particle_type_000.adsorption.interpolation_mode = np.bytes_(b'INDEPENDENT')
     model.root.input.model.unit_001.particle_type_000.adsorption.cp_vals_comp_000 = np.array([
         0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015 , 3.003003, 6.0
         ])

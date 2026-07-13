@@ -26,8 +26,8 @@ n_jobs = -1
 delete_h5_files = False
 
 run_transport_tests = False
-run_binding_tests = True
-run_chromatography_tests = False
+run_binding_tests = False
+run_chromatography_tests = True
 run_MCT_tests = False
 run_chromatography_sensitivity_tests = False
 run_chromatography_system_tests = False
