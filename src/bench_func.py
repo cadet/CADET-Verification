@@ -580,22 +580,13 @@ def run_convergence_analysis_from_configs(
         output_path=None,
         cadet_path=None,
         cadet_configs=None,
-        cadet_config_names=[
-            'configuration_LRM_dynLin_1comp_sensbenchmark1_FV_Z256.json',
-            'configuration_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.json'
-        ],
-        include_sens=[True, True],
-        ref_files=[[None, None], [None, None]],
-        unit_IDs=['001', '001'],
-        which=['outlet', 'outlet'],
-        ax_methods=[
-        [0, 3],
-        [0, 3]
-        ],
-        ax_discs=[
-            [disc_list(8, 3), disc_list(1, 3)],
-            [disc_list(8, 3), disc_list(4, 3)]
-        ],
+        cadet_config_names=None,
+        include_sens=None,
+        ref_files=None,
+        unit_IDs=None,
+        which=None,
+        ax_methods=None,
+        ax_discs=None,
         par_methods=None,
         par_discs=None,
         rad_methods=None,

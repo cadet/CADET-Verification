@@ -533,7 +533,7 @@ def binding_train_GPR_langmuir1Comp(cadet_path: str, output_dir: str):
 
 def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
 
-    refinement = 4
+    nCells = 32
     NTRAIN = 10
     kernel = "MLP"
     optimization_restarts = 10
@@ -571,7 +571,7 @@ def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
         "GPR",
         cadet_path, output_dir,
         kernel="MLP",
-        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement),
+        get_model=partial(langmuir_2Comp_setting.get_model, nCells=nCells),
         training_results=training_results,
         cp=cp, cs=cs,
         )
@@ -632,6 +632,7 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
         cadet_path, plot_training_curves,
         get_model=partial(
             langmuir_1Comp_setting.get_model,
+                nCells=32,
                 file_name="testitest.h5",
                 mode="MCL",
                 loading=np.linspace(0.0, 50.0, 50 + 1),
@@ -652,7 +653,7 @@ def binding_train_ANN_langmuir1Comp(cadet_path: str, output_dir: str):
 
 def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
 
-    refinement = 4
+    nCells = 32
 
     NTRAIN = 100
     cpMax = 10.0 # seen as max c^l for unrefined model
@@ -703,7 +704,7 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
     simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
         "ANN",
         cadet_path, plot_training_curves,
-        get_model=partial(langmuir_2Comp_setting.get_model, refinement=refinement, idas_reftol=1e-4),
+        get_model=partial(langmuir_2Comp_setting.get_model, nCells=nCells, idas_reftol=1e-4),
         training_results=training_results,
         normalization_factor=normalization_factor,
         n_layers=n_layers,
