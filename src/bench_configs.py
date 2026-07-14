@@ -430,7 +430,7 @@ def axial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=
             [bench_func.disc_list(4, 6 if not small_test else 3)],
             [bench_func.disc_list(4, 5 if not small_test else 3)],
             [bench_func.disc_list(2, 4 if not small_test else 3)],
-            [bench_func.disc_list(8, 5 if not small_test else 3)]
+            [bench_func.disc_list(8, 7 if not small_test else 3)]
         ],
         'par_methods': [
             [None], [None], [3], [3], [None], [None], [3], [2], [None]

@@ -346,7 +346,7 @@ def transport_tests(n_jobs, small_test,
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(2, 7 if not small_test else 3)
+                bench_func.disc_list(2, 6 if not small_test else 3)
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
