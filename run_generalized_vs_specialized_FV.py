@@ -13,8 +13,8 @@ The toggle is discretization.FV_ARROW_HEAD_OPTIMIZATION:
 Test cases:
   Study 1 — Convergence: LWE 4-comp SMA for LRMP and GRM, refining NCOL
             (and NPAR for GRM). Produces error-vs-nDOF and error-vs-time plots.
-  Study 2 — Particle-type scaling: GRM with npartype in {1, 2, 4} at several
-            fixed NCOL values, measuring compute time vs npartype.
+  Study 2 — Particle-type scaling: LRMP and GRM with npartype in {1, 2, 4}
+            at several fixed NCOL values, measuring compute time vs npartype.
 
 Notes:
   - LRM (EQUILIBRIUM_PARTICLE) is excluded: the generalized ColumnModel1D FV
@@ -257,8 +257,26 @@ def run_study1(output_path, cadet_path, n_refinements, n_runs, n_jobs):
 
 
 # ---------------------------------------------------------------------------
-# Study 2 — Particle-type scaling (GRM with npartype = 1, 2, 4)
+# Study 2 — Particle-type scaling (LRMP and GRM with npartype = 1, 2, 4)
 # ---------------------------------------------------------------------------
+
+STUDY2_MODEL_CONFIGS = [
+    {
+        'name': 'LRMP',
+        'particle_type': 'HOMOGENEOUS_PARTICLE',
+        'par_method_needed': False,
+        'npar': None,
+        'idas_abstol': 1e-10,
+    },
+    {
+        'name': 'GRM',
+        'particle_type': 'GENERAL_RATE_PARTICLE',
+        'par_method_needed': True,
+        'npar': 4,
+        'idas_abstol': 1e-8,
+    },
+]
+
 
 def replicate_particle_type(model_dict, npartype):
     """Duplicate particle_type_000 to create npartype identical particle types."""
@@ -272,17 +290,16 @@ def replicate_particle_type(model_dict, npartype):
 
 
 def run_study2(output_path, cadet_path, n_runs, n_jobs,
-               ncol_values=None, npar=4, npartype_values=None):
-    """Study 2: timing vs npartype for GRM at fixed discretizations."""
+               ncol_values=None, npartype_values=None):
+    """Study 2: timing vs npartype for LRMP and GRM at fixed discretizations."""
     if ncol_values is None:
         ncol_values = [16, 32, 64]
     if npartype_values is None:
         npartype_values = [1, 2, 4]
 
     print("\n" + "=" * 60)
-    print("STUDY 2 — Particle-type scaling: GRM")
+    print("STUDY 2 — Particle-type scaling: LRMP and GRM")
     print(f"  NCOL values:    {ncol_values}")
-    print(f"  NPAR:           {npar}")
     print(f"  npartype values: {npartype_values}")
     print("=" * 60)
 
@@ -291,30 +308,36 @@ def run_study2(output_path, cadet_path, n_runs, n_jobs,
     all_sims = []
     sim_registry = {}
 
-    for ncol in ncol_values:
-        for npt in npartype_values:
-            for variant_name, arrow_head in VARIANTS:
-                model = sma_setting.get_model(
-                    spatial_method_bulk=0,
-                    particle_type='GENERAL_RATE_PARTICLE',
-                    axRefinement=ncol // 8,
-                    spatial_method_particle=0,
-                    parZ=npar,
-                    idas_reftol=1e-8,
-                )
-                replicate_particle_type(model, npt)
-                set_arrow_head_optimization(model, arrow_head)
+    for mc in STUDY2_MODEL_CONFIGS:
+        for ncol in ncol_values:
+            for npt in npartype_values:
+                for variant_name, arrow_head in VARIANTS:
+                    kwargs = {}
+                    if mc['par_method_needed']:
+                        kwargs['spatial_method_particle'] = 0
+                        kwargs['parZ'] = mc['npar']
 
-                filename = os.path.join(
-                    output_path,
-                    f"GRM_SMA_4comp_{variant_name}_FV_Z{ncol}_parZ{npar}"
-                    f"_npt{npt}.h5"
-                )
-                sim = create_simulation(model, filename, cadet_path)
-                all_sims.append(sim)
+                    model = sma_setting.get_model(
+                        spatial_method_bulk=0,
+                        particle_type=mc['particle_type'],
+                        axRefinement=ncol // 8,
+                        idas_reftol=mc['idas_abstol'],
+                        **kwargs
+                    )
+                    replicate_particle_type(model, npt)
+                    set_arrow_head_optimization(model, arrow_head)
 
-                key = (ncol, npt, variant_name)
-                sim_registry[key] = sim.filename
+                    par_tag = f"_parZ{mc['npar']}" if mc['npar'] else ""
+                    filename = os.path.join(
+                        output_path,
+                        f"{mc['name']}_SMA_4comp_{variant_name}_FV_Z{ncol}"
+                        f"{par_tag}_npt{npt}.h5"
+                    )
+                    sim = create_simulation(model, filename, cadet_path)
+                    all_sims.append(sim)
+
+                    key = (mc['name'], ncol, npt, variant_name)
+                    sim_registry[key] = sim.filename
 
     print(f"Created {len(all_sims)} simulation configurations.")
     best_times = run_and_collect_times(
@@ -323,21 +346,22 @@ def run_study2(output_path, cadet_path, n_runs, n_jobs,
 
     print("\n--- Timing results ---")
     results = {}
-    for ncol in ncol_values:
-        for variant_name, _ in VARIANTS:
-            result_key = f"GRM_Z{ncol}_{variant_name}"
-            npt_list, time_list = [], []
-            for npt in npartype_values:
-                key = (ncol, npt, variant_name)
-                npt_list.append(npt)
-                time_list.append(best_times[key])
-            results[result_key] = {
-                'npartype': npt_list,
-                'Sim. time': time_list,
-            }
-            print(f"\n{result_key}:")
-            print(f"  npartype: {npt_list}")
-            print(f"  Time [s]: {[f'{t:.4f}' for t in time_list]}")
+    for mc in STUDY2_MODEL_CONFIGS:
+        for ncol in ncol_values:
+            for variant_name, _ in VARIANTS:
+                result_key = f"{mc['name']}_Z{ncol}_{variant_name}"
+                npt_list, time_list = [], []
+                for npt in npartype_values:
+                    key = (mc['name'], ncol, npt, variant_name)
+                    npt_list.append(npt)
+                    time_list.append(best_times[key])
+                results[result_key] = {
+                    'npartype': npt_list,
+                    'Sim. time': time_list,
+                }
+                print(f"\n{result_key}:")
+                print(f"  npartype: {npt_list}")
+                print(f"  Time [s]: {[f'{t:.4f}' for t in time_list]}")
 
     return results
 
@@ -398,51 +422,59 @@ def plot_study1(results, output_path):
 
 
 def plot_study2(results, output_path):
-    """Generate timing-vs-npartype bar chart for Study 2."""
+    """Generate timing-vs-npartype bar charts for Study 2 (one figure per model)."""
     try:
         import matplotlib.pyplot as plt
     except ImportError:
         print("matplotlib not available, skipping plots.")
         return
 
-    ncol_keys = sorted(set(
-        k.replace('GRM_', '').replace('_specialized', '').replace('_generalized', '')
-        for k in results
+    model_names = sorted(set(
+        k.split('_Z')[0] for k in results
     ))
-
-    fig, axes = plt.subplots(1, len(ncol_keys),
-                             figsize=(5 * len(ncol_keys), 5))
-    if len(ncol_keys) == 1:
-        axes = [axes]
 
     colors = {'specialized': 'tab:blue', 'generalized': 'tab:orange'}
     bar_width = 0.35
 
-    for ax, ncol_key in zip(axes, ncol_keys):
-        for v_idx, variant in enumerate(['specialized', 'generalized']):
-            rkey = f"GRM_{ncol_key}_{variant}"
-            if rkey not in results:
-                continue
-            data = results[rkey]
-            x = np.arange(len(data['npartype']))
-            offset = (v_idx - 0.5) * bar_width
-            ax.bar(x + offset, data['Sim. time'], bar_width,
-                   label=variant.capitalize(), color=colors[variant])
+    for model_name in model_names:
+        ncol_keys = sorted(set(
+            k.replace(f'{model_name}_', '').replace('_specialized', '').replace('_generalized', '')
+            for k in results if k.startswith(model_name + '_')
+        ))
 
-        ax.set_title(f'GRM {ncol_key}')
-        ax.set_xlabel('Number of particle types')
-        ax.set_ylabel('Compute time [s]')
-        ax.set_xticks(np.arange(len(data['npartype'])))
-        ax.set_xticklabels(data['npartype'])
-        ax.legend(fontsize=8)
-        ax.grid(True, axis='y', alpha=0.3)
+        fig, axes = plt.subplots(1, len(ncol_keys),
+                                 figsize=(5 * len(ncol_keys), 5))
+        if len(ncol_keys) == 1:
+            axes = [axes]
 
-    fig.suptitle('GRM: Compute Time vs Number of Particle Types', fontsize=14)
-    fig.tight_layout()
-    plot_file = os.path.join(output_path, 'gen_vs_spec_FV_npartype.png')
-    fig.savefig(plot_file, dpi=150, bbox_inches='tight')
-    print(f"Plot saved: {plot_file}")
-    plt.close(fig)
+        for ax, ncol_key in zip(axes, ncol_keys):
+            for v_idx, variant in enumerate(['specialized', 'generalized']):
+                rkey = f"{model_name}_{ncol_key}_{variant}"
+                if rkey not in results:
+                    continue
+                data = results[rkey]
+                x = np.arange(len(data['npartype']))
+                offset = (v_idx - 0.5) * bar_width
+                ax.bar(x + offset, data['Sim. time'], bar_width,
+                       label=variant.capitalize(), color=colors[variant])
+
+            ax.set_title(f'{model_name} {ncol_key}')
+            ax.set_xlabel('Number of particle types')
+            ax.set_ylabel('Compute time [s]')
+            ax.set_xticks(np.arange(len(data['npartype'])))
+            ax.set_xticklabels(data['npartype'])
+            ax.legend(fontsize=8)
+            ax.grid(True, axis='y', alpha=0.3)
+
+        fig.suptitle(
+            f'{model_name}: Compute Time vs Number of Particle Types',
+            fontsize=14)
+        fig.tight_layout()
+        plot_file = os.path.join(
+            output_path, f'gen_vs_spec_FV_npartype_{model_name}.png')
+        fig.savefig(plot_file, dpi=150, bbox_inches='tight')
+        print(f"Plot saved: {plot_file}")
+        plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
