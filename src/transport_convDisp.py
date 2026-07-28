@@ -474,7 +474,7 @@ def transport_tests(n_jobs, small_test,
     
     # %% Frustum flow transport
 
-    nNumMethods = 6
+    nNumMethods = 7
 
     # reset non-equidistant grid choice
     spatial_discretization_WENO2NonEq['grid_function'] = grid_frustum_equivolume
@@ -497,14 +497,15 @@ def transport_tests(n_jobs, small_test,
         'ref_files': [[frustum_ref] * nNumMethods],
         'unit_IDs': ['001'],
         'which': ['outlet'],
-        'ax_methods': [[0] * nNumMethods],
+        'ax_methods': [[0, 0, 0, 0, 0, 0, 3]],
         'ax_discs': [[
             bench_func.disc_list(8, 10 if not small_test else 3),
             bench_func.disc_list(8, 10 if not small_test else 3),
             bench_func.disc_list(8, 10 if not small_test else 3),
             bench_func.disc_list(8, 10 if not small_test else 3),
             bench_func.disc_list(8, 10 if not small_test else 3),
-            bench_func.disc_list(8, 10 if not small_test else 3)
+            bench_func.disc_list(8, 10 if not small_test else 3),
+            bench_func.disc_list(8, 7 if not small_test else 3)
         ]],
         'disc_refinement_functions': [[
             partial(refine_discretization,
@@ -536,7 +537,12 @@ def transport_tests(n_jobs, small_test,
                     setting_name="frustumCOL1D_transport_1comp_KORENnonEq_benchmark1",
                     spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
                     time_integrator=time_integrator
-                    )
+                    ),
+            partial(refine_discretization,
+                        setting_name="frustumCOL1D_transport_1comp_DGP3_benchmark1",
+                        spatial_discretization=copy.deepcopy(spatial_discretization_DG),
+                        time_integrator=time_integrator_DG
+                        )
         ]]
     }
 

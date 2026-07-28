@@ -66,6 +66,12 @@ def get_model():
     col.col_length = 0.20               # m
     col.col_radius_inner = 0.1823       # m, chosen to get 5.75e-4 interstitial velocity
     col.col_radius_outer = 0.2235       # m   (same 1.5 area expansion)
+    # new interface, used for DG already, but not for FV, so we need to set it here
+    col.geometry = "AXIAL_FLOW_FRUSTUM"
+    col.bed_length = 0.20                   # m
+    col.col_radius_small_end = 0.1823       # m, chosen to get 5.75e-4 interstitial velocity
+    col.col_radius_large_end = 0.2235       # m   (same 1.5 area expansion)
+    col.forward_flow = 1
 
     # Packed-bed porosity (physically realistic)
     col.col_porosity = 0.37
