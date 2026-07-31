@@ -19,6 +19,7 @@ class Format:
     kind: str = "str"
     precision: int = 3
     formatter: Optional[Callable] = None
+    math_mode: bool = True
 
 
 class LatexTableGenerator:
@@ -28,19 +29,24 @@ class LatexTableGenerator:
         include_columns: Optional[List[str]] = None,
         column_names: Optional[Dict[str, str]] = None,
         formats: Optional[Dict[str, Format]] = None,
+        default_float=Format("sci", 3)
     ):
 
         self.row_columns = row_columns
         self.include_columns = include_columns
         self.column_names = column_names or {}
         self.formats = formats or {}
+        self.default_float = default_float
 
     def _fmt(self, value, column):
 
         fmt = self.formats.get(column, Format())
 
-        if fmt.formatter is not None:
-            return fmt.formatter(value)
+        if fmt is None:
+            if isinstance(value, float):
+                fmt = self.default_float
+            else:
+                fmt = Format()
 
         try:
 
@@ -59,7 +65,10 @@ class LatexTableGenerator:
         except (ValueError, TypeError):
             pass
 
-        return str(value)
+        if fmt.math_mode:
+            return f"${value}$"
+        else:
+            return str(value)
 
     def generate(
         self,
