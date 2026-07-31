@@ -9,10 +9,57 @@ numerical benchmarks in https://doi.org/10.1016/j.compchemeng.2023.108340
 import numpy as np
 from addict import Dict
 
+
+def get_binding_configuration(is_kinetic:bool=True):
+    return {
+        'is_kinetic': 1 if is_kinetic else 0,
+        'sma_ka': [ 0.0, 35.5, 1.59, 7.7 ],
+        'sma_kd': [ 0.0, 1000.0, 1000.0, 1000.0],
+        'sma_lambda': 1200.0,
+        'sma_nu': [ 0.0, 4.7, 5.29, 3.7 ],
+        'sma_sigma': [ 0.0, 11.83, 10.6, 10.0 ]
+        }
+
+
+def get_column_geometry_configuration(geometry: str):
+
+    # for all geometries:
+    # velocity = 0.000575 m/s
+    # col_porosity = 0.37
+    # col radius at inlet is 0.35cm = 0.0035m
+    # flow rate Q = velocity / (cross_section * col_porosity)
+    axial_flow_cross_section_area = np.pi * 0.0035 * 0.0035
+
+    if geometry == 'AXIAL_FLOW_CYLINDER':
+        return {
+            # A = v * \pi * r^2 * \varepsilon
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_length': 0.014,
+        }
+    elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        return {
+            # A = 2 * pi * \rho * L^b -> \rho = A / 2.0 / pi / L^b
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_length': 0.00025, # height
+            'col_radius_outer': axial_flow_cross_section_area / 2.0 / np.pi / 0.00025,
+            'col_radius_inner': axial_flow_cross_section_area / 2.0 / np.pi / 0.00025 - 0.014,
+        }
+    elif geometry == 'AXIAL_FLOW_FRUSTUM':
+        return {
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_radius_large_end': 0.0035,
+            'col_radius_small_end': 0.0035 * 0.75,
+            'col_length': 0.014,
+        }
+    else:
+        raise ValueError(f"Unknown geometry: {geometry}")
+
+
 def get_model(
         spatial_method_bulk,
         particle_type='GENERAL_RATE_PARTICLE',
         refinement=1,
+        column_geometry='AXIAL_FLOW_CYLINDER',
         **kwargs):
     
     axNElem = 8 * kwargs.get('axRefinement', refinement)
@@ -22,19 +69,18 @@ def get_model(
     
     model.input.model.nunits = 2
     
-    # Flow sheet
-    model.input.model.connections.connections_include_ports = 1
-    model.input.model.connections.nswitches = 1
-    model.input.model.connections.switch_000.connections = [
-        1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0
-    ]
-    model.input.model.connections.switch_000.section = 0
-    
     # Column unit
     column = Dict()
-    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
-    column.col_length = 0.014
-    column.col_radius = 0.01
+    if column_geometry == 'AXIAL_FLOW_CYLINDER':
+        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
+    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
+    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
+        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
+    else:
+        raise ValueError(f"Unknown column geometry: {column_geometry}")
+    column.update(get_column_geometry_configuration(column_geometry))
+    column.forward_flow = 1
     column.col_porosity = 0.37
     column.total_porosity = 0.8425
     column.npartype = 0 if particle_type is None else 1
@@ -42,7 +88,6 @@ def get_model(
     column.ncomp = 4
     column.init_c = [50.0, 0.0, 0.0, 0.0]
     column.col_dispersion = 5.75e-08
-    column.velocity = 0.000575
 
     # Spatial discretization of interstitial / bulk volume
     if spatial_method_bulk > 0:
@@ -97,16 +142,18 @@ def get_model(
         column.particle_type_000.init_cs = [1200.0, 0.0, 0.0, 0.0]
         
         column.particle_type_000.adsorption_model = 'STERIC_MASS_ACTION'
-        column.particle_type_000.adsorption = {
-                'is_kinetic': 1,
-                'sma_ka': [ 0.0, 35.5, 1.59, 7.7 ],
-                'sma_kd': [ 0.0, 1000.0, 1000.0, 1000.0],
-                'sma_lambda': 1200.0,
-                'sma_nu': [ 0.0, 4.7, 5.29, 3.7 ],
-                'sma_sigma': [ 0.0, 11.83, 10.6, 10.0 ]
-                }
+        column.particle_type_000.adsorption = get_binding_configuration(kwargs.get('is_kinetic', True))
     
     model.input.model.unit_000 = column
+
+    # Flow sheet
+    flowRate = 0.000575 * column.cross_section_area * 0.37
+    model.input.model.connections.connections_include_ports = 1
+    model.input.model.connections.nswitches = 1
+    model.input.model.connections.switch_000.connections = [
+        1.0, 0.0, -1.0, -1.0, -1.0, -1.0, flowRate
+    ]
+    model.input.model.connections.switch_000.section = 0
     
     # Inlet / Feed unit
     model.input.model.unit_001.inlet_type = 'PIECEWISE_CUBIC_POLY'
