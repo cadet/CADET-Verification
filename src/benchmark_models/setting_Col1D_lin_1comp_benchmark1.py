@@ -8,10 +8,50 @@ benchmarks in https://doi.org/10.1016/j.compchemeng.2023.108340
 from addict import Dict
 import numpy as np
 
+
+def get_column_geometry_configuration(geometry: str):
+
+    # for all geometries:
+    # velocity = 0.000575 m/s
+    # col_porosity = 0.37
+    # bed length is 0.014 m
+    # flow rate Q = 6.e-05
+
+    axial_flow_cross_section_area = 6.e-05 / 0.000575 / 0.37
+    axial_flow_radius = np.sqrt(axial_flow_cross_section_area / np.pi)
+
+    if geometry == 'AXIAL_FLOW_CYLINDER':
+        return {
+            # A = Q / (velocity * col_porosity)
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_length': 0.014,
+        }
+    elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        return {
+            # A = 2 * pi * \rho * L^b -> \rho = A / 2.0 / pi / L^b
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_length': 0.25, # height
+            'col_radius_outer': axial_flow_cross_section_area / 2.0 / np.pi / 0.25,
+            'col_radius_inner': axial_flow_cross_section_area / 2.0 / np.pi / 0.25 - 0.014,
+        }
+    elif geometry == 'AXIAL_FLOW_FRUSTUM':
+        return {
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_radius_outer': axial_flow_radius,
+            'col_radius_inner': axial_flow_radius * 0.75,
+            'col_radius_large_end': axial_flow_radius,
+            'col_radius_small_end': axial_flow_radius * 0.75,
+            'col_length': 0.014,
+        }
+    else:
+        raise ValueError(f"Unknown geometry: {geometry}")
+
+
 def get_model(
         spatial_method_bulk,
         particle_type='GENERAL_RATE_PARTICLE',
         refinement=1,
+        column_geometry='AXIAL_FLOW_CYLINDER',
         **kwargs):
     
     axNElem = 8 * kwargs.get('axRefinement', refinement)
@@ -25,19 +65,26 @@ def get_model(
     model.input.model.connections.connections_include_ports = 0
     model.input.model.connections.nswitches = 1
     model.input.model.connections.switch_000.connections = [
-        0.e+00, 1.e+00,-1.e+00,-1.e+00, kwargs.get('flowRate', 6.e-05), 1.e+00, 2.e+00,-1.e+00,-1.e+00, kwargs.get('flowRate', 6.e-05)
+        0.e+00, 1.e+00,-1.e+00,-1.e+00, 6.e-05, 1.e+00, 2.e+00,-1.e+00,-1.e+00, 6.e-05
         ]
     model.input.model.connections.switch_000.section = 0
     
     #%% Column unit
     column = Dict()
+    if column_geometry == 'AXIAL_FLOW_CYLINDER':
+        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
+    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
+    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
+        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
+    else:
+        raise ValueError(f"Unknown column geometry: {column_geometry}")
+    column.geometry = column_geometry
+    column.update(get_column_geometry_configuration(column_geometry))
+    column.forward_flow = 1
     
-    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.ncomp = 1
     column.col_dispersion = 5.75e-08
-    column.col_length = kwargs.get('colLength', 0.014)
-    column.cross_section_area = (kwargs.get('flowRate', 6.e-05) / 0.000575) / 0.37
-    column.velocity = 0.000575
     column.col_porosity = 0.37
     if particle_type == 'EQUILIBRIUM_PARTICLE':
         column.total_porosity = 0.37 + (1.0 - 0.37) * 0.75
@@ -103,7 +150,7 @@ def get_model(
             
         else:
             column.particle_type_000.has_pore_diffusion = 0
-    elif particle_type is not None:
+    elif particle_type == "EQUILIBRIUM_PARTICLE":
         column.particle_type_000.has_film_diffusion = 0
     if particle_type is not None:
         column.particle_type_000.nbound = [ 1 ]
