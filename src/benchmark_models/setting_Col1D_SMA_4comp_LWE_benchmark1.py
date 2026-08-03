@@ -26,6 +26,7 @@ def get_column_geometry_configuration(geometry: str):
     # for all geometries:
     # velocity = 0.000575 m/s
     # col_porosity = 0.37
+    # bed length is 0.014 m
     # col radius at inlet is 0.35cm = 0.0035m
     # flow rate Q = velocity / (cross_section * col_porosity)
     axial_flow_cross_section_area = np.pi * 0.0035 * 0.0035
@@ -49,6 +50,8 @@ def get_column_geometry_configuration(geometry: str):
             'cross_section_area': axial_flow_cross_section_area,
             'col_radius_large_end': 0.0035,
             'col_radius_small_end': 0.0035 * 0.75,
+            'col_radius_outer': 0.0035,
+            'col_radius_inner': 0.0035 * 0.75,
             'col_length': 0.014,
         }
     else:

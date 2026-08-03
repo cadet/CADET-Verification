@@ -9,7 +9,53 @@ https://doi.org/10.1016/j.compchemeng.2023.108340
 from addict import Dict
 import numpy as np
 
-def get_model(spatial_method_bulk, nCells=1, **kwargs):
+
+def get_column_geometry_configuration(geometry: str):
+
+    # for all geometries:
+    # col_porosity = 0.4
+    # bed length is 1.0 m
+    # velocity = 0.1/s
+    # A = 0.5m * bed length
+    bed_length = 1.0
+    axial_flow_cross_section_area = bed_length * 0.5
+    axial_flow_radius = np.sqrt(axial_flow_cross_section_area / np.pi)
+
+    if geometry == 'AXIAL_FLOW_CYLINDER':
+        return {
+            # A = Q / (velocity * col_porosity)
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_length': bed_length,
+            'bed_length': bed_length,
+        }
+    elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        return {
+            # A = 2 * pi * \rho * L^b -> \rho = A / 2.0 / pi / L^b
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_length': 0.001, # column height
+            'col_radius_outer': axial_flow_cross_section_area / 2.0 / np.pi / 0.25,
+            'col_radius_inner': axial_flow_cross_section_area / 2.0 / np.pi / 0.25 - bed_length,
+            'bed_length': bed_length,
+        }
+    elif geometry == 'AXIAL_FLOW_FRUSTUM':
+        return {
+            'cross_section_area': axial_flow_cross_section_area,
+            'col_radius_large_end': axial_flow_radius,
+            'col_radius_small_end': axial_flow_radius * 0.75,
+            'col_radius_outer': axial_flow_radius,
+            'col_radius_inner': axial_flow_radius * 0.75,
+            'col_length': bed_length,
+            'bed_length': bed_length,
+        }
+    else:
+        raise ValueError(f"Unknown geometry: {geometry}")
+
+
+def get_model(
+        spatial_method_bulk, nCells=1,
+        column_geometry='AXIAL_FLOW_CYLINDER',
+        **kwargs
+        ):
     
     axNElem = nCells
     
@@ -22,19 +68,25 @@ def get_model(spatial_method_bulk, nCells=1, **kwargs):
 
     #%% Column unit
     column = Dict()
+    if column_geometry == 'AXIAL_FLOW_CYLINDER':
+        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
+    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
+    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
+        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
+    else:
+        raise ValueError(f"Unknown column geometry: {column_geometry}")
+    column.update(get_column_geometry_configuration(column_geometry))
+    column.forward_flow = 1
     
-    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.ncomp = 2
     column.npartype = 1
     column.col_dispersion = kwargs.get("col_dispersion", 1e-05)
-    column.col_length = 1.0
     column.total_porosity = 0.4
-    # Flow sheet
-    #velocity = 0.1
-    A = column.col_length * 0.5
-    column.cross_section_area = A  
 
-    Q = 0.1 * A * column.total_porosity # note that v = Q/(A*porosity)
+    # Flow sheet
+    # velocity = 0.1m/s
+    Q = 0.1 * column.cross_section_area * column.total_porosity # note that v = Q/(A*porosity)
     model.input.model.connections.switch_000.connections = [
         0.e+00, 1.e+00,-1.e+00,-1.e+00, Q, 
         1.e+00, 2.e+00,-1.e+00,-1.e+00, Q

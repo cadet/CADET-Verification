@@ -10,11 +10,14 @@ meaningful case study.
 
 from addict import Dict
 import numpy as np
+from src.benchmark_models.setting_Col1D_lin_1comp_benchmark1 import get_column_geometry_configuration
+
 
 def get_model(
         spatial_method_bulk,
         spatial_method_particle,
         refinement=1,
+        column_geometry='AXIAL_FLOW_CYLINDER',
         **kwargs):
     
     axNElem = 8 * kwargs.get('axRefinement', refinement)
@@ -28,19 +31,25 @@ def get_model(
     model.input.model.connections.connections_include_ports = 0
     model.input.model.connections.nswitches = 1
     model.input.model.connections.switch_000.connections = [
-        0.e+00, 1.e+00,-1.e+00,-1.e+00, kwargs.get('flowRate', 6.e-05), 1.e+00, 2.e+00,-1.e+00,-1.e+00, kwargs.get('flowRate', 6.e-05)
+        0.e+00, 1.e+00,-1.e+00,-1.e+00, 6.e-05, 1.e+00, 2.e+00,-1.e+00,-1.e+00, 6.e-05
         ]
     model.input.model.connections.switch_000.section = 0
     
     #%% Column unit
     column = Dict()
+    if column_geometry == 'AXIAL_FLOW_CYLINDER':
+        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
+    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
+    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
+        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
+    else:
+        raise ValueError(f"Unknown column geometry: {column_geometry}")
+    column.update(get_column_geometry_configuration(column_geometry))
+    column.forward_flow = 1
     
-    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.ncomp = 1
     column.col_dispersion = 5.75e-08
-    column.col_length = kwargs.get('colLength', 0.014)
-    column.cross_section_area = (kwargs.get('flowRate', 6.e-05) / 0.000575) / 0.37
-    column.velocity = 0.000575
     column.col_porosity = 0.37
     column.npartype = kwargs.get('npartype', 1)
     column.par_type_volfrac = 1 if 'par_type_volfrac' not in kwargs else kwargs['par_type_volfrac']
