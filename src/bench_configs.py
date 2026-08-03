@@ -17,7 +17,6 @@ import src.utility.convergence as convergence
 
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
-from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1
 from src.benchmark_models import setting_radCol1D_LRM_lin_1comp_benchmark1
@@ -217,8 +216,8 @@ def axial_flow_benchmark_fv(small_test=False, sensitivities=False, ref_filepath=
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_Col1D_linLRM_1comp_benchmark1.get_model(
-                spatial_method_bulk=0
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='EQUILIBRIUM_PARTICLE'
                 ),
             setting_Col1D_lin_1comp_benchmark1.get_model(
                 spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE'
@@ -346,8 +345,8 @@ def axial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_Col1D_linLRM_1comp_benchmark1.get_model(
-                spatial_method_bulk=3
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='EQUILIBRIUM_PARTICLE'
                 ),
             setting_Col1D_lin_1comp_benchmark1.get_model(
                 spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE'
@@ -470,7 +469,7 @@ def sensitivity_benchmark1(spatial_method, small_test):
 
     benchmark_config = {
         'cadet_config_jsons': [
-            setting_Col1D_linLRM_1comp_benchmark1.get_sensbenchmark1(
+            setting_Col1D_lin_1comp_benchmark1.get_LRM_sensbenchmark1(
                 spatial_method_bulk=spatial_method_polyDeg
                 ),
             setting_Col1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(

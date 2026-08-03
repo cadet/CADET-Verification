@@ -7,7 +7,6 @@ from cadet import Cadet
 from src import twoDimChromatography
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
-from src.benchmark_models import setting_Col1D_linLRM_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
 
@@ -71,8 +70,9 @@ LRMPlinBnd.save()
 subprocess.run([executable_path, LRMPlinBnd.filename], check=True)
 
 LRMlinBnd = Cadet()
-LRMlinBnd.root = setting_Col1D_linLRM_1comp_benchmark1.get_model(
-    spatial_method_bulk=-1
+LRMlinBnd.root = setting_Col1D_lin_1comp_benchmark1.get_model(
+    spatial_method_bulk=-1,
+    particle_type='EQUILIBRIUM_PARTICLE'
     )
 
 LRMlinBnd.root['input'].solver.casema_options  = {

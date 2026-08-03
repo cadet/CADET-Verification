@@ -41,7 +41,7 @@ def get_model(
     column.col_porosity = 0.37
     if particle_type == 'EQUILIBRIUM_PARTICLE':
         column.total_porosity = 0.37 + (1.0 - 0.37) * 0.75
-    column.npartype = 1
+    column.npartype = 1 if particle_type is not None else 0
     column.par_type_volfrac = 1
     
     if spatial_method_bulk > 0:
@@ -103,16 +103,17 @@ def get_model(
             
         else:
             column.particle_type_000.has_pore_diffusion = 0
-    else:
+    elif particle_type is not None:
         column.particle_type_000.has_film_diffusion = 0
-
-    column.particle_type_000.nbound = [ 1 ]
-    column.particle_type_000.adsorption.is_kinetic = kwargs.get('is_kinetic', 1)
-    column.particle_type_000.adsorption.lin_ka = [ 3.55 ]
-    column.particle_type_000.adsorption.lin_kd = [ 0.1 ]
-    column.particle_type_000.adsorption_model = 'LINEAR'
-    column.particle_type_000.init_cp = [ 0.0 ]
-    column.particle_type_000.init_cs = [ 0.0 ]
+    if particle_type is not None:
+        column.particle_type_000.nbound = [ 1 ]
+        column.particle_type_000.adsorption.is_kinetic = kwargs.get('is_kinetic', 1)
+        column.particle_type_000.adsorption.lin_ka = [ 3.55 ]
+        column.particle_type_000.adsorption.lin_kd = [ 0.1 ]
+        column.particle_type_000.adsorption_model = 'LINEAR'
+        if not particle_type == "EQUILIBRIUM_PARTICLE":
+            column.particle_type_000.init_cp = [ 0.0 ]
+        column.particle_type_000.init_cs = [ 0.0 ]
     
     model.input.model.unit_001 = column
     
@@ -178,6 +179,53 @@ def get_model(
 
 
 #%% sensitivities
+
+
+def add_sensitivity_LRM_dynLin_1comp_benchmark1(model, sensName):
+
+    sensDepIdx = {
+        'COL_DISPERSION': {'sens_comp': np.int64(0)},
+        'TOTAL_POROSITY': { },
+        'LIN_KA': {'sens_comp': np.int64(0), 'sens_boundphase': np.int64(0)}
+    }
+
+    if sensName not in sensDepIdx:
+        raise Exception(f'Sensitivity dependencies for {sensName} unknown, please implement!')
+
+    if 'sensitivity' in model['input']:
+        model['input']['sensitivity']['NSENS'] += 1
+    else:
+        model['input']['sensitivity'] = {'NSENS': np.int64(1)}
+        model['input']['sensitivity']['sens_method'] = np.bytes_(b'ad1')
+
+    sensIdx = str(model['input']['sensitivity']['NSENS'] - 1).zfill(3)
+    
+    model['input']['sensitivity'][f'param_{sensIdx}'] = {}
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_name'] = str(sensName)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_unit'] = np.int64(1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_partype'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_reaction'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_section'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_boundphase'] = np.int64(-1)
+    model['input']['sensitivity'][f'param_{sensIdx}']['sens_comp'] = np.int64(-1)
+    
+    if sensName in sensDepIdx:
+        param = model['input']['sensitivity'][f'param_{sensIdx}']
+        for key, value in {**sensDepIdx[sensName]}.items():
+            model['input']['sensitivity'][f'param_{sensIdx}'][key] = value
+
+    return model
+
+
+def get_LRM_sensbenchmark1(spatial_method_bulk):
+    
+    model = get_model(spatial_method_bulk, particle_type='EQUILIBRIUM_PARTICLE')
+    model['input'].pop('sensitivity', None)
+    model = add_sensitivity_LRM_dynLin_1comp_benchmark1(model, 'COL_DISPERSION')
+    model = add_sensitivity_LRM_dynLin_1comp_benchmark1(model, 'TOTAL_POROSITY')
+    model = add_sensitivity_LRM_dynLin_1comp_benchmark1(model, 'LIN_KA')
+    
+    return model
 
 def add_sensitivity_LRMP_dynLin_1comp_benchmark1(model, sensName):
 
