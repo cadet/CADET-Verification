@@ -41,26 +41,6 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
     par_discs = []
     disc_refinement_functions = []
 
-    addition = bench_configs.radial_flow_benchmark_fv(
-        small_test=small_test, ref_filepath=reference_data_path
-        )
-
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
-        cadet_config_names=cadet_config_names, addition=addition,
-        disc_refinement_functions=disc_refinement_functions)
-
-    addition = bench_configs.radial_flow_benchmark_dg(
-        small_test=small_test, ref_filepath=reference_data_path
-        )
-
-    bench_configs.add_benchmark(
-        cadet_configs, include_sens, ref_files, unit_IDs, which,
-        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
-        cadet_config_names=cadet_config_names, addition=addition,
-        disc_refinement_functions=disc_refinement_functions)
-
     addition = bench_configs.axial_flow_benchmark_fv(
         small_test=small_test, sensitivities=sensitivities,
         ref_filepath=reference_data_path
@@ -82,7 +62,47 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         cadet_configs, include_sens, ref_files, unit_IDs, which,
         ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
         cadet_config_names=cadet_config_names, addition=addition,
-    disc_refinement_functions = disc_refinement_functions)
+        disc_refinement_functions = disc_refinement_functions)
+
+    addition = bench_configs.radial_flow_benchmark_fv(
+        small_test=small_test, ref_filepath=reference_data_path
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions=disc_refinement_functions)
+
+    addition = bench_configs.radial_flow_benchmark_dg(
+        small_test=small_test, ref_filepath=reference_data_path
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions=disc_refinement_functions)
+
+    addition = bench_configs.frustum_flow_benchmark_fv(
+        small_test=small_test, ref_filepath=reference_data_path
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions=disc_refinement_functions)
+
+    addition = bench_configs.frustum_flow_benchmark_dg(
+        small_test=small_test, ref_filepath=reference_data_path
+        )
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions=disc_refinement_functions)
 
     bench_func.run_convergence_analysis(
         output_path=output_path,

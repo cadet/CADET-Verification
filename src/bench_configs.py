@@ -453,6 +453,472 @@ def axial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=
     return benchmark_config
 
 
+def radial_flow_benchmark_fv(small_test=False, sensitivities=False, ref_filepath=None):
+
+    # todo: numerical references
+
+    n_settings = 8
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+               particle_type='GENERAL_RATE_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+               particle_type='GENERAL_RATE_PARTICLE', surface_diffusion=5E-11, column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+               ),
+           setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+              spatial_method_bulk=0, spatial_method_particle=0,
+              particle_type='GENERAL_RATE_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+              ),
+           setting_Col1D_XparTypeGR_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0, column_geometry='RADIAL_FLOW_CYLINDER_SHELL',
+            **{ # 4parType:
+                'par_method': 0,
+                'npartype': 2 if small_test else 4,
+                'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+                'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+                'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+                'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+                'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+                'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+                'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+                'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+            }),
+            # setting_Col1D_langLRM_2comp_benchmark1.get_model(
+            #     spatial_method_bulk=0, column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+            #     )
+        ],
+        'cadet_config_names': [
+            'radialLRM_dynLin_1comp_benchmark1',
+            'radialLRMP_dynLin_1comp_benchmark1',
+            'radialGRM_dynLin_1comp_benchmark1',
+            'radialGRMsd_dynLin_1comp_benchmark1',
+            'radialLRM_reqSMA_4comp_benchmark1',
+            'radialLRMP_reqSMA_4comp_benchmark1',
+            'radialGRM_reqSMA_4comp_benchmark1',
+            'radialGRM_4parTypeLin_4comp_benchmark1',
+            # 'radialLRM_langmuir_2comp_benchmark1'
+
+        ],
+        'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
+        'ref_files': [
+            [None], [None], [None], [None],
+            [None], [None], [None], [None]#, [None]
+        ],
+        'unit_IDs': [
+            '001', '001', '001', '001', '000', '000', '000', '001'#, '001'
+        ],
+        'which': [
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'#, 'outlet'
+        ],
+        'idas_abstol': [
+            [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]#, [1e-8]
+        ],
+        'ax_methods': [
+            [0], [0], [0], [0], [0], [0], [0], [0]#, [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 4 if not small_test else 3)],
+            # [bench_func.disc_list(32, 9 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None], [None], [0], [0], [None], [None], [0], [0]#, [None]
+        ],
+        'par_discs': [
+            [None],
+            [None],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [None],
+            [None],
+            [bench_func.disc_list(1, 6 if not small_test else 3)],
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            # [None]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(n_settings)
+            ]
+    }
+
+    return benchmark_config
+
+
+def radial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=None):
+
+    # todo: numerical references
+
+    n_settings = 8
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', surface_diffusion=5E-11, column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+               ),
+            setting_Col1D_XparTypeGR_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, spatial_method_particle=0, column_geometry='RADIAL_FLOW_CYLINDER_SHELL',
+             **{ # 4parType:
+                 'par_method': 0,
+                 'npartype': 2 if small_test else 4,
+                 'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+                 'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+                 'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+                 'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+                 'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                 'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                 'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+                 'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                 'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+                 'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+                 'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                 'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                 'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+             }),
+            # setting_Col1D_langLRM_2comp_benchmark1.get_model(
+            #     spatial_method_bulk=3, column_geometry='RADIAL_FLOW_CYLINDER_SHELL'
+            #     )
+        ],
+        'cadet_config_names': [
+            'radialLRM_dynLin_1comp_benchmark1',
+            'radialLRMP_dynLin_1comp_benchmark1',
+            'radialGRM_dynLin_1comp_benchmark1',
+            'radialGRMsd_dynLin_1comp_benchmark1',
+            'radialLRM_reqSMA_4comp_benchmark1',
+            'radialLRMP_reqSMA_4comp_benchmark1',
+            'radialGRM_reqSMA_4comp_benchmark1',
+            'radialGRM_4parTypeLin_4comp_benchmark1',
+            #'radialLRM_langmuir_2comp_benchmark1'
+        ],
+        'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
+        'ref_files': [
+            [None], [None], [None], [None],
+            [None], [None], [None], [None]#, [None]
+        ],
+        'unit_IDs': [
+            '001', '001', '001', '001', '000', '000', '000', '001'#, '001'
+        ],
+        'which': [
+            'outlet'
+        ] * n_settings,
+        'idas_abstol': [
+           [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6]#, [1e-10]
+        ],
+        'ax_methods': [
+            [3], [3], [3], [3], [3], [3], [3], [2]#, [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [bench_func.disc_list(1, 9 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 5 if not small_test else 3)],
+            [bench_func.disc_list(2, 4 if not small_test else 3)],
+            #[bench_func.disc_list(8, 7 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None], [None], [3], [3], [None], [None], [3], [2]#, [None]
+        ],
+        'par_discs': [
+            [None],
+            [None],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [None],
+            [None],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            #[None]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(n_settings)
+            ]
+    }
+
+    return benchmark_config
+
+
+def frustum_flow_benchmark_fv(small_test=False, sensitivities=False, ref_filepath=None):
+
+    # todo: numerical references
+
+    n_settings = 9
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+               particle_type='GENERAL_RATE_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0,
+               particle_type='GENERAL_RATE_PARTICLE', surface_diffusion=5E-11, column_geometry='AXIAL_FLOW_FRUSTUM'
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=0, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               spatial_method_bulk=0, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+               ),
+           setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+              spatial_method_bulk=0, spatial_method_particle=0,
+              particle_type='GENERAL_RATE_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+              ),
+           setting_Col1D_XparTypeGR_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=0, spatial_method_particle=0, column_geometry='AXIAL_FLOW_FRUSTUM',
+            **{ # 4parType:
+                'par_method': 0,
+                'npartype': 2 if small_test else 4,
+                'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+                'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+                'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+                'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+                'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+                'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+                'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+                'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+            }),
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                spatial_method_bulk=0, column_geometry='AXIAL_FLOW_FRUSTUM'
+                )
+        ],
+        'cadet_config_names': [
+            'frustumLRM_dynLin_1comp_benchmark1',
+            'frustumLRMP_dynLin_1comp_benchmark1',
+            'frustumGRM_dynLin_1comp_benchmark1',
+            'frustumGRMsd_dynLin_1comp_benchmark1',
+            'frustumLRM_reqSMA_4comp_benchmark1',
+            'frustumLRMP_reqSMA_4comp_benchmark1',
+            'frustumGRM_reqSMA_4comp_benchmark1',
+            'frustumGRM_4parTypeLin_4comp_benchmark1',
+            'frustumLRM_langmuir_2comp_benchmark1'
+
+        ],
+        'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
+        'ref_files': [
+            [None], [None], [None], [None],
+            [None], [None], [None], [None], [None]
+        ],
+        'unit_IDs': [
+            '001', '001', '001', '001', '000', '000', '000', '001', '001'
+        ],
+        'which': [
+            'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet', 'outlet'
+        ],
+        'idas_abstol': [
+            [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6], [1e-8]
+        ],
+        'ax_methods': [
+            [0], [0], [0], [0], [0], [0], [0], [0], [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 8 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 6 if not small_test else 3)],
+            [bench_func.disc_list(8, 4 if not small_test else 3)],
+            [bench_func.disc_list(32, 9 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None], [None], [0], [0], [None], [None], [0], [0], [None]
+        ],
+        'par_discs': [
+            [None],
+            [None],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [None],
+            [None],
+            [bench_func.disc_list(1, 6 if not small_test else 3)],
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            [None]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(n_settings)
+            ]
+    }
+
+    return benchmark_config
+
+
+def frustum_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=None):
+
+    # todo: numerical references
+
+    n_settings = 9
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+               ),
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', surface_diffusion=5E-11, column_geometry='AXIAL_FLOW_FRUSTUM'
+               ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='EQUILIBRIUM_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+                ),
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               spatial_method_bulk=3, spatial_method_particle=3,
+               particle_type='GENERAL_RATE_PARTICLE', column_geometry='AXIAL_FLOW_FRUSTUM'
+               ),
+            setting_Col1D_XparTypeGR_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=0, spatial_method_particle=0, column_geometry='AXIAL_FLOW_FRUSTUM',
+             **{ # 4parType:
+                 'par_method': 0,
+                 'npartype': 2 if small_test else 4,
+                 'par_type_volfrac': [0.5, 0.5] if small_test else [0.3, 0.35, 0.15, 0.2],
+                 'par_radius': [45E-6, 75E-6] if small_test else [45E-6, 75E-6, 25E-6, 60E-6],
+                 'par_porosity': [0.75, 0.7] if small_test else [0.75, 0.7, 0.8, 0.65],
+                 'nbound': [1, 1] if small_test else [1, 1, 0, 1],
+                 'init_cp': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                 'init_cs': [0.0, 0.0] if small_test else [0.0, 0.0, 0.0, 0.0],
+                 'film_diffusion': [6.9E-6, 6E-6] if small_test else [6.9E-6, 6E-6, 6.5E-6, 6.7E-6],
+                 'pore_diffusion': [5E-11, 3E-11] if small_test else [6.07E-11, 5E-11, 3E-11, 4E-11],
+                 'surface_diffusion': [5E-11, 0.0] if small_test else [1E-11, 5E-11, 0.0, 0.0],
+                 'adsorption_model': ['LINEAR', 'LINEAR'] if small_test else ['LINEAR', 'LINEAR', 'NONE', 'LINEAR'],
+                 'is_kinetic': [0, 1] if small_test else [0, 1, 0, 0],
+                 'lin_ka': [35.5, 4.5] if small_test else [35.5, 4.5, 0, 0.25],
+                 'lin_kd': [1.0, 0.15] if small_test else [1.0, 0.15, 0, 1.0]
+             }),
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                spatial_method_bulk=3, column_geometry='AXIAL_FLOW_FRUSTUM'
+                )
+        ],
+        'cadet_config_names': [
+            'frustumLRM_dynLin_1comp_benchmark1',
+            'frustumLRMP_dynLin_1comp_benchmark1',
+            'frustumGRM_dynLin_1comp_benchmark1',
+            'frustumGRMsd_dynLin_1comp_benchmark1',
+            'frustumLRM_reqSMA_4comp_benchmark1',
+            'frustumLRMP_reqSMA_4comp_benchmark1',
+            'frustumGRM_reqSMA_4comp_benchmark1',
+            'frustumGRM_4parTypeLin_4comp_benchmark1',
+            'frustumLRM_langmuir_2comp_benchmark1'
+        ],
+        'include_sens': [True] * n_settings if sensitivities else [False] * n_settings,
+        'ref_files': [
+            [None], [None], [None], [None],
+            [None], [None], [None], [None], [None]
+        ],
+        'unit_IDs': [
+            '001', '001', '001', '001', '000', '000', '000', '001', '001'
+        ],
+        'which': [
+            'outlet'
+        ] * n_settings,
+        'idas_abstol': [
+           [1e-12], [1e-12], [1e-12], [1e-12], [1e-10], [1e-10], [1e-8], [1e-6], [1e-10]
+        ],
+        'ax_methods': [
+            [3], [3], [3], [3], [3], [3], [3], [2], [3]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 8 if not small_test else 3)],
+            [bench_func.disc_list(1, 9 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)],
+            [bench_func.disc_list(8, 5 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 6 if not small_test else 3)],
+            [bench_func.disc_list(4, 5 if not small_test else 3)],
+            [bench_func.disc_list(2, 4 if not small_test else 3)],
+            [bench_func.disc_list(8, 7 if not small_test else 3)]
+        ],
+        'par_methods': [
+            [None], [None], [3], [3], [None], [None], [3], [2], [None]
+        ],
+        'par_discs': [
+            [None],
+            [None],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [None],
+            [None],
+            [bench_func.disc_list(1, 5 if not small_test else 3)],
+            [bench_func.disc_list(1, 4 if not small_test else 3)],
+            [None]
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(n_settings)
+            ]
+    }
+
+    return benchmark_config
+
+
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 
@@ -584,166 +1050,6 @@ def sensitivity_benchmark2(spatial_method, small_test):
         'par_discs': [
             [bench_func.disc_list(1 if spatial_method == "DG" else 2, 4 if not small_test else 3)]
         ]
-    }
-
-    return benchmark_config
-
-
-def radial_flow_benchmark_fv(small_test=False, sensitivities=False, ref_filepath=None):
-
-    if ref_filepath is not None:
-        ref_LRM = convergence.get_solution(ref_filepath+'/CADET-Core_reference/chromatography/radLRM_dynLin_1comp_benchmark1_DG_P3Z256.h5')
-        ref_LRMP = convergence.get_solution(ref_filepath+'/CADET-Core_reference/chromatography/radLRMP_dynLin_1comp_benchmark1_DG_P3Z128.h5')
-        ref_GRM = convergence.get_solution(ref_filepath+'/CADET-Core_reference/chromatography/radGRM_dynLin_1comp_benchmark1_cDG_P3Z128_DGexInt_parP3parZ16.h5')
-    else:
-        ref_LRM = None
-        ref_LRMP = None
-        ref_GRM = None
-
-    benchmark_config = {
-        'cadet_config_jsons': [
-            setting_radCol1D_LRM_lin_1comp_benchmark1.get_sensbenchmark1(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_GRM_sensbenchmark1(
-                spatial_method_bulk=0, spatial_method_par=0
-                )
-        ] if sensitivities else [
-            setting_radCol1D_LRM_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, particle_type="HOMOGENEOUS_PARTICLE"
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, spatial_method_par=0,
-                particle_type="GENERAL_RATE_PARTICLE"
-                )
-        ],
-        'cadet_config_names': [
-            'radLRM_dynLin_1comp_sensbenchmark1',
-            'radLRMP_dynLin_1comp_sensbenchmark1',
-            'radGRM_dynLin_1comp_sensbenchmark1'
-        ] if sensitivities else [
-            'radLRM_dynLin_1comp_benchmark1',
-            'radLRMP_dynLin_1comp_benchmark1',
-            'radGRM_dynLin_1comp_benchmark1'
-        ],
-        'include_sens': [True] * 3 if sensitivities else [False] * 3,
-        'ref_files': [
-            [ref_LRM], [ref_LRMP], [ref_GRM]
-        ],
-        'unit_IDs': [
-            '001', '001', '001'
-        ],
-        'which': [
-            'outlet', 'outlet', 'outlet'
-        ],
-        'idas_abstol': [
-            [1e-10], [1e-10], [1e-10]
-        ],
-        'ax_methods': [
-            [0], [0], [0]
-        ],
-        'ax_discs': [
-            [bench_func.disc_list(8, 11 if not small_test else 3)],
-            [bench_func.disc_list(8, 7 if not small_test else 3)],
-            [bench_func.disc_list(8, 5 if not small_test else 3)]
-        ],
-        'par_methods': [
-            [None], [None], [0]
-        ],
-        'par_discs': [
-            [None],
-            [None],
-            [bench_func.disc_list(1, 5 if not small_test else 3)]
-        ],
-        'disc_refinement_functions' : [
-            [bench_func.create_object_from_config] for _ in range(3)
-            ]
-    }
-
-    return benchmark_config
-
-
-def radial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=None):
-
-    if ref_filepath is not None:
-        ref_LRM = convergence.get_solution(ref_filepath+'/CADET-Core_reference/chromatography/radLRM_dynLin_1comp_benchmark1_DG_P3Z256.h5')
-        ref_LRMP = convergence.get_solution(ref_filepath+'/CADET-Core_reference/chromatography/radLRMP_dynLin_1comp_benchmark1_DG_P3Z128.h5')
-        ref_GRM = convergence.get_solution(ref_filepath+'/CADET-Core_reference/chromatography/radGRM_dynLin_1comp_benchmark1_cDG_P3Z128_DGexInt_parP3parZ16.h5')
-    else:
-        ref_LRM = None
-        ref_LRMP = None
-        ref_GRM = None
-
-    benchmark_config = {
-        'cadet_config_jsons': [
-            setting_radCol1D_LRM_lin_1comp_benchmark1.get_sensbenchmark1(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_LRMP_sensbenchmark1(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_GRM_sensbenchmark1(
-                spatial_method_bulk=0, spatial_method_par=0
-                )
-        ] if sensitivities else [
-            setting_radCol1D_LRM_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, particle_type="HOMOGENEOUS_PARTICLE"
-                ),
-            setting_radCol1D_lin_1comp_benchmark1.get_model(
-                spatial_method_bulk=0, spatial_method_par=0,
-                particle_type="GENERAL_RATE_PARTICLE"
-                )
-        ],
-        'cadet_config_names': [
-            'radLRM_dynLin_1comp_sensbenchmark1',
-            'radLRMP_dynLin_1comp_sensbenchmark1',
-            'radGRM_dynLin_1comp_sensbenchmark1'
-        ] if sensitivities else [
-            'radLRM_dynLin_1comp_benchmark1',
-            'radLRMP_dynLin_1comp_benchmark1',
-            'radGRM_dynLin_1comp_benchmark1'
-        ],
-        'include_sens': [True] * 3 if sensitivities else [False] * 3,
-        'ref_files': [
-            [ref_LRM], [ref_LRMP], [ref_GRM]
-        ],
-        'unit_IDs': [
-            '001', '001', '001'
-        ],
-        'which': [
-            'outlet', 'outlet', 'outlet'
-        ],
-        'idas_abstol': [
-            [1e-10], [1e-10], [1e-10]
-        ],
-        'ax_methods': [
-            [3], [3], [3]
-        ],
-        'ax_discs': [
-            [bench_func.disc_list(2, 7 if not small_test else 3)],
-            [bench_func.disc_list(2, 5 if not small_test else 3)],
-            [bench_func.disc_list(8, 4 if not small_test else 3)]
-        ],
-        'par_methods': [
-            [None], [None], [3]
-        ],
-        'par_discs': [
-            [None],
-            [None],
-            [bench_func.disc_list(1, 4 if not small_test else 3)]
-        ],
-        'disc_refinement_functions' : [
-            [bench_func.create_object_from_config] for _ in range(3)
-            ]
     }
 
     return benchmark_config
