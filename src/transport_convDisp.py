@@ -481,7 +481,7 @@ def transport_tests(n_jobs, small_test,
     spatial_discretization_WENO3NonEq['grid_function'] = grid_frustum_equivolume
     spatial_discretization_KORENNonEq['grid_function'] = grid_frustum_equivolume
 
-    frustum_ref_file = _reference_data_path_ + "/frustumCOL1D_transport_1comp_WENO3_benchmark1_FV_Z524288.h5"
+    frustum_ref_file = _reference_data_path_ + "/frustumCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z2048.h5" # "/frustumCOL1D_transport_1comp_WENO3_benchmark1_FV_Z524288.h5"
     frustum_ref = convergence.get_solution(
         frustum_ref_file, unit='unit_001', which='outlet'
     )
