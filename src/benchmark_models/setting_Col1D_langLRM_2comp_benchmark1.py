@@ -10,45 +10,53 @@ from addict import Dict
 import numpy as np
 
 
-def get_column_geometry_configuration(geometry: str):
+def get_column_geometry_configuration(
+    geometry,
+    bed_length=0.1,
+    inlet_radius=0.02,
+    frustum_ratio=0.75,
+):
 
-    # for all geometries:
-    # col_porosity = 0.4
-    # bed length is 1.0 m
-    # velocity = 0.1/s
-    # A = 0.5m * bed length
-    bed_length = 1.0
-    axial_flow_cross_section_area = bed_length * 0.5
-    axial_flow_radius = np.sqrt(axial_flow_cross_section_area / np.pi)
+    A = np.pi * inlet_radius**2
 
-    if geometry == 'AXIAL_FLOW_CYLINDER':
+    if geometry == "AXIAL_FLOW_CYLINDER":
+
         return {
-            # A = Q / (velocity * col_porosity)
-            'cross_section_area': axial_flow_cross_section_area,
-            'col_length': bed_length,
-            'bed_length': bed_length,
+            "cross_section_area": A,
+            "col_length": bed_length,
+            "bed_length": bed_length,
         }
-    elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+
+    elif geometry == "AXIAL_FLOW_FRUSTUM":
+
         return {
-            # A = 2 * pi * \rho * L^b -> \rho = A / 2.0 / pi / L^b
-            'cross_section_area': axial_flow_cross_section_area,
-            'col_length': 0.001, # column height
-            'col_radius_outer': axial_flow_cross_section_area / 2.0 / np.pi / 0.25,
-            'col_radius_inner': axial_flow_cross_section_area / 2.0 / np.pi / 0.25 - bed_length,
-            'bed_length': bed_length,
+            "cross_section_area": A,
+            "col_radius_large_end": inlet_radius,
+            "col_radius_small_end": inlet_radius * frustum_ratio,
+            "col_radius_outer": inlet_radius,
+            "col_radius_inner": inlet_radius * frustum_ratio,
+            "col_length": bed_length,
+            "bed_length": bed_length,
         }
-    elif geometry == 'AXIAL_FLOW_FRUSTUM':
+
+    elif geometry == "RADIAL_FLOW_CYLINDER_SHELL":
+
+        r_inner = inlet_radius
+        r_outer = r_inner + bed_length
+
+        # choose height so inlet area equals axial inlet area
+        height = A / (2 * np.pi * r_inner)
+
         return {
-            'cross_section_area': axial_flow_cross_section_area,
-            'col_radius_large_end': axial_flow_radius,
-            'col_radius_small_end': axial_flow_radius * 0.75,
-            'col_radius_outer': axial_flow_radius,
-            'col_radius_inner': axial_flow_radius * 0.75,
-            'col_length': bed_length,
-            'bed_length': bed_length,
+            "cross_section_area": A,
+            "col_length": height,
+            "col_radius_inner": r_inner,
+            "col_radius_outer": r_outer,
+            "bed_length": bed_length,
         }
+
     else:
-        raise ValueError(f"Unknown geometry: {geometry}")
+        raise ValueError(f"Unknown column geometry: {geometry}")
 
 
 def get_model(
@@ -82,12 +90,12 @@ def get_model(
     
     column.ncomp = 2
     column.npartype = 1
-    column.col_dispersion = kwargs.get("col_dispersion", 1e-05)
+    column.col_dispersion = kwargs.get("col_dispersion", 1e-07)
     column.total_porosity = 0.4
 
     # Flow sheet
-    # velocity = 0.1m/s
-    Q = 0.1 * column.cross_section_area * column.total_porosity # note that v = Q/(A*porosity)
+    velocity = 0.01
+    Q = velocity * column.cross_section_area * column.total_porosity
     model.input.model.connections.switch_000.connections = [
         0.e+00, 1.e+00,-1.e+00,-1.e+00, Q, 
         1.e+00, 2.e+00,-1.e+00,-1.e+00, Q
