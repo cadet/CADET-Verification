@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 
 from cadet import Cadet
 
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from src.benchmark_models import setting_Col2D_SMA_4comp_LWE_benchmark1
 
 

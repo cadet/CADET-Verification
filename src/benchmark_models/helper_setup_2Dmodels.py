@@ -2,11 +2,21 @@
 """
 
 This script implements helper functions to set up the connectivity/flow rate matrices for 2D settings
+The connections generation assumes the 2D column to be the unit with index 000
 
 """
 
+from typing import Callable
+
 import numpy as np
 from scipy.special import legendre
+from src.utility import convergence
+
+def stepInlet(zoneIdx, stepSize=1.0, stepStart=1.0):
+    return float(stepStart + zoneIdx * stepSize)
+
+def constInlet(zoneIdx, const=1.0):
+    return float(const)
 
 def q_and_L(poly_deg, x):
     P = legendre(poly_deg)
@@ -100,6 +110,7 @@ def get_radCoords_and_crossSectionAreas(rad_method, rad_cells, col_radius):
 
 def generate_connections_matrix(rad_method, rad_cells,
                                 velocity, porosity, col_radius,
+                                constant_velocity=False,
                                 add_inlet_per_port=True, add_outlet=False):
     """Computes the connections matrix with const. velocity flow rates, and radial coordinates.
     Equidistant cell/element spacing is assumed.
@@ -111,15 +122,18 @@ def generate_connections_matrix(rad_method, rad_cells,
     rad_cells : int
         radial number of cells
     velocity : float
-        column velocity (constant)
-    porosity : float
-        column porosity (constant)
+        column velocity of the first zone
+    porosity : float | list
+        column porosity
     col_radius : float
-        column radius (constant)
-    add_inlet_per_port : int | bool
-        specifies how many radial zones are used either by number or by true to specify one per port
+        column radius
+    constant_velocity : bool
+        determines whether flow rates should ensure constant velocity under variable porosity.
+        If not, velocity is scaled with porosity with the first porosity index being the reference
+    add_inlet_per_port : int
+        number of inlets (equidistant spacing)
     add_outlet : bool
-        specifies whetehr or not an outlet is connected per radial zone
+        specifies whetehr or not an outlet is connected per inlet
     
     Returns
     -------
@@ -127,7 +141,8 @@ def generate_connections_matrix(rad_method, rad_cells,
         Connections matrix, radial coordinates.
     """
 
-    nRadPoints = (rad_method + 1) * rad_cells
+    nRadNodes = (rad_method + 1)
+    nRadPoints = nRadNodes * rad_cells
 
     # we want the same velocity within each radial zone and use an equidistant radial grid, ie we adjust the volumetric flow rate accordingly in each port
     # 1. compute cross sections
@@ -135,8 +150,8 @@ def generate_connections_matrix(rad_method, rad_cells,
     rad_coords, subcellCrossSectionAreas = get_radCoords_and_crossSectionAreas(rad_method, rad_cells, col_radius)
 
     # create flow rates for each zone
-    if np.isscalar(porosity):
-        porosity_nodes = np.full(nRadPoints, porosity)
+    if np.isscalar(porosity) or len(porosity) == 1:
+        porosity_elem = np.full(rad_cells, porosity)
     else:
         porosity_elem = np.asarray(porosity)
     
@@ -145,15 +160,19 @@ def generate_connections_matrix(rad_method, rad_cells,
                 f"Porosity length {len(porosity_elem)} must match rad_cells {rad_cells}"
             )
     
-        # expand element-wise porosity to nodal values
-        porosity_nodes = np.repeat(porosity_elem, rad_method + 1)
-    
     # compute flow rates
+    # if (constant_velocity), the flow rate is scaled with each porosity, otherwise with the first porosity index
     flowRates = []
-    for rad in range(nRadPoints):
-        flowRates.append(
-            subcellCrossSectionAreas[rad] * porosity_nodes[rad] * velocity
-        )
+    
+    for cell in range(rad_cells):
+        
+        porosityFactor = porosity_elem[cell] if constant_velocity else porosity_elem[0]
+        
+        for node in range(nRadNodes):
+            
+            flowRates.append(
+                subcellCrossSectionAreas[cell * nRadNodes + node] * porosityFactor * velocity
+                )
         
     # create connections matrix
     connections = []
@@ -161,13 +180,13 @@ def generate_connections_matrix(rad_method, rad_cells,
     if add_inlet_per_port:
         
         columnIdx = 0  # always needs to be the first unit
-
+        
         nRadialZones = rad_cells if add_inlet_per_port is True else add_inlet_per_port
-
+        
         if not rad_cells % nRadialZones == 0:
             raise Exception(
                 f"Number of rad_cells {rad_cells} is not a multiple of radial zones {nRadialZones}")
-
+        
         for rad in range(nRadPoints):
             zone = (rad * nRadialZones) // nRadPoints
             connections += [zone + 1, columnIdx,
@@ -181,6 +200,68 @@ def generate_connections_matrix(rad_method, rad_cells,
             if add_outlet:
                 connections += [columnIdx, nRadPoints + 1 + rad,
                                 rad, 0, -1, -1, flowRates[rad]]
-                
+    
     return connections, rad_coords
+
+
+def compute_DG_coords(method, n_cells, col_length):
+    ax_coords = []
+    
+    nAxNodes = (method + 1)
+    nAxPoints = nAxNodes * n_cells
+    
+    if method > 0:
+        nodes, _ = lgl_nodes_weights(method)
+        deltaX = col_length / n_cells
+        for ax in range(n_cells):
+            for node in range(method + 1):
+                ax_coords.append(ax + nodes[node] / (method + 1))
+                ax_coords.append(convergence.map_xi_to_x(nodes[node], ax * deltaX, deltaX))
+    else:
+        deltaX = col_length / nAxPoints
+        for ax in range(nAxPoints):
+            ax_coords.append(ax * deltaX + deltaX / 2.0)
+    
+    return ax_coords
+
+
+def init_state_2D(method, axNElem, radNElem, L, RHO, init_function:Callable=None):
+    """Initializes the state vector for equidistant 2D settings.
+    
+    Parameters
+    ----------
+    axNElem : int
+        number of axial elements
+    radNElem : int
+        number of radial elements
+    L : float
+        column length
+    RHO : float
+        column radius
+    init_function : function, optional
+        function that takes in the axial and radial coordinates and returns the initial value at this point. 
+        If None, the state vector is initialized with zeros.
+    
+    Returns
+    -------
+    List of float
+        Initial state vector.
+    """
+    
+    nStatePoints = (method + 1) * axNElem * radNElem
+    
+    if init_function is None:
+        return [0.0] * nStatePoints
+    
+    state_vector = []
+
+    axCoords = compute_DG_coords(method, axNElem, L)
+    radCoords = compute_DG_coords(method, radNElem, RHO)
+
+    for ax in axCoords:
+        for rad in radCoords:
+            for node in range(method + 1):
+                state_vector.append(init_function(ax, rad))
+    
+    return state_vector
 
