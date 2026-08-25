@@ -1204,6 +1204,59 @@ def infer_bulk_n_cells(values, poly_deg, label="reference"):
     return values.shape[0] // n_nodes
 
 
+def infer_bulk_poly_deg(simulation, unit='001', default=None):
+    """Infer the polynomial degree of a bulk solution's representation.
+
+    Reads the spatial discretization of the given simulation (or reference),
+    i.e. the polynomial degree for DG and 0 for FV. This makes a reference
+    self-describing: an analytical reference may be stored as a high order DG
+    representation (see src/analytical.py) while the simulations that are
+    compared against it use any other method.
+
+    Parameters
+    ----------
+    simulation : string or CADET object
+        Simulation or reference to read the discretization from.
+    unit : string
+        Unit ID (000-999).
+    default : int
+        Returned if the discretization cannot be determined.
+
+    Returns
+    -------
+    int or None
+        Polynomial degree (0 for FV), or default.
+    """
+    try:
+        disc = sim_go_to(
+            get_simulation(simulation).root,
+            ['input', 'model', 'unit_' + unit, 'discretization']
+        )
+    except (ValueError, OSError, AttributeError):
+        return default
+
+    method = None
+    for key in ('spatial_method', 'SPATIAL_METHOD'):
+        if key in disc:
+            method = disc[key]
+            break
+    if method is None:
+        return default
+
+    method = np.asarray(method).ravel()[0]
+    if isinstance(method, bytes):
+        method = method.decode()
+    method = str(method).upper()
+
+    if method == 'FV':
+        return 0
+    if method == 'DG':
+        for key in ('polydeg', 'POLYDEG'):
+            if key in disc:
+                return int(np.asarray(disc[key]).ravel()[0])
+    return default
+
+
 def interpolate_uniform_dg_values(values, eval_coords, length, poly_deg, n_cells, nodes, bary_weights):
     """Barycentrically interpolate a uniform-grid DG/FV bulk solution onto arbitrary coordinates.
 
@@ -3720,7 +3773,16 @@ def recalculate_results(file_path, model,
         reference = file_path + exact_name if isinstance(exact_name, str) else exact_name
 
         poly_deg = abs(ax_method)
-        ref_method = kwargs.get('ref_method', ax_method)
+        # The reference is self-describing: read the polynomial degree of its
+        # own representation (0 for FV), so that analytical references, which
+        # are stored as high order DG representations, can be compared against
+        # simulations of any method. Falls back to the simulation's degree,
+        # which is the right choice for a self-convergence reference.
+        ref_method = kwargs.get('ref_method', None)
+        if ref_method is None:
+            ref_method = infer_bulk_poly_deg(
+                reference, unit=unit, default=ax_method
+            )
 
         # Exactly one of time_point and normed_coord selects the analysis:
         # time_point -> spatial error norms at that solution time index;

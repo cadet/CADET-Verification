@@ -215,8 +215,6 @@ def transport_tests(n_jobs, small_test,
 
     spatial_discretization_WENO2 = copy.deepcopy(spatial_discretization_WENO3)
     spatial_discretization_WENO2['weno']['WENO_ORDER'] = 2
-    spatial_discretization_WENO2NonEq = copy.deepcopy(spatial_discretization_WENO3NonEq)
-    spatial_discretization_WENO2NonEq['weno']['WENO_ORDER'] = 2
 
     spatial_discretization_KOREN = {
         'NCOL': 8,
@@ -327,7 +325,8 @@ def transport_tests(n_jobs, small_test,
     
     #%% Axial flow transport
 
-    nNumMethods = 7
+    # WENO2, WENO3, WENO3 on a non-equidistant grid, KOREN, DG P3
+    nNumMethods = 5
 
     axial_ref_file = _reference_data_path_ + "/axCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z256.h5"
     axial_ref = convergence.get_solution(
@@ -345,10 +344,8 @@ def transport_tests(n_jobs, small_test,
             'ref_files': [[axial_ref] * nNumMethods],
             'unit_IDs': ['001'],
             'which': ['outlet'],
-            'ax_methods': [[0, 0, 0, 0, 0, 0, 3]],
+            'ax_methods': [[0, 0, 0, 0, 3]],
             'ax_discs': [[
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
@@ -359,11 +356,6 @@ def transport_tests(n_jobs, small_test,
                 partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_WENO2_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO2),
-                         time_integrator=time_integrator
-                         ),
-                partial(refine_discretization,
-                         setting_name="COL1D_transport_1comp_WENO2nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO2NonEq),
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
@@ -382,11 +374,6 @@ def transport_tests(n_jobs, small_test,
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
-                         setting_name="COL1D_transport_1comp_KORENnonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
-                         time_integrator=time_integrator
-                         ),
-                partial(refine_discretization,
                          setting_name="COL1D_transport_1comp_DGP3_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_DG),
                          time_integrator=time_integrator_DG
@@ -402,11 +389,11 @@ def transport_tests(n_jobs, small_test,
 
     #%% Radial flow transport
 
-    nNumMethods = 7
+    # WENO2, WENO3, WENO3 on a non-equidistant grid, KOREN. The DG degrees of this
+    # geometry are covered by the geometry studies, see scripts/column_geometries.py.
+    nNumMethods = 4
 
-    spatial_discretization_WENO2NonEq['grid_function'] = grid_radial_equivolume
     spatial_discretization_WENO3NonEq['grid_function'] = grid_radial_equivolume
-    spatial_discretization_KORENNonEq['grid_function'] = grid_radial_equivolume
 
     radial_ref_file = _reference_data_path_ + "/radCOL1D_transport_1comp_WENO3_benchmark1_FV_Z262144.h5"
     radial_ref = convergence.get_solution(
@@ -424,25 +411,17 @@ def transport_tests(n_jobs, small_test,
             'ref_files': [[radial_ref] * nNumMethods],
             'unit_IDs': ['001'],
             'which': ['outlet'],
-            'ax_methods': [[0, 0, 0, 0, 0, 0, 3]],
+            'ax_methods': [[0, 0, 0, 0]],
             'ax_discs': [[
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
                 bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(8, 10 if not small_test else 3),
-                bench_func.disc_list(2, 7 if not small_test else 3)
+                bench_func.disc_list(8, 10 if not small_test else 3)
             ]],
             'disc_refinement_functions' : [[
                 partial(refine_discretization,
                          setting_name="radCOL1D_transport_1comp_WENO2_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_WENO2),
-                         time_integrator=time_integrator
-                         ),
-                partial(refine_discretization,
-                         setting_name="radCOL1D_transport_1comp_WENO2nonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_WENO2NonEq),
                          time_integrator=time_integrator
                          ),
                 partial(refine_discretization,
@@ -459,16 +438,6 @@ def transport_tests(n_jobs, small_test,
                          setting_name="radCOL1D_transport_1comp_KOREN_benchmark1",
                          spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
                          time_integrator=time_integrator
-                         ),
-                partial(refine_discretization,
-                         setting_name="radCOL1D_transport_1comp_KORENnonEq_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
-                         time_integrator=time_integrator
-                         ),
-                partial(refine_discretization,
-                         setting_name="radCOL1D_transport_1comp_DGP3_benchmark1",
-                         spatial_discretization=copy.deepcopy(spatial_discretization_DG),
-                         time_integrator=time_integrator_DG
                          )
                 ]]
         }
@@ -481,12 +450,12 @@ def transport_tests(n_jobs, small_test,
     
     # %% Frustum flow transport
 
-    nNumMethods = 7
+    # WENO2, WENO3, WENO3 on a non-equidistant grid, KOREN. The DG degrees of this
+    # geometry are covered by the geometry studies, see src/column_geometries.py.
+    nNumMethods = 4
 
     # reset non-equidistant grid choice
-    spatial_discretization_WENO2NonEq['grid_function'] = grid_frustum_equivolume
     spatial_discretization_WENO3NonEq['grid_function'] = grid_frustum_equivolume
-    spatial_discretization_KORENNonEq['grid_function'] = grid_frustum_equivolume
 
     frustum_ref_file = _reference_data_path_ + "/frustumCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z2048.h5" # "/frustumCOL1D_transport_1comp_WENO3_benchmark1_FV_Z524288.h5"
     frustum_ref = convergence.get_solution(
@@ -504,25 +473,17 @@ def transport_tests(n_jobs, small_test,
         'ref_files': [[frustum_ref] * nNumMethods],
         'unit_IDs': ['001'],
         'which': ['outlet'],
-        'ax_methods': [[0, 0, 0, 0, 0, 0, 3]],
+        'ax_methods': [[0, 0, 0, 0]],
         'ax_discs': [[
             bench_func.disc_list(8, 10 if not small_test else 3),
             bench_func.disc_list(8, 10 if not small_test else 3),
             bench_func.disc_list(8, 10 if not small_test else 3),
-            bench_func.disc_list(8, 10 if not small_test else 3),
-            bench_func.disc_list(8, 10 if not small_test else 3),
-            bench_func.disc_list(8, 10 if not small_test else 3),
-            bench_func.disc_list(8, 7 if not small_test else 3)
+            bench_func.disc_list(8, 10 if not small_test else 3)
         ]],
         'disc_refinement_functions': [[
             partial(refine_discretization,
                     setting_name="frustumCOL1D_transport_1comp_WENO2_benchmark1",
                     spatial_discretization=copy.deepcopy(spatial_discretization_WENO2),
-                    time_integrator=time_integrator
-                    ),
-            partial(refine_discretization,
-                    setting_name="frustumCOL1D_transport_1comp_WENO2nonEq_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_WENO2NonEq),
                     time_integrator=time_integrator
                     ),
             partial(refine_discretization,
@@ -539,17 +500,7 @@ def transport_tests(n_jobs, small_test,
                     setting_name="frustumCOL1D_transport_1comp_KOREN_benchmark1",
                     spatial_discretization=copy.deepcopy(spatial_discretization_KOREN),
                     time_integrator=time_integrator
-                    ),
-            partial(refine_discretization,
-                    setting_name="frustumCOL1D_transport_1comp_KORENnonEq_benchmark1",
-                    spatial_discretization=copy.deepcopy(spatial_discretization_KORENNonEq),
-                    time_integrator=time_integrator
-                    ),
-            partial(refine_discretization,
-                        setting_name="frustumCOL1D_transport_1comp_DGP3_benchmark1",
-                        spatial_discretization=copy.deepcopy(spatial_discretization_DG),
-                        time_integrator=time_integrator_DG
-                        )
+                    )
         ]]
     }
 
@@ -903,3 +854,19 @@ def transport_tests(n_jobs, small_test,
         disc_refinement_functions = disc_refinement_functions,
         transport_model="MCT"
     )
+
+    #%% Column geometries
+
+    # The EOC studies of the radial, frustum and smoothly varying cross section
+    # geometries are defined in src/column_geometries.py and run from here, so that
+    # all transport EOC studies have a single entry point. They cover the DG
+    # polynomial degrees of those geometries, which is why the blocks above only
+    # consider the FV variants for the radial and the frustum column.
+    from src.column_geometries import geometry_tests
+
+    geometry_tests(
+        n_jobs=n_jobs,
+        small_test=small_test,
+        output_path=output_path,
+        cadet_path=cadet_path,
+        )
