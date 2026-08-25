@@ -28,6 +28,7 @@ import src.MCT as MCT
 import src.chrom_systems as chrom_systems
 import src.twoDimChromatography as twoDimChromatography
 import src.chromatography_sensitivities as chromatography_sensitivities
+import src.validation as validation
 
 @pytest.fixture
 def small_test(request):
@@ -74,6 +75,10 @@ def run_2Dmodels_tests(request):
     return request.config.getoption("--run-2dmodels-tests")
 
 @pytest.fixture
+def run_validation_tests(request):
+    return request.config.getoption("--run-validation-tests")
+
+@pytest.fixture
 def commit_message(request):
     return request.config.getoption("--commit-message")
 
@@ -93,7 +98,7 @@ def branch_name(request):
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
     run_transport_tests, run_binding_tests, run_chromatography_tests, run_chromatography_sensitivity_tests, run_chromatography_system_tests,
-    run_crystallization_tests, run_MCT_tests, run_2Dmodels_tests
+    run_crystallization_tests, run_MCT_tests, run_2Dmodels_tests, run_validation_tests
 ):
 
     sys.path.append(str(Path(".")))
@@ -184,6 +189,12 @@ def test_selected_model_groups(
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/mct")
+
+        if run_validation_tests:
+            validation.validation_tests(
+                output_path=str(output_path) + "/validation",
+                cadet_path=cadet_path
+            )
 
     if rdm_push:
         project_repo.push()
