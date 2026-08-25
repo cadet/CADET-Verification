@@ -12,7 +12,7 @@ modelAxial.install_path = cadet_path
 modelAxial.root.input = benchmark1.get_model(
     ncomp=4,
     particle_type=particle_type,
-    spatial_method_bulk=3, spatial_method_particle=3, refinement=2, idas_reftol=1e-6,
+    spatial_method_bulk=3, spatial_method_particle=3, nCells=16, idas_reftol=1e-6,
     column_geometry='AXIAL_FLOW_CYLINDER',
     POLYNOMIAL_INTEGRATION_TYPE=1,
     )['input']
@@ -30,7 +30,7 @@ modelFrustum.install_path = cadet_path
 modelFrustum.root.input = benchmark1.get_model(
     ncomp=4,
     particle_type=particle_type,
-    spatial_method_bulk=3, spatial_method_particle=3, refinement=2, idas_reftol=1e-6,
+    spatial_method_bulk=3, spatial_method_particle=3, nCells=16, idas_reftol=1e-6,
     column_geometry='AXIAL_FLOW_FRUSTUM', # AXIAL_FLOW_CYLINDER, AXIAL_FLOW_FRUSTUM, RADIAL_FLOW_CYLINDER_SHELL
     frustum_ratio=0.75, # ratio of the inlet radius to the outlet radius for frustum geometry
     )['input']
@@ -55,7 +55,7 @@ modelRadial.install_path = cadet_path
 modelRadial.root.input = benchmark1.get_model(
     ncomp=4,
     particle_type=particle_type,
-    spatial_method_bulk=3, spatial_method_particle=3, refinement=2, idas_reftol=1e-6,
+    spatial_method_bulk=3, spatial_method_particle=3, nCells=16, idas_reftol=1e-6,
     column_geometry='RADIAL_FLOW_CYLINDER_SHELL', # AXIAL_FLOW_CYLINDER, AXIAL_FLOW_FRUSTUM, RADIAL_FLOW_CYLINDER_SHELL
     )['input']
 

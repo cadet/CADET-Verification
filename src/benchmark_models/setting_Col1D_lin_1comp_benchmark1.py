@@ -98,14 +98,14 @@ def get_model(
     elif spatial_method_bulk == 0:
         column.discretization.SPATIAL_METHOD = "FV"
         column.discretization.NCOL = axNElem
-        column.discretization.RECONSTRUCTION = 'WENO'
-        column.discretization.weno.BOUNDARY_MODEL = 0
-        column.discretization.weno.WENO_EPS = 1e-10
-        column.discretization.weno.WENO_ORDER = kwargs.get('weno_order', 3)
-        column.discretization.GS_TYPE = 1
-        column.discretization.MAX_KRYLOV = 0
-        column.discretization.MAX_RESTARTS = 10
-        column.discretization.SCHUR_SAFETY = 1.0e-8
+    column.discretization.RECONSTRUCTION = 'WENO'
+    column.discretization.weno.BOUNDARY_MODEL = 0
+    column.discretization.weno.WENO_EPS = 1e-10
+    column.discretization.weno.WENO_ORDER = kwargs.get('weno_order', 3)
+    column.discretization.GS_TYPE = 1
+    column.discretization.MAX_KRYLOV = 0
+    column.discretization.MAX_RESTARTS = 10
+    column.discretization.SCHUR_SAFETY = 1.0e-8
     if spatial_method_bulk >= 0:
         column.discretization.USE_ANALYTIC_JACOBIAN = 1
     
@@ -175,16 +175,18 @@ def get_model(
         model.input.solver.consistent_init_mode_sens = 3
         model.input.solver.nthreads = 1
         model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
-        model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-10)
+        model.input.solver.time_integrator.ALGTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
         model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
         model.input.solver.time_integrator.MAX_STEPS = 10000
-        model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-10)
+        model.input.solver.time_integrator.RELTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
     
     model.input.solver.sections.nsec = 2
     model.input.solver.sections.section_continuity = [ 0 ]
     model.input.solver.sections.section_times = [ 0.0, 10.0, 1500.0 ]
     model.input.solver.user_solution_times = np.linspace(0.0, 1500.0, 1500*4 + 1)
-    
+    if 'user_solution_times_unit_state' in kwargs:
+        model.input.solver.user_solution_times_unit_state = kwargs['user_solution_times_unit_state']
+
     #%% auxiliary units: inlet and outlet
     model.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
     model.input.model.unit_000.ncomp = 1
@@ -205,17 +207,15 @@ def get_model(
     #%% return data
     model.input['return'].split_components_data = 0
     model.input['return'].split_ports_data = 0
-    model.input['return'].unit_000.write_solution_bulk = 0
     model.input['return'].unit_000.write_solution_inlet = 0
     model.input['return'].unit_000.write_solution_outlet = 0
     model.input['return'].unit_001.write_coordinates = kwargs.get('write_solution_bulk', 0) or kwargs.get('write_solution_solid', 0) or kwargs.get('write_solution_particle', 0)
     model.input['return'].unit_001.write_sens_bulk = 0
     model.input['return'].unit_001.write_sens_last = 0
     model.input['return'].unit_001.write_sens_outlet = 1
-    model.input['return'].unit_001.write_solution_bulk = 0
     model.input['return'].unit_001.write_solution_inlet = 0
     model.input['return'].unit_001.write_solution_outlet = 1
-    model.input['return'].unit_002.write_solution_bulk = kwargs.get('write_solution_bulk', 0)
+    model.input['return'].unit_001.write_solution_bulk = kwargs.get('write_solution_bulk', 0)
     model.input['return'].unit_001.write_solution_solid = kwargs.get('write_solution_solid', 0)
     model.input['return'].unit_001.write_solution_particle = kwargs.get('write_solution_particle', 0)
     model.input['return'].unit_002.write_solution_inlet = 0

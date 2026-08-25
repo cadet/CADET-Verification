@@ -60,12 +60,12 @@ def get_column_geometry_configuration(
 
 
 def get_model(
-        spatial_method_bulk, nCells=1,
+        spatial_method_bulk, refinement=1,
         column_geometry='AXIAL_FLOW_CYLINDER',
         **kwargs
         ):
     
-    axNElem = nCells
+    axNElem = refinement
     
     model = Dict()
     
@@ -152,10 +152,10 @@ def get_model(
     model.input.solver.sections.section_continuity = [ 0 ]
     model.input.solver.sections.section_times = [ 0.0, 12.0, 40.0 ]
     model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-10)
-    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-08)
+    model.input.solver.time_integrator.ALGTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-8
     model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
     model.input.solver.time_integrator.MAX_STEPS = 1000000
-    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-08)
+    model.input.solver.time_integrator.RELTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-8
     model.input.solver.user_solution_times = np.linspace(0.0, 40.0, 40*10 + 1)
     
     #%% auxiliary units: inlet and outlet
@@ -184,9 +184,10 @@ def get_model(
     model.input['return'].unit_000.write_solution_inlet = 0
     model.input['return'].unit_000.write_solution_outlet = 0
 
-    model.input['return'].unit_001.write_coordinates = kwargs.get('write_solution_bulk', 0) or kwargs.get('write_solution_solid', 0)
+    model.input['return'].unit_001.write_coordinates = kwargs.get('write_solution_bulk', 0) or kwargs.get('write_solution_particle', 0)
     model.input['return'].unit_001.write_solution_bulk = kwargs.get('write_solution_bulk', 0) or kwargs.get('write_solution_particle', 0)
-    model.input['return'].unit_001.write_solution_solid = kwargs.get('write_solution_solid', 0)
+    model.input['return'].unit_001.write_solution_solid = kwargs.get('write_solution_particle', 0)
+    model.input['return'].unit_001.write_solution_particle = kwargs.get('write_solution_particle', 0)
     model.input['return'].unit_001.write_solution_inlet = 0
     model.input['return'].unit_001.write_solution_outlet = 1
 
