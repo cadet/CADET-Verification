@@ -644,7 +644,7 @@ def binding_train_GPR_langmuir2Comp(cadet_path: str, output_dir: str):
         "GPR",
         cadet_path, output_dir,
         kernel="MLP",
-        get_model=partial(langmuir_2Comp_setting.get_model, nCells=nCells),
+        get_model=partial(langmuir_2Comp_setting.get_model, refinement=nCells),
         training_results=training_results,
         cp=cp_train, cs=cs_train,
         )
@@ -791,7 +791,7 @@ def binding_train_ANN_langmuir2Comp(cadet_path: str, output_dir: str):
     simMechanistic1, simHybrid1 = run_hybrid_sim_analysis(
         "ANN",
         cadet_path, plot_training_curves,
-        get_model=partial(langmuir_2Comp_setting.get_model, nCells=nCells, idas_reftol=1e-4),
+        get_model=partial(langmuir_2Comp_setting.get_model, refinement=nCells, idas_reftol=1e-4),
         training_results=training_results,
         normalization_factor=normalization_factor,
         n_layers=n_layers,

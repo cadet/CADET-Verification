@@ -189,25 +189,25 @@ def get_model(
     model.input.solver.sections.section_continuity = [ 0, 0 ]
     model.input.solver.sections.section_times = [ 0.0, 10.0, 90.0, 1500.0]
     model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
-    model.input.solver.time_integrator.ALGTOL = kwargs.get('idas_reftol', 1e-10)
+    model.input.solver.time_integrator.ALGTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
     model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
     model.input.solver.time_integrator.MAX_STEPS = 10000
-    model.input.solver.time_integrator.RELTOL = kwargs.get('idas_reftol', 1e-10)
+    model.input.solver.time_integrator.RELTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
     
     # Return data
     model.input.solver.user_solution_times = np.linspace(0, 1500, 1501)
     model.input['return'].split_components_data = 0
     model.input['return'].split_ports_data = 0
-    model.input['return'].unit_000.write_coordinates = kwargs.get('return_bulk', False) or kwargs.get('return_particle', False)
+    model.input['return'].unit_000.write_coordinates = kwargs.get('write_solution_bulk', False) or kwargs.get('write_solution_particle', False)
     model.input['return'].unit_000.write_sens_bulk = 0
     model.input['return'].unit_000.write_sens_last = 0
     model.input['return'].unit_000.write_sens_outlet = 1
-    model.input['return'].unit_000.write_solution_bulk =  kwargs.get('return_bulk', False)
+    model.input['return'].unit_000.write_solution_bulk =  kwargs.get('write_solution_bulk', False)
     model.input['return'].unit_000.write_solution_flux = 0
     model.input['return'].unit_000.write_solution_inlet = 0
     model.input['return'].unit_000.write_solution_outlet = 1
-    model.input['return'].unit_000.write_solution_particle = kwargs.get('return_particle', False)
-    model.input['return'].unit_000.write_solution_solid = kwargs.get('return_particle', False)
+    model.input['return'].unit_000.write_solution_particle = kwargs.get('write_solution_particle', False)
+    model.input['return'].unit_000.write_solution_solid = kwargs.get('write_solution_particle', False)
     model.input['return'].write_solution_times = 1
     
     return model
