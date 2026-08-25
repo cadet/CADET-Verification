@@ -101,4 +101,16 @@ def chromatography_tests(n_jobs, small_test, sensitivities,
         n_jobs=n_jobs,
         rerun_sims=True,
         disc_refinement_functions = disc_refinement_functions
+        # For which='bulk', exactly one of the following two must be given:
+        #
+        # time_point: solution time index at which spatial error norms are
+        # evaluated. Must hit a time at which the concentration front is still
+        # inside the column (here t = 125s); at the end of the simulation the
+        # column is empty again.
+        # time_point=500,
+        #
+        # normed_coord: normalized axial coordinate z/L in [0, 1] at which
+        # temporal (outlet-like) error norms are evaluated; normed_coord=1.0
+        # is equivalent to the outlet solution.
+        # normed_coord=1.0,
     )
