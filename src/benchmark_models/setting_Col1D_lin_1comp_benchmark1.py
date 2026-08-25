@@ -27,13 +27,19 @@ def get_column_geometry_configuration(geometry: str):
             'bed_length': 0.014,
         }
     elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-        radius_outer = np.sqrt(axial_flow_cross_section_area / np.pi)
+        cylinder_height = 0.25
+        # The inlet (outer) cross section area is the cylinder surface
+        # A_outer = 2 pi r_outer h, i.e. r_outer = A_outer / (2 pi h).
+        radius_outer = axial_flow_cross_section_area / (2.0 * np.pi * cylinder_height)
         radius_inner = radius_outer - 0.014
         return {
             'geometry': geometry,
-            'cylinder_height': 0.25,
+            'cylinder_height': cylinder_height,
             'cross_section_area_outer': axial_flow_cross_section_area,
-            'cross_section_area_inner': 2.0 * np.pi * radius_inner * 0.25,
+            # optional field, CADET-Core cross-checks it against the inner
+            # radius derived from cross_section_area_outer, cylinder_height
+            # and bed_length
+            'cross_section_area_inner': 2.0 * np.pi * radius_inner * cylinder_height,
             'bed_length': 0.014,
         }
     elif geometry == 'AXIAL_FLOW_FRUSTUM':
@@ -41,6 +47,14 @@ def get_column_geometry_configuration(geometry: str):
             'geometry': geometry,
             'cross_section_area_large_end': axial_flow_cross_section_area,
             'cross_section_area_small_end': axial_flow_cross_section_area * 0.75,
+            'bed_length': 0.014,
+        }
+    elif geometry == 'SMOOTHLY_VARYING':
+        # The cross section area is prescribed at every DG node and thus depends on
+        # the spatial discretization, so CROSS_SECTIONAL_AREA_AT_NODES has to be added
+        # by the caller, see setting_Col1D_pureTransport_1comp_benchmark1.get_model.
+        return {
+            'geometry': geometry,
             'bed_length': 0.014,
         }
     else:
@@ -71,10 +85,9 @@ def get_model(
     
     #%% Column unit
     column = Dict()
-    if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_COLUMN_MODEL_1D', 'AXIAL_FLOW_FRUSTUM']:
+    if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_FLOW_CYLINDER_SHELL', 'AXIAL_FLOW_FRUSTUM']:
         raise ValueError(f"Unknown column geometry: {column_geometry}")
     column.unit_type = "COLUMN_MODEL_1D"
-    column.geometry = column_geometry
     column.update(get_column_geometry_configuration(column_geometry))
     column.forward_flow = 1
     
@@ -88,7 +101,10 @@ def get_model(
     
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
+        # collocation DG is only implemented for the axial cylinder; the other
+        # geometries use the (exact integration) variable cross section DG
+        column.discretization.USE_COLLOCATION_DG = kwargs.get(
+            'USE_COLLOCATION_DG', 1 if column_geometry == 'AXIAL_FLOW_CYLINDER' else 0)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     elif spatial_method_bulk == 0:

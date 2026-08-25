@@ -552,6 +552,51 @@ def get_grid_coordinates(spatial_method_bulk, n_elem):
     return (element_offsets + 0.5 * (nodes[None, :] + 1.0) * h).reshape(-1)
 
 
+def get_cross_sectional_area_profile(**kwargs):
+    """Return the cross section area profile A(z/L) of the SMOOTHLY_VARYING geometry.
+
+    Defaults to the sine hump
+
+        A(z*) = A_inlet * (1 + area_amplitude * sin(pi z*))
+
+    in normalized coordinates z* = z/L, which starts at the large-end area of the
+    frustum setting, rises, falls and returns to that same value at the outlet. It
+    is smooth and, for area_amplitude > -1, strictly positive everywhere.
+
+    Parameters
+    ----------
+    area_profile : callable, optional
+        Custom profile: takes normalized coordinates z/L in [0, 1] as np.array
+        and returns the cross section areas. Overrides the sine hump.
+    inlet_cross_section_area : float
+        Area at z = 0 and z = L, defaults to the large-end cross section area of
+        the frustum setting.
+    area_amplitude : float
+        Relative amplitude of the hump, defaults to 0.5.
+
+    Returns
+    -------
+    callable
+        Profile function z/L in [0, 1] (np.array) -> cross section area (np.array).
+    """
+    if 'area_profile' in kwargs:
+        return kwargs['area_profile']
+
+    inlet_area = kwargs.get(
+        'inlet_cross_section_area',
+        get_column_geometry_configuration(
+            'AXIAL_FLOW_FRUSTUM')['cross_section_area_large_end']
+    )
+    amplitude = kwargs.get('area_amplitude', 0.5)
+
+    def sine_hump(normed_coords):
+        return inlet_area * (
+            1.0 + amplitude * np.sin(np.pi * np.asarray(normed_coords))
+        )
+
+    return sine_hump
+
+
 def get_model(
         spatial_method_bulk,
         refinement=1,
@@ -566,8 +611,9 @@ def get_model(
         Spatial refinement factor, the number of elements/cells is
         8 * refinement.
     column_geometry : string
-        'AXIAL_FLOW_CYLINDER', 'RADIAL_FLOW_CYLINDER_SHELL' or
-        'AXIAL_FLOW_FRUSTUM'.
+        'AXIAL_FLOW_CYLINDER', 'RADIAL_FLOW_CYLINDER_SHELL',
+        'AXIAL_FLOW_FRUSTUM' or 'SMOOTHLY_VARYING' (DG only, the area profile
+        is set via get_cross_sectional_area_profile).
     advection : bool
         Switches advection on/off (off sets the flow rate to zero, i.e. pure
         diffusion with vanishing Danckwerts boundary fluxes).
@@ -637,7 +683,10 @@ def get_model(
                 "spatial method (spatial_method_bulk=0)."
             )
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
+        # collocation DG is only implemented for the axial cylinder; the other
+        # geometries use the (exact integration) variable cross section DG
+        column.discretization.USE_COLLOCATION_DG = kwargs.get(
+            'USE_COLLOCATION_DG', 1 if column_geometry == 'AXIAL_FLOW_CYLINDER' else 0)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     elif spatial_method_bulk == 0:
@@ -653,6 +702,21 @@ def get_model(
         column.discretization.SCHUR_SAFETY = 1.0e-8
     if spatial_method_bulk >= 0:
         column.discretization.USE_ANALYTIC_JACOBIAN = 1
+
+    # The smoothly varying cross section area is prescribed at every DG node, so it
+    # depends on the discretization and is set here rather than in
+    # get_column_geometry_configuration.
+    if column_geometry == 'SMOOTHLY_VARYING':
+        if spatial_method_bulk == 0:
+            raise ValueError(
+                "The SMOOTHLY_VARYING geometry is only available for the DG "
+                "spatial method (spatial_method_bulk > 0)."
+            )
+        area_profile = get_cross_sectional_area_profile(**kwargs)
+        grid = get_grid_coordinates(spatial_method_bulk, axNElem)
+        column.cross_sectional_area_at_nodes = np.asarray(
+            area_profile(grid), dtype=float
+        ).tolist()
 
     # Initial condition.
     #

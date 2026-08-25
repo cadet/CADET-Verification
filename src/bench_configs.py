@@ -11,9 +11,12 @@ github project.
 import os
 import json
 import copy
+from functools import partial
 
 import src.bench_func as bench_func
 import src.utility.convergence as convergence
+from src import analytical
+from src import geometry_references
 
 from src.benchmark_models import settings_2Dchromatography
 from src.benchmark_models import settings_columnSystems
@@ -24,6 +27,8 @@ from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_langLRM_2comp_benchmark1
+from src.benchmark_models import setting_Col1D_pureTransport_1comp_benchmark1
+from src.benchmark_models.setting_Col1D_pureTransport_1comp_benchmark1 import create_convergence_object
 
 
 # %% benchmark templates
@@ -448,6 +453,178 @@ def axial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=
         'disc_refinement_functions' : [
             [bench_func.create_object_from_config] for _ in range(n_settings)
             ]
+    }
+
+    return benchmark_config
+
+
+def paper_geometry_test_benchmark(setting_name,
+                             small_test=False, ref_filepath=None,
+                             user_solution_times_unit_state=[1.25],
+                            **model_kwargs
+                             ):
+
+    reference = analytical.load_reference(setting_name, ref_filepath)
+
+    n_settings = 1
+    
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_pureTransport_1comp_benchmark1.get_model(
+                spatial_method_bulk=0,
+                write_solution_bulk=True,
+                **model_kwargs
+                ),
+        ],
+        'cadet_config_names': [
+            setting_name,
+        ],
+        'include_sens': [False] * n_settings,
+        'ref_files': [
+            [reference]
+        ],
+        'unit_IDs': [
+            '001',
+        ],
+        'which': [
+            'bulk' # requires exactly one of the kwargs time_point or normed_coord
+            # 'outlet'
+        ] * n_settings,
+        'idas_abstol': [
+            [1e-15],
+        ],
+        'ax_methods': [
+            [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 13 if not small_test else 3)],
+        ],
+        'par_methods': [
+            [None],
+        ],
+        'par_discs': [
+            [None],
+        ],
+        'disc_refinement_functions' : [
+            [partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 0}, user_solution_times_unit_state=user_solution_times_unit_state)] for _ in range(n_settings)
+             ]
+    }
+
+    return benchmark_config
+
+
+def paper_geometry_transport_benchmark(setting_name,
+                             small_test=False, ref_filepath=None,
+                             cadet_reference=None,
+                            **model_kwargs
+                             ):
+    """Pure transport EOC benchmark of one column geometry.
+
+    Compared against the analytical solution where one exists, otherwise against
+    the stored CADET reference named by cadet_reference, and otherwise against the
+    finest resolution of the sweep itself, see src/geometry_references.py.
+
+    The methods default to FV (0) and DG of degrees one to four. Pass
+    ax_methods to restrict them, e.g. to the DG degrees for a geometry that is
+    only implemented for DG, and n_levels to shorten the refinement sweeps.
+    """
+
+    default_n_levels = {0: 12, 1: 11, 2: 10, 3: 9, 4: 8}
+
+    ax_methods = model_kwargs.pop('ax_methods', [0, 1, 2, 3, 4])
+    n_levels = model_kwargs.pop(
+        'n_levels', [default_n_levels[method] for method in ax_methods])
+    if small_test:
+        n_levels = [3] * len(ax_methods)
+    ax_discs = [bench_func.disc_list(1, n) for n in n_levels]
+    idas_abstol = [1e-15] * len(ax_methods)
+
+    base_config = setting_Col1D_pureTransport_1comp_benchmark1.get_model(
+        spatial_method_bulk=3, write_solution_bulk=True, **model_kwargs
+    )
+
+    # The nodal initial condition depends on the grid, so every refinement level
+    # is rebuilt from scratch instead of only updating NELEM/NCOL.
+    refinement_functions = [
+        partial(create_convergence_object, setting_name=setting_name,
+                model_kwargs={**model_kwargs, 'spatial_method_bulk': method})
+        for method in ax_methods
+    ]
+
+    references = geometry_references.resolve(
+        setting_name=setting_name, ax_methods=ax_methods, data_dir=ref_filepath,
+        cadet_reference=cadet_reference,
+    )
+
+    n_settings = 1
+
+    benchmark_config = {
+        'cadet_config_jsons': [base_config],
+        'cadet_config_names': [setting_name],
+        'include_sens': [False] * n_settings,
+        'ref_files': [references],
+        'unit_IDs': ['001'],
+        'which': [
+            'bulk'  # requires exactly one of the kwargs time_point or normed_coord
+        ] * n_settings,
+        'idas_abstol': [idas_abstol],
+        'ax_methods': [ax_methods],
+        'ax_discs': [ax_discs],
+        'par_methods': [[None] * len(ax_methods)],
+        'par_discs': [[None] * len(ax_methods)],
+        'disc_refinement_functions': [refinement_functions],
+    }
+
+    return benchmark_config
+
+
+def paper_geometry_LRMPdynLin_benchmark(setting_name,
+                             small_test=False, ref_filepath=None,
+                             cadet_reference=None,
+                            **kwargs
+                             ):
+    """Linear binding LRMP EOC benchmark of one column geometry.
+
+    No analytical solution is available with particles, so this is compared against
+    the stored CADET reference named by cadet_reference, and otherwise against the
+    finest resolution of the sweep itself, see src/geometry_references.py.
+    """
+
+    ax_methods = [0, 1, 2, 3, 4]
+    n_levels = [13, 13, 12, 11, 10] if not small_test else [3] * len(ax_methods)
+    ax_discs = [bench_func.disc_list(1, n) for n in n_levels]
+    idas_abstol = [1e-15] * len(ax_methods)
+
+    base_config = setting_Col1D_lin_1comp_benchmark1.get_model(
+        spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE',
+        column_geometry=kwargs['column_geometry'],
+        write_solution_bulk=True, user_solution_times_unit_state=[12.0]
+    )
+
+    refinement_functions = [bench_func.create_object_from_config] * len(ax_methods)
+
+    references = geometry_references.resolve(
+        setting_name=setting_name, ax_methods=ax_methods, data_dir=ref_filepath,
+        cadet_reference=cadet_reference,
+    )
+
+    n_settings = 1
+
+    benchmark_config = {
+        'cadet_config_jsons': [base_config],
+        'cadet_config_names': [setting_name],
+        'include_sens': [False] * n_settings,
+        'ref_files': [references],
+        'unit_IDs': ['001'],
+        'which': [
+            'bulk'  # requires exactly one of the kwargs time_point or normed_coord
+        ] * n_settings,
+        'idas_abstol': [idas_abstol],
+        'ax_methods': [ax_methods],
+        'ax_discs': [ax_discs],
+        'par_methods': [[None] * len(ax_methods)],
+        'par_discs': [[None] * len(ax_methods)],
+        'disc_refinement_functions': [refinement_functions],
     }
 
     return benchmark_config
