@@ -823,21 +823,6 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
             if which == 'outlet':
                 errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp),
                                                   get_solution(reference, 'unit_'+unit, which, comp)))
-            elif which == 'bulk':
-                if all(key in kwargs for key in ('orig_coords', 'domain_end', 'output_coords', 'polyDeg', 'nCells')):
-                    errors.append(
-                        calculate_abs_error(
-                            get_solution(simulation, 'unit_'+unit, which,
-                                         comp)[kwargs.get('time_point', -1), :],
-                            get_interpolated_solution(
-                                get_solution(
-                                    reference, 'unit_'+unit, which, comp)[kwargs.get('time_point', -1), :],
-                                kwargs['orig_coords'], kwargs['domain_end'], kwargs['output_coords'][Idx], kwargs['polyDeg'], kwargs['nCells'])
-                        )
-                    )
-                else:  # it is assumed that solution is already given at the same discrete points
-                    errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
-                                                      reference))
             elif which == 'sens_outlet':
                 errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp, **kwargs),
                                                   get_solution(reference, 'unit_'+unit, which, comp, **kwargs)))
@@ -890,19 +875,6 @@ def calculate_all_abs_errors(simulations, reference, unit='001', which='outlet',
 
                 else:
                     errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp), reference))
-            elif which == 'bulk':
-                if all(key in kwargs for key in ('orig_coords', 'domain_end', 'output_coords', 'polyDeg', 'nCells')):
-                    errors.append(
-                        calculate_abs_error(
-                            get_solution(simulation, 'unit_'+unit, which,
-                                         comp)[kwargs.get('time_point', -1), :],
-                            get_interpolated_solution(
-                                reference, kwargs['orig_coords'], kwargs['domain_end'], kwargs['output_coords'], kwargs['polyDeg'], kwargs['nCells'])
-                        )
-                    )
-                else:  # it is assumed that solution is already given at the same discrete points
-                    errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp)[-1, :],
-                                                      reference))
             elif which == 'sens_outlet':
                 errors.append(calculate_abs_error(get_solution(simulation, 'unit_'+unit, which, comp, **kwargs),
                                                   reference))
@@ -1172,47 +1144,957 @@ def map_xi_to_z(xi, cellIdx, deltaZ):
     return z
 
 
-# TODO slice ?
-# def interpolate_DGsolution(solution_slice, output_coords, deltaZ=None, nNodes=None):
+def build_gauss_evaluation_grid(length, n_cells, quad_points):
+    """Build a per-cell Gauss-Legendre evaluation grid for bulk error integration.
 
-#     for outputIdx in range(len(output_coords)):
+    Parameters
+    ----------
+    length : float
+        Length of the spatial 1D interval.
+    n_cells : int
+        Number of (DG or FV) cells.
+    quad_points : int
+        Number of Gauss-Legendre quadrature points per cell.
 
-#         coord = output_coords[outputIdx]
+    Returns
+    -------
+    np.array
+        Evaluation coordinates, shape (n_cells * quad_points,).
+    np.array
+        Gauss-Legendre quadrature weights, shape (quad_points,).
+    float
+        Mapping Jacobian (half the cell width).
+    """
+    xi_q, w_q = np.polynomial.legendre.leggauss(quad_points)
+    h = length / n_cells
+    eval_coords = np.empty(n_cells * quad_points)
 
-#         # get element index and left boundary node index
-#         while (cellIdx + 1) * deltaZ < coord:
-#             cellIdx += 1
-#             x_lIdx += nNodes
+    write_idx = 0
+    for cell_idx in range(n_cells):
+        z_left = cell_idx * h
+        eval_coords[write_idx:write_idx + quad_points] = z_left + 0.5 * (xi_q + 1.0) * h
+        write_idx += quad_points
 
-#         # Check if output coordinate is in DG coordinates
-#         for nodeIdx in range(nNodes):
-#             if coord - orig_coords[cellIdx * nNodes + nodeIdx] < 1e-14:
-#                 if nodeIdx == 0 and cellIdx != 0:
-#                     output_values[outputIdx] = 0.5 * (orig_values[cellIdx * nNodes + nodeIdx] + [cellIdx * nNodes + nodeIdx - 1])
-#                 elif nodeIdx == polyDeg and cellIdx != nCells - 1:
-#                     output_values[outputIdx] = 0.5 * (orig_values[cellIdx * nNodes + nodeIdx] + [cellIdx * nNodes + nodeIdx + 1])
-#                 else:
-#                     output_values[outputIdx] = orig_values[cellIdx * nNodes + nodeIdx]
+    return eval_coords, w_q, 0.5 * h
 
-#         # Coordinate not in DG coordinates -> interpolate!
 
-#         # get coordinate w.r.t to reference element
-#         mapped_coord = coord * map_z_to_xi(coord, cellIdx, deltaZ)
+def infer_bulk_n_cells(values, poly_deg, label="reference"):
+    """Infer the number of DG/FV cells from a bulk solution's spatial extent.
 
-#         # calculate value at coord using using barycentric form
-#         output_values[outputIdx] = (bary_weights / (mapped_coord - nodes) * orig_values).sum() / (bary_weights / (mapped_coord - nodes)).sum()
+    Parameters
+    ----------
+    values : np.array
+        Bulk solution time slice, shape (n_points, ...).
+    poly_deg : int
+        Polynomial degree of the discretization.
+    label : string
+        Used in the error message if the shape is inconsistent.
 
-def get_interpolated_solution(simulation_name, output_coords, polyDeg, nCells, unit='unit_001'):
+    Returns
+    -------
+    int
+        Number of cells.
+    """
+    n_nodes = poly_deg + 1
+    if values.shape[0] % n_nodes != 0:
+        raise ValueError(
+            f"{label} bulk size {values.shape[0]} is not divisible by {n_nodes} "
+            f"(poly_deg={poly_deg})."
+        )
+    return values.shape[0] // n_nodes
 
-    orig_coords = get_axial_coordinates(simulation_name, unit=unit)
-    orig_values = get_bulk(simulation_name, unit=unit)
-    column_length = sim_go_to(get_simulation(simulation_name).root,
-                              ['input',
-                               'model',
-                               unit,
-                               'col_length']
-                              )
-    return get_interpolated_solution(orig_values, orig_coords, column_length, output_coords, polyDeg, nCells)
+
+def interpolate_uniform_dg_values(values, eval_coords, length, poly_deg, n_cells, nodes, bary_weights):
+    """Barycentrically interpolate a uniform-grid DG/FV bulk solution onto arbitrary coordinates.
+
+    Parameters
+    ----------
+    values : np.array
+        Bulk solution time slice, shape (n_cells * (poly_deg + 1), n_comp).
+    eval_coords : np.array
+        Coordinates to interpolate onto.
+    length : float
+        Length of the spatial 1D interval.
+    poly_deg : int
+        Polynomial degree of the discretization.
+    n_cells : int
+        Number of cells.
+    nodes : np.array
+        LGL nodes on [-1, 1] for poly_deg.
+    bary_weights : np.array
+        Barycentric weights for poly_deg.
+
+    Returns
+    -------
+    np.array
+        Interpolated values, shape (len(eval_coords), n_comp).
+    """
+    n_nodes = poly_deg + 1
+    n_comp = values.shape[1]
+    expected_size = n_cells * n_nodes
+    if values.shape[0] != expected_size:
+        raise ValueError(
+            f"Expected values with first dimension {expected_size}, got {values.shape[0]}"
+        )
+
+    h = length / n_cells
+    cell_idx = np.floor(eval_coords / h).astype(int)
+    cell_idx = np.clip(cell_idx, 0, n_cells - 1)
+    xi = 2.0 * (eval_coords - cell_idx * h) / h - 1.0
+
+    diff = xi[:, None] - nodes[None, :]
+    hit = np.abs(diff) < 1e-13
+
+    safe_diff = np.where(hit, 1.0, diff)
+    bary = bary_weights[None, :] / safe_diff
+    alpha = bary / np.sum(bary, axis=1, keepdims=True)
+
+    if np.any(hit):
+        hit_rows = np.any(hit, axis=1)
+        alpha[hit_rows, :] = 0.0
+        alpha[hit_rows, np.argmax(hit[hit_rows], axis=1)] = 1.0
+
+    nodal = values.reshape(n_cells, n_nodes, n_comp)
+    selected = nodal[cell_idx, :, :]
+    return np.einsum("en,enc->ec", alpha, selected, optimize=True)
+
+
+def calculate_bulk_error_norms(sim_values, ref_values, length, n_cells_sim, n_cells_ref,
+                               poly_deg, quad_points, nodes, bary_weights,
+                               ref_poly_deg=None, ref_nodes=None, ref_bary_weights=None):
+    """Compute Linf, L1, and L2 errors between two bulk DG/FV solution time slices.
+
+    Both solutions are interpolated onto a shared Gauss-Legendre evaluation grid
+    (built from the simulation's own cell layout) so that solutions living on
+    different cell counts and/or polynomial degrees can be compared.
+
+    Parameters
+    ----------
+    sim_values : np.array
+        Simulation bulk solution time slice, shape (n_cells_sim*(poly_deg+1), n_comp).
+    ref_values : np.array
+        Reference bulk solution time slice, shape (n_cells_ref*(ref_poly_deg+1), n_comp).
+    length : float
+        Length of the spatial 1D interval.
+    n_cells_sim : int
+        Number of cells of the simulation.
+    n_cells_ref : int
+        Number of cells of the reference.
+    poly_deg : int
+        Polynomial degree of the simulation.
+    quad_points : int
+        Number of Gauss-Legendre quadrature points per cell.
+    nodes : np.array
+        LGL nodes for poly_deg.
+    bary_weights : np.array
+        Barycentric weights for poly_deg.
+    ref_poly_deg : int
+        Polynomial degree of the reference, defaults to poly_deg.
+    ref_nodes : np.array
+        LGL nodes for ref_poly_deg, defaults to nodes.
+    ref_bary_weights : np.array
+        Barycentric weights for ref_poly_deg, defaults to bary_weights.
+
+    Returns
+    -------
+    np.array
+        Linf error per component.
+    np.array
+        L1 error per component.
+    np.array
+        L2 error per component.
+    """
+    if ref_poly_deg is None:
+        ref_poly_deg = poly_deg
+        ref_nodes = nodes
+        ref_bary_weights = bary_weights
+
+    eval_coords, w_q, jac = build_gauss_evaluation_grid(length, n_cells_sim, quad_points)
+
+    sim_eval = interpolate_uniform_dg_values(
+        sim_values, eval_coords, length, poly_deg, n_cells_sim, nodes, bary_weights
+    )
+    ref_eval = interpolate_uniform_dg_values(
+        ref_values, eval_coords, length, ref_poly_deg, n_cells_ref, ref_nodes, ref_bary_weights
+    )
+
+    abs_err = np.abs(sim_eval - ref_eval)
+    n_comp = abs_err.shape[1]
+
+    linf_errors = np.max(abs_err, axis=0)
+
+    abs_err_reshaped = abs_err.reshape(n_cells_sim, quad_points, n_comp)
+    l1_errors = jac * np.einsum("q,cqk->k", w_q, abs_err_reshaped, optimize=True)
+
+    sq_err_reshaped = (abs_err ** 2).reshape(n_cells_sim, quad_points, n_comp)
+    l2_errors = np.sqrt(jac * np.einsum("q,cqk->k", w_q, sq_err_reshaped, optimize=True))
+
+    return linf_errors, l1_errors, l2_errors
+
+
+def get_bulk_time_slice(simulation, unit='001', time_point=-1):
+    """Get a bulk solution time slice and the associated column length.
+
+    Parameters
+    ----------
+    simulation : string or CADET object
+        Specifies the simulation of interest.
+    unit : string
+        Unit ID (000-999).
+    time_point : int
+        Index into the solution time axis.
+
+    Returns
+    -------
+    np.array
+        Bulk solution at time_point, shape (n_points, n_comp).
+    float
+        Column length.
+    """
+    sim = get_simulation(simulation)
+    length = float(sim_go_to(sim.root, ['input', 'model', 'unit_' + unit, 'col_length']))
+    bulk = np.array(sim_go_to(sim.root, ['output', 'solution', 'unit_' + unit, 'solution_bulk']))
+    return bulk[time_point, :, :], length
+
+import numpy as np
+
+
+def _get_fv_bulk_geometry_weighting(simulation, unit):
+    """Return the geometry weighting of the FV bulk degrees of freedom.
+
+    The FV state of the axial cylinder model consists of ordinary cell
+    averages, whereas the radial cylinder shell and frustum models use
+    geometry-weighted cell averages
+
+        cbar_i = integral_{cell} A(x) c(x) dx / integral_{cell} A(x) dx
+
+    with A ~ r (radial shell) or A ~ r^2 (frustum), where
+    r(x) = r_inner + (x / length) * (r_outer - r_inner) along the normalized
+    transport coordinate. Any grid transfer of FV solutions (e.g. restricting
+    a fine reference onto a coarse grid) must use the same weighting;
+    an unweighted restriction has an O(h^2) error that caps the observable
+    EOC at two regardless of the scheme's actual order.
+
+    Parameters
+    ----------
+    simulation : string or CADET object
+        Simulation to read the unit geometry from.
+    unit : string
+        Unit ID (000-999).
+
+    Returns
+    -------
+    tuple (int, float or None, float or None)
+        (weight_power, r_inner, r_outer): A ~ r^weight_power;
+        weight_power = 0 denotes unweighted averages.
+    """
+    sim = get_simulation(simulation)
+    unit_dict = sim_go_to(sim.root, ['input', 'model', 'unit_' + unit])
+
+    def _get(key, default=None):
+        for k in (key.lower(), key.upper()):
+            if k in unit_dict:
+                return unit_dict[k]
+        return default
+
+    unit_type = _get('unit_type', '')
+    unit_type = np.asarray(unit_type).ravel()[0] if np.size(unit_type) else ''
+    if isinstance(unit_type, bytes):
+        unit_type = unit_type.decode()
+    unit_type = str(unit_type).upper()
+
+    if 'RADIAL' in unit_type:
+        weight_power = 1
+    elif 'FRUSTUM' in unit_type:
+        weight_power = 2
+    else:
+        return 0, None, None
+
+    r_inner = float(np.asarray(_get('col_radius_inner')).ravel()[0])
+    r_outer = float(np.asarray(_get('col_radius_outer')).ravel()[0])
+    return weight_power, r_inner, r_outer
+
+
+def _get_fv_grid_faces(simulation, unit, n_cells):
+    """Return the physical FV cell face coordinates of a simulation, or None.
+
+    Reads input/model/unit_XXX/discretization/GRID_FACES (present for
+    non-equidistant grids); returns None for equidistant grids (no
+    GRID_FACES field), in which case callers fall back to a uniform grid.
+
+    Parameters
+    ----------
+    simulation : string or CADET object
+        Simulation to read the grid from.
+    unit : string
+        Unit ID (000-999).
+    n_cells : int
+        Expected number of cells (validates the face count).
+
+    Returns
+    -------
+    np.ndarray or None
+        Face coordinates, shape (n_cells + 1,), or None.
+    """
+    sim = get_simulation(simulation)
+    disc = sim_go_to(sim.root, ['input', 'model', 'unit_' + unit, 'discretization'])
+
+    faces = None
+    for key in ('grid_faces', 'GRID_FACES'):
+        if key in disc:
+            faces = np.asarray(disc[key], dtype=float).ravel()
+            break
+    if faces is None:
+        return None
+    if faces.size != n_cells + 1:
+        raise ValueError(
+            f"GRID_FACES of unit {unit} has {faces.size} entries, expected {n_cells + 1}"
+        )
+    return faces
+
+
+def _fv_geometry_weight_integral(xi_a, xi_b, weight_power, r_inner, delta_r):
+    """Integral of the geometry weight r(xi)^p over [xi_a, xi_b] (normalized coords)."""
+    if weight_power == 0 or r_inner is None:
+        return xi_b - xi_a
+    if weight_power == 1:
+        return r_inner * (xi_b - xi_a) + 0.5 * delta_r * (xi_b**2 - xi_a**2)
+    # weight_power == 2
+    return ((r_inner + delta_r * xi_b)**3 - (r_inner + delta_r * xi_a)**3) / (3.0 * delta_r)
+
+
+def _fv_reference_cell_averages(ref_values, ref_poly_deg,
+                                length, n_cells_ref,
+                                sim_n_cells,
+                                weight_power=0, r_inner=None, r_outer=None,
+                                sim_faces=None, ref_faces=None):
+    """Return reference cell averages on the FV simulation grid.
+
+    Parameters
+    ----------
+    ref_values : ndarray
+        Reference solution, flattened over cells/nodes:
+        (n_cells_ref * (ref_poly_deg + 1), n_comp) for DG,
+        (n_cells_ref, n_comp) for FV.
+    ref_poly_deg : int
+        Reference polynomial degree. 0 means FV.
+    length : float
+        Domain length.
+    n_cells_ref : int
+        Number of reference cells.
+    sim_n_cells : int
+        Number of FV simulation cells.
+    weight_power : int
+        Geometry weighting of the FV cell averages: A(r) ~ r^weight_power
+        (0: axial/unweighted, 1: radial cylinder shell, 2: frustum), see
+        _get_fv_bulk_geometry_weighting.
+    r_inner : float
+        Inner radius, required for weight_power > 0.
+    r_outer : float
+        Outer radius, required for weight_power > 0.
+    sim_faces, ref_faces : ndarray, optional
+        Physical cell face coordinates of the simulation/reference grids
+        (shape (n_cells + 1,)); defaults to uniform grids. Required for
+        non-equidistant (e.g. equivolume) grids, where the uniform
+        assumption would introduce an O(h^2) restriction error that caps
+        the observable EOC at two.
+
+    Returns
+    -------
+    ndarray
+        Reference cell averages on the FV simulation grid,
+        shape (sim_n_cells, n_comp).
+    """
+    n_comp = ref_values.shape[1]
+    delta_r = (r_outer - r_inner) if (weight_power and r_inner is not None) else None
+
+    # ------------------------------------------------------------------
+    # Reference is FV:
+    #
+    # The FV values are (geometry-weighted) cell averages. To obtain the
+    # reference average over a simulation cell, integrate the piecewise-
+    # constant reference solution over the simulation cell using exact
+    # cell overlap, weighted by the same geometry measure A(r) ~ r^p that
+    # defines the FV degrees of freedom.
+    # ------------------------------------------------------------------
+    if ref_poly_deg == 0:
+        # Physical face coordinates; when only one grid provides faces, the
+        # other one is built uniformly on the same domain.
+        if sim_faces is None and ref_faces is None:
+            domain_lo, domain_hi = 0.0, length
+        elif sim_faces is not None:
+            domain_lo, domain_hi = float(sim_faces[0]), float(sim_faces[-1])
+        else:
+            domain_lo, domain_hi = float(ref_faces[0]), float(ref_faces[-1])
+        span = domain_hi - domain_lo
+
+        if sim_faces is None:
+            sim_f = domain_lo + np.arange(sim_n_cells + 1) * (span / sim_n_cells)
+        else:
+            sim_f = np.asarray(sim_faces, dtype=float)
+        if ref_faces is None:
+            ref_f = domain_lo + np.arange(n_cells_ref + 1) * (span / n_cells_ref)
+        else:
+            ref_f = np.asarray(ref_faces, dtype=float)
+
+        ref_left = ref_f[:-1]
+        ref_right = ref_f[1:]
+        sim_left = sim_f[:-1]
+        sim_right = sim_f[1:]
+
+        result = np.zeros((sim_n_cells, n_comp))
+
+        ref_idx = 0
+
+        for i in range(sim_n_cells):
+            x_left = sim_left[i]
+            x_right = sim_right[i]
+
+            # Advance to the first potentially overlapping reference cell.
+            while ref_idx < n_cells_ref - 1 and ref_right[ref_idx] <= x_left:
+                ref_idx += 1
+
+            weight_total = 0.0
+
+            j = ref_idx
+            while j < n_cells_ref and ref_left[j] < x_right:
+                overlap_left = max(x_left, ref_left[j])
+                overlap_right = min(x_right, ref_right[j])
+
+                if overlap_right > overlap_left:
+                    weight = _fv_geometry_weight_integral(
+                        (overlap_left - domain_lo) / span,
+                        (overlap_right - domain_lo) / span,
+                        weight_power, r_inner, delta_r
+                    )
+                    result[i, :] += weight * ref_values[j, :]
+                    weight_total += weight
+
+                j += 1
+
+            result[i, :] /= weight_total
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Reference is DG:
+    #
+    # Integrate the DG polynomial over every FV simulation cell, using the
+    # geometry weight A(r) ~ r^p of the FV degrees of freedom.
+    # ------------------------------------------------------------------
+    ref_nodes, _ = LGL_NodesWeights(ref_poly_deg)
+    ref_bary_weights = barycentric_weights(ref_poly_deg)
+
+    n_nodes_ref = ref_poly_deg + 1
+
+    ref_values = ref_values.reshape(
+        n_cells_ref, n_nodes_ref, n_comp
+    )
+
+    dx_ref = length / n_cells_ref
+    dx_sim = length / sim_n_cells
+
+    # Gauss-Legendre quadrature for cell averaging.
+    # A sufficiently high order avoids contaminating the error estimate.
+    n_quad = max(2 * ref_poly_deg + 3, 16)
+    xi_quad, w_quad = np.polynomial.legendre.leggauss(n_quad)
+
+    result = np.zeros((sim_n_cells, n_comp))
+
+    for i in range(sim_n_cells):
+        x_left = i * dx_sim
+        x_right = x_left + dx_sim
+
+        # Reference cells that overlap this FV cell.
+        j_start = max(0, int(np.floor(x_left / dx_ref)))
+        j_end = min(n_cells_ref - 1, int(np.floor(
+            np.nextafter(x_right, x_left) / dx_ref
+        )))
+
+        integral = np.zeros(n_comp)
+        weight_total = 0.0
+
+        for j in range(j_start, j_end + 1):
+            ref_x_left = j * dx_ref
+            ref_x_right = ref_x_left + dx_ref
+
+            overlap_left = max(x_left, ref_x_left)
+            overlap_right = min(x_right, ref_x_right)
+
+            if overlap_right <= overlap_left:
+                continue
+
+            # Map quadrature points from the overlap interval to
+            # physical coordinates.
+            x_quad = (
+                0.5 * (overlap_left + overlap_right)
+                + 0.5 * (overlap_right - overlap_left) * xi_quad
+            )
+
+            # Geometry weight at the quadrature points.
+            if weight_power and r_inner is not None:
+                w_geom = (r_inner + delta_r * (x_quad / length)) ** weight_power
+            else:
+                w_geom = np.ones_like(x_quad)
+
+            # Map physical coordinates to the reference cell's
+            # reference coordinate [-1, 1].
+            xi_ref = (
+                2.0 * (x_quad - ref_x_left) / dx_ref - 1.0
+            )
+
+            # Barycentric interpolation of the DG polynomial.
+            values_at_quad = np.empty(
+                (n_quad, n_comp)
+            )
+
+            for q, xi in enumerate(xi_ref):
+                diff = xi - ref_nodes
+
+                # Exact-node case.
+                exact = np.abs(diff) < 1e-14
+
+                if np.any(exact):
+                    values_at_quad[q, :] = (
+                        ref_values[j, np.argmax(exact), :]
+                    )
+                else:
+                    weights = ref_bary_weights / diff
+                    weights /= np.sum(weights)
+
+                    values_at_quad[q, :] = np.sum(
+                        weights[:, None] * ref_values[j, :, :],
+                        axis=0
+                    )
+
+            integral += (
+                0.5 * (overlap_right - overlap_left)
+                * np.sum(
+                    (w_quad * w_geom)[:, None] * values_at_quad,
+                    axis=0
+                )
+            )
+
+            weight_total += (
+                0.5 * (overlap_right - overlap_left)
+                * np.sum(w_quad * w_geom)
+            )
+
+        # Convert the weighted integral into the geometry-weighted
+        # average over the FV cell.
+        result[i, :] = integral / weight_total
+
+    return result
+
+
+def _calculate_fv_average_error_norms(
+        sim_values, ref_values, length,
+        n_cells_sim, n_cells_ref, ref_poly_deg,
+        weight_power=0, r_inner=None, r_outer=None,
+        sim_faces=None, ref_faces=None):
+    """Calculate error norms between FV cell averages and a reference."""
+
+    # FV solution consists of one value per cell.
+    sim_averages = sim_values.reshape(n_cells_sim, -1)
+
+    ref_averages = _fv_reference_cell_averages(
+        ref_values=ref_values,
+        ref_poly_deg=ref_poly_deg,
+        length=length,
+        n_cells_ref=n_cells_ref,
+        sim_n_cells=n_cells_sim,
+        weight_power=weight_power,
+        r_inner=r_inner,
+        r_outer=r_outer,
+        sim_faces=sim_faces,
+        ref_faces=ref_faces,
+    )
+
+    errors = sim_averages - ref_averages
+
+    if sim_faces is not None:
+        dx = np.diff(np.asarray(sim_faces, dtype=float))[:, None]
+    else:
+        dx = length / n_cells_sim
+
+    linf = np.max(np.abs(errors), axis=0)
+    l1 = np.sum(np.abs(errors) * dx, axis=0)
+    l2 = np.sqrt(np.sum(errors**2 * dx, axis=0))
+
+    return linf, l1, l2
+
+
+def calculate_bulk_convergence_errors(simulation_names, reference, unit,
+                                      ax_method, ref_method, time_point,
+                                      quad_points=None):
+    """Compute Linf/L1/L2 errors, min. values, cell counts and sim. times.
+
+    DG solutions are compared using the existing quadrature/interpolation
+    procedure. FV solutions (polydeg=0) are compared using cell-average
+    errors: the FV solution is treated as a set of cell averages, while the
+    reference is averaged over each FV simulation cell.
+
+    Parameters
+    ----------
+    simulation_names : list
+        Simulations (Cadet objects or h5 file names), ordered by discretization.
+    reference : string or CADET object
+        Reference simulation, which may be DG or FV.
+    unit : string
+        Unit ID (000-999).
+    ax_method : int
+        Polynomial degree (DG) or 0 (FV) of the simulations.
+    ref_method : int
+        Polynomial degree (DG) or 0 (FV) of the reference.
+    time_point : int
+        Index into the solution time axis at which errors are compared.
+    quad_points : int
+        Number of Gauss-Legendre quadrature points per cell for the DG
+        error calculation.
+
+    Returns
+    -------
+    np.array
+        Number of cells per discretization.
+    np.array
+        Linf errors.
+    np.array
+        L1 errors.
+    np.array
+        L2 errors.
+    np.array
+        Min. values per component.
+    np.array
+        Simulation compute times.
+    """
+    poly_deg = abs(ax_method)
+    ref_poly_deg = abs(ref_method)
+
+    if quad_points is None:
+        quad_points = max(2 * poly_deg + 3, 16)
+
+    # ------------------------------------------------------------------
+    # DG machinery. Only needed when the simulation is DG.
+    # ------------------------------------------------------------------
+    if poly_deg > 0:
+        nodes, _ = LGL_NodesWeights(poly_deg)
+        bary_weights = barycentric_weights(poly_deg)
+
+        if ref_poly_deg != poly_deg:
+            ref_nodes, _ = LGL_NodesWeights(ref_poly_deg)
+            ref_bary_weights = barycentric_weights(ref_poly_deg)
+        else:
+            ref_nodes, ref_bary_weights = nodes, bary_weights
+    else:
+        nodes = bary_weights = None
+        ref_nodes = ref_bary_weights = None
+
+    ref_values, _ = get_bulk_time_slice(reference, unit, time_point)
+
+    n_cells_ref = infer_bulk_n_cells(
+        ref_values, ref_poly_deg, label="reference"
+    )
+
+    # Geometry weighting of the FV degrees of freedom (radial shell/frustum);
+    # required for consistent restriction of the reference onto coarser grids.
+    if poly_deg == 0:
+        weight_power, r_inner, r_outer = _get_fv_bulk_geometry_weighting(
+            reference, unit
+        )
+    else:
+        weight_power, r_inner, r_outer = 0, None, None
+
+    n_disc = len(simulation_names)
+    n_comp = ref_values.shape[1]
+
+    n_cells_per_disc = np.zeros(n_disc, dtype=int)
+    linf_errors = np.zeros((n_disc, n_comp))
+    l1_errors = np.zeros((n_disc, n_comp))
+    l2_errors = np.zeros((n_disc, n_comp))
+    min_values = np.zeros((n_disc, n_comp))
+    sim_times = np.zeros(n_disc)
+
+    for disc_idx, simulation in enumerate(simulation_names):
+
+        sim_values, length = get_bulk_time_slice(
+            simulation, unit, time_point
+        )
+
+        n_cells_sim = infer_bulk_n_cells(
+            sim_values, poly_deg, label="simulation"
+        )
+
+        n_cells_per_disc[disc_idx] = n_cells_sim
+
+        # ==============================================================
+        # FV simulation: compare cell averages.
+        # ==============================================================
+        if poly_deg == 0:
+
+            linf, l1, l2 = _calculate_fv_average_error_norms(
+                sim_values=sim_values,
+                ref_values=ref_values,
+                length=length,
+                n_cells_sim=n_cells_sim,
+                n_cells_ref=n_cells_ref,
+                ref_poly_deg=ref_poly_deg,
+                weight_power=weight_power,
+                r_inner=r_inner,
+                r_outer=r_outer,
+            )
+
+        # ==============================================================
+        # DG simulation: retain the existing pointwise/quadrature
+        # comparison.
+        # ==============================================================
+        else:
+
+            linf, l1, l2 = calculate_bulk_error_norms(
+                sim_values, ref_values, length,
+                n_cells_sim, n_cells_ref,
+                poly_deg, quad_points,
+                nodes, bary_weights,
+                ref_poly_deg=ref_poly_deg,
+                ref_nodes=ref_nodes,
+                ref_bary_weights=ref_bary_weights
+            )
+
+        linf_errors[disc_idx, :] = linf
+        l1_errors[disc_idx, :] = l1
+        l2_errors[disc_idx, :] = l2
+
+        min_values[disc_idx, :] = np.min(
+            sim_values, axis=0
+        )
+
+        sim_times[disc_idx] = get_compute_time(simulation)
+
+    return (
+        n_cells_per_disc,
+        linf_errors,
+        l1_errors,
+        l2_errors,
+        min_values,
+        sim_times,
+    )
+
+
+def interpolate_dg_at_coordinate(values, coordinate, length, poly_deg, n_cells,
+                                 nodes, bary_weights,
+                                 interface_mode="average", node_tolerance=1e-13):
+    """Interpolate a uniform-grid DG solution at one physical spatial coordinate.
+
+    Parameters
+    ----------
+    values : np.array
+        DG solution, shape (n_cells*(poly_deg+1), n_comp) for a single time
+        slice or (n_times, n_cells*(poly_deg+1), n_comp) for a full time series.
+    coordinate : float
+        Physical axial coordinate in [0, length].
+    length : float
+        Length of the spatial 1D interval.
+    poly_deg : int
+        DG polynomial degree.
+    n_cells : int
+        Number of cells.
+    nodes : np.array
+        LGL nodes on [-1, 1] for poly_deg.
+    bary_weights : np.array
+        Barycentric weights for poly_deg.
+    interface_mode : string
+        Handling of coordinates that hit an element interface, where the DG
+        solution is double-valued: 'left', 'right', or 'average'.
+    node_tolerance : float
+        Absolute tolerance for detecting element-interface and DG-node hits.
+
+    Returns
+    -------
+    np.array
+        Interpolated values, shape (n_comp,) for 2D input and
+        (n_times, n_comp) for 3D input.
+    """
+    if interface_mode not in ("left", "right", "average"):
+        raise ValueError(
+            f"Invalid interface_mode='{interface_mode}'. "
+            "Choose one of ['average', 'left', 'right']."
+        )
+
+    values = np.asarray(values)
+    if values.ndim not in (2, 3):
+        raise ValueError(
+            f"Expected values to be 2D or 3D, got shape {values.shape}."
+        )
+
+    n_nodes = poly_deg + 1
+    spatial_axis = values.ndim - 2
+    if values.shape[spatial_axis] != n_cells * n_nodes:
+        raise ValueError(
+            f"Expected {n_cells * n_nodes} spatial DG values, "
+            f"got {values.shape[spatial_axis]}."
+        )
+
+    # nodal shape: ([n_times,] n_cells, n_nodes, n_comp)
+    nodal = values.reshape(values.shape[:spatial_axis] + (n_cells, n_nodes, values.shape[-1]))
+
+    h = length / n_cells
+    normalized_element_coordinate = coordinate / h
+
+    # element interfaces (incl. domain boundaries), where the DG solution is
+    # double-valued, are treated according to interface_mode
+    nearest_interface = int(np.round(normalized_element_coordinate))
+    if abs(normalized_element_coordinate - nearest_interface) <= node_tolerance:
+        interface_idx = max(0, min(n_cells, nearest_interface))
+
+        if interface_idx == 0:  # left domain boundary, single-valued
+            return nodal[..., 0, 0, :]
+        if interface_idx == n_cells:  # right domain boundary, single-valued
+            return nodal[..., n_cells - 1, -1, :]
+
+        left_value = nodal[..., interface_idx - 1, -1, :]
+        right_value = nodal[..., interface_idx, 0, :]
+        if interface_mode == "left":
+            return left_value
+        elif interface_mode == "right":
+            return right_value
+        return 0.5 * (left_value + right_value)
+
+    cell_idx = int(np.floor(normalized_element_coordinate))
+    cell_idx = max(0, min(n_cells - 1, cell_idx))
+    xi = 2.0 * (coordinate - cell_idx * h) / h - 1.0
+
+    # exact DG-node hits would yield 0/0 in the barycentric formula
+    diff = xi - nodes
+    hit = np.abs(diff) <= node_tolerance
+    if np.any(hit):
+        return nodal[..., cell_idx, int(np.flatnonzero(hit)[0]), :]
+
+    bary = bary_weights / diff
+    alpha = bary / np.sum(bary)
+
+    return np.einsum("n,...nc->...c", alpha, nodal[..., cell_idx, :, :], optimize=True)
+
+
+def calculate_bulk_slice_convergence_errors(simulation_names, reference, unit,
+                                            ax_method, ref_method, normed_coord,
+                                            interface_mode="average",
+                                            node_tolerance=1e-13):
+    """Compute temporal Linf/L1/L2 errors at a fixed axial coordinate for an EOC sweep.
+
+    For each simulation, the bulk solution is interpolated at the normalized
+    axial coordinate normed_coord for every solution time, yielding an
+    outlet-like time series c(z*, t) that is compared against the reference
+    interpolated at the same coordinate (normed_coord=1.0 is equivalent to the
+    outlet solution). The temporal norms are Linf = max_t |e|,
+    L1 = integral |e| dt and L2 = sqrt(integral e^2 dt) (trapezoidal rule),
+    matching scripts/bulkSliceEOC.py's reference implementation.
+
+    Parameters
+    ----------
+    simulation_names : list
+        Simulations (Cadet objects or h5 file names), ordered by discretization.
+    reference : string or CADET object
+        Reference simulation, may share or differ from ax_method's polynomial degree.
+    unit : string
+        Unit ID (000-999).
+    ax_method : int
+        Polynomial degree (DG) of the simulations.
+    ref_method : int
+        Polynomial degree (DG) of the reference.
+    normed_coord : float
+        Normalized axial evaluation coordinate z/L in [0, 1].
+    interface_mode : string
+        Handling of coordinates that hit an element interface: 'left', 'right',
+        or 'average'.
+    node_tolerance : float
+        Absolute tolerance for detecting element-interface and DG-node hits.
+
+    Returns
+    -------
+    np.array
+        Number of cells per discretization, shape (nDisc,).
+    np.array
+        Linf errors, shape (nDisc, nComp).
+    np.array
+        L1 errors, shape (nDisc, nComp).
+    np.array
+        L2 errors, shape (nDisc, nComp).
+    np.array
+        Min. values per component of the interpolated time series, shape (nDisc, nComp).
+    np.array
+        Simulation compute times, shape (nDisc,).
+    """
+    if not 0.0 <= normed_coord <= 1.0:
+        raise ValueError(
+            f"normed_coord={normed_coord} is outside [0, 1]."
+        )
+
+    poly_deg = abs(ax_method)
+    ref_poly_deg = abs(ref_method)
+    if poly_deg == 0 or ref_poly_deg == 0:
+        raise ValueError(
+            "calculate_bulk_slice_convergence_errors only supports DG discretizations."
+        )
+
+    nodes, _ = LGL_NodesWeights(poly_deg)
+    bary_weights = barycentric_weights(poly_deg)
+    if ref_poly_deg != poly_deg:
+        ref_nodes, _ = LGL_NodesWeights(ref_poly_deg)
+        ref_bary_weights = barycentric_weights(ref_poly_deg)
+    else:
+        ref_nodes, ref_bary_weights = nodes, bary_weights
+
+    ref_sim = get_simulation(reference)
+    length = float(sim_go_to(ref_sim.root, ['input', 'model', 'unit_' + unit, 'col_length']))
+    ref_bulk = np.array(sim_go_to(ref_sim.root, ['output', 'solution', 'unit_' + unit, 'solution_bulk']))
+    ref_times = np.asarray(get_solution_times(ref_sim), dtype=float)
+    n_cells_ref = infer_bulk_n_cells(ref_bulk[0, :, :], ref_poly_deg, label="reference")
+
+    coordinate = normed_coord * length
+    ref_eval = interpolate_dg_at_coordinate(
+        ref_bulk, coordinate, length, ref_poly_deg, n_cells_ref,
+        ref_nodes, ref_bary_weights,
+        interface_mode=interface_mode, node_tolerance=node_tolerance
+    )
+
+    n_disc = len(simulation_names)
+    n_comp = ref_bulk.shape[2]
+
+    n_cells_per_disc = np.zeros(n_disc, dtype=int)
+    linf_errors = np.zeros((n_disc, n_comp))
+    l1_errors = np.zeros((n_disc, n_comp))
+    l2_errors = np.zeros((n_disc, n_comp))
+    min_values = np.zeros((n_disc, n_comp))
+    sim_times = np.zeros(n_disc)
+
+    for disc_idx, simulation in enumerate(simulation_names):
+        sim = get_simulation(simulation)
+        sim_bulk = np.array(sim_go_to(sim.root, ['output', 'solution', 'unit_' + unit, 'solution_bulk']))
+        sim_solution_times = np.asarray(get_solution_times(sim), dtype=float)
+        if sim_solution_times.shape != ref_times.shape or not np.allclose(
+                sim_solution_times, ref_times, rtol=0.0, atol=node_tolerance):
+            raise ValueError(
+                "Simulation and reference time vectors are not identical. "
+                "The bulk slice temporal EOC analysis requires the same time "
+                "points for all simulations and the reference."
+            )
+
+        n_cells_sim = infer_bulk_n_cells(sim_bulk[0, :, :], poly_deg, label="simulation")
+        n_cells_per_disc[disc_idx] = n_cells_sim
+
+        sim_eval = interpolate_dg_at_coordinate(
+            sim_bulk, coordinate, length, poly_deg, n_cells_sim,
+            nodes, bary_weights,
+            interface_mode=interface_mode, node_tolerance=node_tolerance
+        )
+
+        abs_err = np.abs(sim_eval - ref_eval)
+        linf_errors[disc_idx, :] = np.max(abs_err, axis=0)
+        l1_errors[disc_idx, :] = np.trapezoid(abs_err, x=ref_times, axis=0)
+        l2_errors[disc_idx, :] = np.sqrt(np.trapezoid(abs_err ** 2, x=ref_times, axis=0))
+        min_values[disc_idx, :] = np.min(sim_eval, axis=0)
+        sim_times[disc_idx] = get_compute_time(simulation)
+
+    return n_cells_per_disc, linf_errors, l1_errors, l2_errors, min_values, sim_times
 
 
 def get_interpolated_solution(orig_values, orig_coords, domain_end, output_coords, polyDeg, nCells):
@@ -1454,53 +2336,6 @@ def calculate_bulk_L1_error(polyDeg, mapJac, solution, reference=-1, weights=-1)
     return L1error
 
 
-def calculate_summed_bulk_L1_error(solution, reference, polyDeg, mapJac, comp=-1, nComp=1, deltaT=1.0):
-    """Calculate L_1 error of DG bulk solution cumulated over time.
-
-    Parameters
-    ----------
-    solution : np.array
-        Solution or errors of simulation.
-    reference : np.array
-        (exact) reference solution.
-    polyDeg : int
-        DG polynomial degree
-    mapJac : float
-        Mapping Jacobian
-    comp : int
-        Component index of interest, defaults to -1 to consider all components
-    nComp : int
-        Number of components
-    polyDeg : float
-        Timestep size
-
-    Returns
-    -------
-    float
-        L1 error.
-    """
-
-    solution = np.array(solution)
-    reference = np.array(reference)
-
-    nodes, weights = LGL_NodesWeights(polyDeg)
-
-    L1error = 0.0
-
-    if nComp == 1:  # shape is time, space
-        for t in range(solution.shape[0]):
-            L1error += calculate_bulk_L1_error(
-                solution[t, :], reference[t, :], polyDeg, mapJac, weights)
-    elif comp == -1:  # shape is time, space, comp, all components wanted
-        for t in range(solution.shape[0]):
-            L1error += calculate_bulk_L1_error(
-                solution[t, :, :], reference[t, :, :], polyDeg, mapJac, weights)
-    else:  # shape is time, space, comp, one component wanted
-        for t in range(solution.shape[0]):
-            L1error += calculate_bulk_L1_error(
-                solution[t, :, comp], reference[t, :, comp], polyDeg, mapJac, weights)
-
-
 def calculate_L1_error(solution, reference=-1, weights=1.0):
     """Calculate L_1 error of solution.
 
@@ -1539,23 +2374,6 @@ def calculate_L2_error(solution, reference=-1, weights=1.0):
     else:
         return np.sqrt(np.sum(np.square(solution - reference))) * weights
 
-
-def calculate_average_error(solution, reference):
-    """Calculate average error of solution.
-
-    Parameters
-    ----------
-    solution : np.array
-        Solution or errors of simulation.
-    reference : np.array
-        (exact) reference solution.
-
-    Returns
-    -------
-    np.array
-        Average Error.
-    """
-    return np.calculate_weighted_error(solution, reference, 1.0)
 
 def get_case_insensitive(d, key):
     key = key.lower()
@@ -2871,6 +3689,74 @@ def recalculate_results(file_path, model,
     if nbound is None:
         nbound = ncomp
 
+    if which == 'bulk':
+        if simulation_names is None:
+            simulation_names = generate_simulation_names(
+                prefix=file_path + model,
+                ax_methods=[ax_method], ax_cells=ax_cells
+            )
+
+        reference = file_path + exact_name if isinstance(exact_name, str) else exact_name
+
+        poly_deg = abs(ax_method)
+        ref_method = kwargs.get('ref_method', ax_method)
+
+        # Exactly one of time_point and normed_coord selects the analysis:
+        # time_point -> spatial error norms at that solution time index;
+        # normed_coord -> temporal error norms at that normalized axial coordinate.
+        time_point = kwargs.get('time_point', None)
+        normed_coord = kwargs.get('normed_coord', None)
+        if (time_point is None) == (normed_coord is None):
+            raise ValueError(
+                "which='bulk' requires exactly one of 'time_point' (spatial "
+                "error norms at that solution time index) or 'normed_coord' "
+                "(temporal error norms at that normalized axial coordinate "
+                "z/L in [0, 1]), got "
+                f"time_point={time_point}, normed_coord={normed_coord}."
+            )
+
+        if time_point is not None:
+            n_cells_per_disc, linf_errors, l1_errors, l2_errors, min_values, sim_times = (
+                calculate_bulk_convergence_errors(
+                    simulation_names, reference, unit,
+                    ax_method, ref_method, time_point,
+                    quad_points=kwargs.get('quad_points', None)
+                )
+            )
+        else:
+            n_cells_per_disc, linf_errors, l1_errors, l2_errors, min_values, sim_times = (
+                calculate_bulk_slice_convergence_errors(
+                    simulation_names, reference, unit,
+                    ax_method, ref_method,
+                    normed_coord=normed_coord,
+                    interface_mode=kwargs.get('interface_mode', 'average'),
+                    node_tolerance=kwargs.get('node_tolerance', 1e-13)
+                )
+            )
+
+        n_comp = linf_errors.shape[1]
+        tables = {}
+        for comp_idx in range(n_comp):
+            linf_eoc = np.insert(calculate_eoc(n_cells_per_disc, linf_errors[:, comp_idx]), 0, 0.0)
+            l1_eoc = np.insert(calculate_eoc(n_cells_per_disc, l1_errors[:, comp_idx]), 0, 0.0)
+            l2_eoc = np.insert(calculate_eoc(n_cells_per_disc, l2_errors[:, comp_idx]), 0, 0.0)
+
+            tables[comp_idx] = pd.DataFrame({
+                '$N_d$': [poly_deg] * len(n_cells_per_disc),
+                '$N_e^z$': n_cells_per_disc.tolist(),
+                'Max. error': linf_errors[:, comp_idx].tolist(),
+                'Max. EOC': linf_eoc.tolist(),
+                '$L^1$ error': l1_errors[:, comp_idx].tolist(),
+                '$L^1$ EOC': l1_eoc.tolist(),
+                '$L^2$ error': l2_errors[:, comp_idx].tolist(),
+                '$L^2$ EOC': l2_eoc.tolist(),
+                'Sim. time': sim_times.tolist(),
+                'Min. value': min_values[:, comp_idx].tolist(),
+                'Bulk DoF': (n_cells_per_disc * (poly_deg + 1)).tolist(),
+            })
+
+        return tables
+
     # Data per discretization method
     abs_errors = []
     DoFs = []
@@ -3267,14 +4153,3 @@ def delete_h5_files(directory, exclude_files=None):
         print("No .h5 files deleted in the {directory} directory.")
     else:
         print(f"Deleted {deleted_files} .h5 file(s) in the {directory} directory.")
-
-
-if __name__ == '__main__':
-
-    test_eoc()
-    test_calculate_DOFs()
-    test_convergency_table()
-    test_get_unique_DGsolution()
-    test_map_z_to_xi()
-    test_get_interpolated_DGsolution()
-    test_Gauss_and_Lobatto_nodes()

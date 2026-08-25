@@ -471,9 +471,17 @@ def generate_convergence_data(
         **kwargs
     )
 
-    table = table.to_dict(orient='list')
-    print("Outlet convergence")
-    print(table)
+    if which == 'bulk':
+        table = {comp_idx: df.to_dict(orient='list') for comp_idx, df in table.items()}
+        if kwargs.get('time_point', None) is not None:
+            print(f"Bulk convergence at solution time index {kwargs['time_point']}")
+        else:
+            print(f"Bulk convergence at normalized coordinate z/L = {kwargs['normed_coord']}")
+        print(table)
+    else:
+        table = table.to_dict(orient='list')
+        print("Outlet convergence")
+        print(table)
 
     if write_result:
         # Adjust meta data
@@ -514,10 +522,22 @@ def generate_convergence_data(
                 str(output_path) + '/convergence_' + setting_name + '.json',
                 config_data['input']['meta']
             )
-        write_result_json(
-            str(output_path) + '/convergence_' + setting_name + '.json',
-            method_name, table, sub_group='outlet', is_dict=True
-        )
+        if which == 'bulk':
+            if kwargs.get('time_point', None) is not None:
+                sub_group_prefix = 'bulk'
+            else:
+                sub_group_prefix = f"bulk_slice_z{kwargs['normed_coord']}"
+            for comp_idx, table_c in table.items():
+                write_result_json(
+                    str(output_path) + '/convergence_' + setting_name + '.json',
+                    method_name, table_c,
+                    sub_group=f'{sub_group_prefix}_component_{comp_idx:03d}', is_dict=True
+                )
+        else:
+            write_result_json(
+                str(output_path) + '/convergence_' + setting_name + '.json',
+                method_name, table, sub_group='outlet', is_dict=True
+            )
 
         result_name = 'convergence_' + setting_name + '.json'
 
