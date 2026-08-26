@@ -11,6 +11,7 @@ github project.
 import os
 import json
 import copy
+from functools import partial
 
 import src.bench_func as bench_func
 import src.utility.convergence as convergence
@@ -24,6 +25,8 @@ from src.benchmark_models import setting_radCol1D_lin_1comp_benchmark1
 from src.benchmark_models import setting_COL1D_GRMparType2_dynLin_2comp_benchmark1
 from src.benchmark_models import setting_Col1D_XparTypeGR_lin_1comp_benchmark1
 from src.benchmark_models import setting_Col1D_langLRM_2comp_benchmark1
+from src.benchmark_models import setting_Col1D_pureTransport_1comp_benchmark1
+from src.benchmark_models.setting_Col1D_pureTransport_1comp_benchmark1 import create_convergence_object
 
 
 # %% benchmark templates
@@ -448,6 +451,181 @@ def axial_flow_benchmark_dg(small_test=False, sensitivities=False, ref_filepath=
         'disc_refinement_functions' : [
             [bench_func.create_object_from_config] for _ in range(n_settings)
             ]
+    }
+
+    return benchmark_config
+
+
+def paper_geometry_test_benchmark(setting_name,
+                             small_test=False, ref_filepath=None,
+                             user_solution_times_unit_state=[1.25],
+                            **model_kwargs
+                             ):
+
+    reference = None
+
+    n_settings = 1
+    
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_pureTransport_1comp_benchmark1.get_model(
+                spatial_method_bulk=0,
+                write_solution_bulk=True,
+                **model_kwargs
+                ),
+        ],
+        'cadet_config_names': [
+            setting_name,
+        ],
+        'include_sens': [False] * n_settings,
+        'ref_files': [
+            [reference]
+        ],
+        'unit_IDs': [
+            '001',
+        ],
+        'which': [
+            'bulk' # requires exactly one of the kwargs time_point or normed_coord
+            # 'outlet'
+        ] * n_settings,
+        'idas_abstol': [
+            [1e-15],
+        ],
+        'ax_methods': [
+            [0]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 13 if not small_test else 3)],
+        ],
+        'par_methods': [
+            [None],
+        ],
+        'par_discs': [
+            [None],
+        ],
+        'disc_refinement_functions' : [
+            [partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 0}, user_solution_times_unit_state=user_solution_times_unit_state)] for _ in range(n_settings)
+             ]
+    }
+
+    return benchmark_config
+
+
+def paper_geometry_transport_benchmark(setting_name,
+                             small_test=False, ref_filepath=None,
+                            **model_kwargs
+                             ):
+
+    reference = None# if ref_filepath is None else ref_filepath + "/analytical_frustumAdvDPFR_x_c_t1.25s.h5"
+
+    n_settings = 1
+    
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_pureTransport_1comp_benchmark1.get_model(
+                spatial_method_bulk=3,
+                write_solution_bulk=True,
+                **model_kwargs
+                ),
+            # setting_Col1D_lin_1comp_benchmark1.get_model(
+            #     spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE', column_geometry=model_kwargs['column_geometry'],
+            #     write_solution_bulk=True, user_solution_times_unit_state=[1.25]
+            #     )
+        ],
+        'cadet_config_names': [
+            setting_name,
+        ],
+        'include_sens': [False] * n_settings,
+        'ref_files': [
+            [reference,reference,reference,reference,reference]
+        ],
+        'unit_IDs': [
+            '001',
+        ],
+        'which': [
+            'bulk' # requires exactly one of the kwargs time_point or normed_coord
+            # 'outlet'
+        ] * n_settings,
+        'idas_abstol': [
+            [1e-15,1e-15,1e-15,1e-15,1e-15],
+        ],
+        'ax_methods': [
+            [0, 1, 2, 3, 4]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 13 if not small_test else 3), bench_func.disc_list(1, 13 if not small_test else 3),
+             bench_func.disc_list(1, 12 if not small_test else 3), bench_func.disc_list(1, 11 if not small_test else 3),
+             bench_func.disc_list(1, 10 if not small_test else 3)],
+        ],
+        'par_methods': [
+            [None,None,None,None,None],
+        ],
+        'par_discs': [
+            [None,None,None,None,None],
+        ],
+        'disc_refinement_functions' : [
+            [partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 0}),
+             partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 1}),
+             partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 2}),
+             partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 3}),
+             partial(create_convergence_object, setting_name=setting_name, model_kwargs={**model_kwargs, 'spatial_method_bulk': 4})] for _ in range(n_settings)
+             ]
+    }
+
+    return benchmark_config
+
+
+def paper_geometry_LRMPdynLin_benchmark(setting_name,
+                             small_test=False, ref_filepath=None,
+                            **kwargs
+                             ):
+
+    reference = None# if ref_filepath is None else ref_filepath + "/analytical_frustumAdvDPFR_x_c_t1.25s.h5"
+
+    n_settings = 1
+    
+    benchmark_config = {
+        'cadet_config_jsons': [
+            setting_Col1D_lin_1comp_benchmark1.get_model(
+                spatial_method_bulk=3, particle_type='HOMOGENEOUS_PARTICLE', column_geometry=kwargs['column_geometry'],
+                write_solution_bulk=True, user_solution_times_unit_state=[12.0]
+                )
+        ],
+        'cadet_config_names': [
+            setting_name,
+        ],
+        'include_sens': [False] * n_settings,
+        'ref_files': [
+            [reference,reference,reference,reference,reference]
+        ],
+        'unit_IDs': [
+            '001',
+        ],
+        'which': [
+            'bulk' # requires exactly one of the kwargs time_point or normed_coord
+            # 'outlet'
+        ] * n_settings,
+        'idas_abstol': [
+            [1e-15,1e-15,1e-15,1e-15,1e-15],
+        ],
+        'ax_methods': [
+            [0, 1, 2, 3, 4]
+        ],
+        'ax_discs': [
+            [bench_func.disc_list(1, 13 if not small_test else 3), bench_func.disc_list(1, 13 if not small_test else 3),
+             bench_func.disc_list(1, 12 if not small_test else 3), bench_func.disc_list(1, 11 if not small_test else 3),
+             bench_func.disc_list(1, 10 if not small_test else 3)],
+        ],
+        'par_methods': [
+            [None,None,None,None,None],
+        ],
+        'par_discs': [
+            [None,None,None,None,None],
+        ],
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config, bench_func.create_object_from_config, bench_func.create_object_from_config,
+             bench_func.create_object_from_config, bench_func.create_object_from_config] for _ in range(n_settings)
+            ],
     }
 
     return benchmark_config
