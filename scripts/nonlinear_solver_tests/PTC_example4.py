@@ -1,11 +1,13 @@
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend - verhindert blocking plt.show()
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import time
 
 # Importiere zu testendes Verfahren und Vergleichsverfahren
-import Bsp2_Rob
-import SmaTest_Rob
+import ptc_algorithm as ptcImpl # PTCrobust
+import nleq_res as newtonImpl # nleq_res TRNewtonRobust
 
 # =============================================================================
 # KONFIGURATION: Wähle Run-Modus
@@ -37,14 +39,16 @@ def points(nDim, nSamples, r_min, r_max):
 
 
 # Zeige df
-def plot_df(df):
+def plot_df(df, save_path):
     # Nur plotten wenn Daten vorhanden sind
     if len(df) == 0:
         print("Warnung: Keine Daten zum Plotten vorhanden")
         return
     # print(df)
     df.plot()
-    plt.show()
+    plt.savefig(save_path)
+    print(f"Plot gespeichert: {save_path}")
+    plt.close()  # Schließe Figure um Speicher freizugeben
     return
 
 
@@ -58,7 +62,7 @@ def write_df(df, path, file):
 
 
 # Berechne Robustheit
-def calc_rob(args, liste1, liste2):
+def calc_rob(args, liste1, liste2, max_iter_solvers=100):
     nSamples = args[0]
     nMin = args[1]
     nDim = args[2]
@@ -129,15 +133,15 @@ def calc_rob(args, liste1, liste2):
                 nNegative += 1
 
             else:
-                # Ruft Bsp2-Verfahren auf und gibt Residual-Norm zurück
-                norm1 = Bsp2_Rob.main(x)
+                # Ruft PTC-Verfahren auf und gibt Residual-Norm zurück
+                norm1 = ptcImpl.main(x, max_iter=max_iter_solvers)
 
                 if norm1 < normmin:
                     counterPTC = counterPTC + 1
 
-                # Ruft Vergleichsverfahren auf und gibt Residual-Norm zurück
+                # Ruft Newton-Verfahren auf und gibt Residual-Norm zurück
                 try:
-                    norm2 = SmaTest_Rob.smaTestRob(x)
+                    norm2 = newtonImpl.main(x, maxiter=max_iter_solvers)
                 except ValueError:
                     norm2 = float("nan")
 
@@ -188,12 +192,14 @@ def main():
         print("QUICK TEST MODE - Schneller Test in wenigen Minuten")
         print("=" * 70)
         nSamples = 1000      # Reduziert von 100000
-        maxDistance = 30     # Reduziert von 301
-        stepsize = 0.2       # Kleinere Schritte als vorher (von 0.1)
+        maxDistance = 10     # Mehrere Schritte für bessere Statistik
+        stepsize = 0.01      # Viel kleinerer Schritt! (war fälschlicherweise 1)
+        max_iter_solvers = 30  # Reduzierte Iterationen für Quick-Test
         print(f"Samples pro Iteration: {nSamples}")
         print(f"Anzahl Iterationen: {maxDistance}")
         print(f"Schrittweite: {stepsize}")
-        print(f"Geschätzte Laufzeit: 3-8 Minuten")
+        print(f"Max Solver Iterationen: {max_iter_solvers}")
+        print(f"Geschätzte Laufzeit: 2-5 Minuten")
         print("=" * 70)
     elif RUN_MODE == "FULL_RUN":
         print("=" * 70)
@@ -202,9 +208,11 @@ def main():
         nSamples = 100000    # Original-Wert aus dem Paper
         maxDistance = 301    # Original-Wert aus dem Paper
         stepsize = 0.1       # Original-Wert aus dem Paper
+        max_iter_solvers = 100  # Volle Iterationen für vollständigen Run
         print(f"Samples pro Iteration: {nSamples}")
         print(f"Anzahl Iterationen: {maxDistance}")
         print(f"Schrittweite: {stepsize}")
+        print(f"Max Solver Iterationen: {max_iter_solvers}")
         print(f"Geschätzte Laufzeit: Mehrere Stunden!")
         print("=" * 70)
     else:
@@ -236,21 +244,23 @@ def main():
         x_ref
     ]
 
-    liste1 = ["Bsp2", "smaTest"]
-    liste2 = ["Bsp2", "smaTest", "Punkte", "rmin"]
+    liste1 = ["PTC", "Newton"]
+    liste2 = ["PTC", "Newton", "Punkte", "rmin"]
 
     path = "../ba_nv_latex/"
 
     # Unterschiedliche Dateinamen für verschiedene Modi
     if RUN_MODE == "QUICK_TEST":
         file = "Data_Robustheit_QuickTest.csv"
+        plot_file = path + "Plot_Robustheit_QuickTest.png"
     else:
         file = "Data_Robustheit.csv"
+        plot_file = path + "Plot_Robustheit.png"
 
     print(f"\nStarte Robustheitstest...")
     start_time = time.time()
 
-    df_g, df_t = calc_rob(args, liste1, liste2)
+    df_g, df_t = calc_rob(args, liste1, liste2, max_iter_solvers=max_iter_solvers)
 
     elapsed_time = time.time() - start_time
     print(f"\n{'=' * 70}")
@@ -258,7 +268,7 @@ def main():
     print(f"Ergebnisse gespeichert in: {path}{file}")
     print(f"{'=' * 70}\n")
 
-    plot_df(df_g)
+    plot_df(df_g, save_path=plot_file)
     write_df(df_t, path, file)
 
     return
