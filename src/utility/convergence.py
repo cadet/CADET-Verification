@@ -1352,7 +1352,7 @@ def get_bulk_time_slice(simulation, unit='001', time_point=-1):
         Column length.
     """
     sim = get_simulation(simulation)
-    length = float(sim_go_to(sim.root, ['input', 'model', 'unit_' + unit, 'col_length']))
+    length = float(sim_go_to(sim.root, ['input', 'model', 'unit_' + unit, 'bed_length']))
     bulk = np.array(sim_go_to(sim.root, ['output', 'solution', 'unit_' + unit, 'solution_bulk']))
     return bulk[time_point, :, :], length
 
@@ -2044,7 +2044,7 @@ def calculate_bulk_slice_convergence_errors(simulation_names, reference, unit,
         ref_nodes, ref_bary_weights = nodes, bary_weights
 
     ref_sim = get_simulation(reference)
-    length = float(sim_go_to(ref_sim.root, ['input', 'model', 'unit_' + unit, 'col_length']))
+    length = float(sim_go_to(ref_sim.root, ['input', 'model', 'unit_' + unit, 'bed_length']))
     ref_bulk = np.array(sim_go_to(ref_sim.root, ['output', 'solution', 'unit_' + unit, 'solution_bulk']))
     ref_times = np.asarray(get_solution_times(ref_sim), dtype=float)
     n_cells_ref = infer_bulk_n_cells(ref_bulk[0, :, :], ref_poly_deg, label="reference")
@@ -2418,7 +2418,7 @@ def generate_bulkDisc_name(disc):
           
         # todo once implemented: non-eq
         
-        exInt = False if get_case_insensitive(disc, "POLYNOMIAL_INTEGRATION_TYPE") is None else get_case_insensitive(disc, "POLYNOMIAL_INTEGRATION_TYPE")
+        exInt = False if get_case_insensitive(disc, "USE_COLLOCATION_DG") is None else get_case_insensitive(disc, "USE_COLLOCATION_DG")
         name = "exIntDG" if exInt else "DG" # "cDG"
         
         polyDeg = get_case_insensitive(disc, "POLYDEG")

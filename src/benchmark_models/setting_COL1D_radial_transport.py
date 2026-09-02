@@ -38,15 +38,20 @@ def get_model():
     m.input.model.unit_000.sec_001.cube_coeff  = [0.0]
 
     col = m.input.model.unit_001
-    col.unit_type = 'RADIAL_COLUMN_MODEL_1D'
+    col.unit_type = 'COLUMN_MODEL_1D'
+    col.geometry = 'RADIAL_FLOW_CYLINDER_SHELL'
+    # Q = 1.0, radius_outer = 0.1, radius_inner = 0.01, velocity = 5e-5, porosity = 1.0
+    # A = 2.0 * pi * r * H and A = Q / (v * porosity) => H = Q / (v * porosity) / (2.0 * pi * r)
+    col.cylinder_height =  1.0 / (5e-5 * 1.0) / (2.0 * np.pi * 0.01)
+    col.cross_section_area_outer = 2.0 * np.pi * 0.1 * col.cylinder_height
+    col.cross_section_area_inner =  2.0 * np.pi * 0.01 * col.cylinder_height
+    col.bed_length = 0.1 - 0.01
+    col.forward_flow = 1
     col.ncomp = 1
     col.npartype = 0
-    col.col_radius_inner = 0.01 
-    col.col_radius_outer = 0.1
     col.total_porosity = 1.0
     col.col_porosity = 1.0
     col.col_dispersion = [1e-6]
-    col.velocity_coeff = 5e-5
     col.init_c = [0.0]
 
     disc = col.discretization

@@ -164,7 +164,7 @@ def _apply_column_hydrodynamics(model: Cadet, column: ColumnConfig) -> Dict[str,
     cross_section_area = np.pi * (column.column_diameter / 2) ** 2
     volumetric_flow = column.volumetric_flow_rate_m3_per_sec
 
-    model.root.input.model.unit_001.col_length = column.column_length
+    model.root.input.model.unit_001.bed_length = column.column_length
     model.root.input.model.unit_001.cross_section_area = cross_section_area
     model.root.input.model.unit_001.col_porosity = column.epsilon_b
     model.root.input.model.unit_001.col_dispersion = column.dax
@@ -290,6 +290,8 @@ def get_model(
     model.root.input.model.unit_000.inlet_type = "PIECEWISE_CUBIC_POLY"
 
     model.root.input.model.unit_001.unit_type = "COLUMN_MODEL_1D"
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.root.input.model.unit_001.forward_flow = 1
     model.root.input.model.unit_001.ncomp = 1
 
     derived = _apply_column_hydrodynamics(model, column)

@@ -55,10 +55,11 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
     
     model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
     model.root.input.model.unit_001.ncomp = 2
-    
+    model.root.input.model.unit_001.forward_flow = 1
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+        
     ## Column
-
-    model.root.input.model.unit_001.col_length = column_length              # m              
+    model.root.input.model.unit_001.bed_length = column_length              # m              
     model.root.input.model.unit_001.cross_section_area = column_volume/column_length   # m^2
     model.root.input.model.unit_001.col_porosity = column_porosity              # 1
     model.root.input.model.unit_001.col_dispersion = 1.36e-8           # m^2/s       

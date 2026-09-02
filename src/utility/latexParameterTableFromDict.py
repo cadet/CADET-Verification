@@ -19,7 +19,7 @@ PARAMETERS = {
 
         Parameter("Flow rate",                r"$Q$",                     r"$m^3/s$", "flow_rate"),
 
-        Parameter("Bed length",             r"$L^\mathrm{b}$",                     r"$m$", "col_length"),
+        Parameter("Bed length",             r"$L^\mathrm{b}$",                     r"$m$", "bed_length"),
         Parameter("Inner radius",           r"$R_{\mathrm{in}}$",       r"$m$", "col_radius_inner"),
         Parameter("Outer radius",           r"$R_{\mathrm{out}}$",      r"$m$", "col_radius_outer"),
 

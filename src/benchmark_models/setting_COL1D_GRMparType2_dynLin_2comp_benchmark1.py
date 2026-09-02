@@ -35,13 +35,15 @@ def get_model(spatial_method_bulk, spatial_method_particle):
     
     # Column unit
     model.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    model.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.input.model.unit_001.forward_flow = 1
+    model.input.model.unit_001.cross_section_area = 6.e-05 / (0.000575 * 0.37)
+    model.input.model.unit_001.bed_length = 0.014
+    model.input.model.unit_001.col_porosity = 0.37
     model.input.model.unit_001.ncomp = 2
     model.input.model.unit_001.npartype = 2
     model.input.model.unit_001.par_type_volfrac = [0.4, 0.6]
-    model.input.model.unit_001.velocity = 0.000575
     model.input.model.unit_001.col_dispersion = [5.75e-08]
-    model.input.model.unit_001.col_length = 0.014
-    model.input.model.unit_001.col_porosity = 0.37
     model.input.model.unit_001.init_c = np.array([0., 0.])
     
     # Particle - Type 0

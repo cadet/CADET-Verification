@@ -44,11 +44,13 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
     
     
     model.root.input.model.unit_001.unit_type = np.bytes_(b'COLUMN_MODEL_1D')
+    model.root.input.model.unit_001.geometry = np.bytes_(b'AXIAL_FLOW_CYLINDER')
+    model.root.input.model.unit_001.forward_flow = np.int32(1)
     model.root.input.model.unit_001.npartype = np.int32(1)
     model.root.input.model.unit_001.ncomp = np.int32(1)
     model.root.input.model.unit_001.init_c = np.array([0.])
     model.root.input.model.unit_001.col_dispersion = np.float64(0.0)
-    model.root.input.model.unit_001.col_length = np.float64(0.1)
+    model.root.input.model.unit_001.bed_length = np.float64(0.1)
     model.root.input.model.unit_001.col_porosity = np.float64(0.25)
     model.root.input.model.unit_001.cross_section_area = np.float64(9.503317777109126e-05)
     model.root.input.model.unit_001.discretization.gs_type = np.int32(1)

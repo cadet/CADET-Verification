@@ -37,15 +37,7 @@ def get_model(
     
     #%% Column unit
     column = Dict()
-    if column_geometry == 'AXIAL_FLOW_CYLINDER':
-        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
-    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
-    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
-        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
-    else:
-        raise ValueError(f"Unknown column geometry: {column_geometry}")
-    column.geometry = column_geometry
+    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.update(get_column_geometry_configuration(column_geometry))
     column.forward_flow = 1
     
@@ -57,7 +49,7 @@ def get_model(
     
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.POLYNOMIAL_INTEGRATION_TYPE = kwargs.get('POLYNOMIAL_INTEGRATION_TYPE', 0)
+        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     else:

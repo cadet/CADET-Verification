@@ -230,7 +230,7 @@ def transport_tests(n_jobs, small_test,
 
     spatial_discretization_DG = {
         'POLYDEG': 3, 'NELEM': 2,
-        'SPATIAL_METHOD' : 'DG', 'POLYNOMIAL_INTEGRATION_TYPE' : 0,
+        'SPATIAL_METHOD' : 'DG',
         'USE_ANALYTIC_JACOBIAN': True, 'USE_MODIFIED_NEWTON' : True,
         'grid_function' : partial(grid_equidistant)
         }
@@ -263,36 +263,39 @@ def transport_tests(n_jobs, small_test,
         spatialMethod = 0 if spatial_discretization['SPATIAL_METHOD'] == 'FV' else spatial_discretization['POLYDEG']
         nCol = spatial_discretization['NCOL'] * 2** (disc_idx) if spatialMethod == 0 else spatial_discretization['NELEM'] * 2** (disc_idx)
         
+        unit_geometry = config_data['input']['model']['unit_' + unit_id]['geometry']
         unit_type = config_data['input']['model']['unit_' + unit_id]['unit_type']
-        match = re.search(r"(FRUSTUM|RADIAL)", unit_type)
-        unit_geometry = match.group(0) if match else "AXIAL"
         
         if 'NonEq' in spatial_discretization:
             if spatial_discretization['NonEq']:
+
+                if unit_geometry == "AXIAL_FLOW_CYLINDER" or unit_type == "MULTI_CHANNEL_TRANSPORT":
                 
-                if unit_geometry == "FRUSTUM":
+                    x0 = 0.0
+                    x1 = config_data['input']['model']['unit_' + unit_id]['bed_length']
+                    config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](x0, x1, nCol)
+
+                elif unit_geometry == "RADIAL_FLOW_CYLINDER_SHELL":
+                
+                    r0 = config_data['input']['model']['unit_' + unit_id]['cross_section_area_inner'] / (2.0 * np.pi * config_data['input']['model']['unit_' + unit_id]['cylinder_height'])
+                    r1 = config_data['input']['model']['unit_' + unit_id]['cross_section_area_outer'] / (2.0 * np.pi * config_data['input']['model']['unit_' + unit_id]['cylinder_height'])
+                    config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](r0, r1, nCol)
+        
+                elif unit_geometry == "AXIAL_FLOW_FRUSTUM":
                     
                     if spatial_discretization['grid_function'].__name__ == "grid_frustum_equivolume":
                     
                         x0 = 0.0
-                        x1 = config_data['input']['model']['unit_' + unit_id]['col_length']
-                        r0 = config_data['input']['model']['unit_' + unit_id]['col_radius_inner']
-                        r1 = config_data['input']['model']['unit_' + unit_id]['col_radius_outer']
-                     
+                        x1 = config_data['input']['model']['unit_' + unit_id]['bed_length']
+                        r0 = np.sqrt(config_data['input']['model']['unit_' + unit_id]['cross_section_area_small_end'] / np.pi)
+                        r1 = np.sqrt(config_data['input']['model']['unit_' + unit_id]['cross_section_area_large_end'] / np.pi)
                         config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](x0, x1, r0, r1, nCol)
                         
                     else:
                         config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](x0, x1, nCol)
-        
-                elif unit_geometry in ["AXIAL", "RADIAL"]:
-                
-                    x0 = 0.0 if unit_geometry == "AXIAL" else config_data['input']['model']['unit_' + unit_id]['col_radius_inner']
-                    x1 = config_data['input']['model']['unit_' + unit_id]['col_length'] if unit_geometry == "AXIAL" else config_data['input']['model']['unit_' + unit_id]['col_radius_outer']
-                    
-                    config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](x0, x1, nCol)
-        
+
                 else:
-                    raise Exception("Uknown unit geometry: " + unit_geometry)
+                    raise Exception(f"Uknown unit geometry: {unit_geometry} or unit type: {unit_type}. Cannot set non-equidistant grid.")
         
         config_data['input']['model']['unit_' + unit_id]['discretization'].update(
             {k: v for k, v in spatial_discretization.items() if k not in {'NonEq', 'grid_function'}}
@@ -606,7 +609,7 @@ def transport_tests(n_jobs, small_test,
         if 'NonEq' in spatial_discretization:
             if spatial_discretization['NonEq']:
                 x0 = 0.0
-                x1 = config_data['input']['model']['unit_' + unit_id]['col_length']
+                x1 = config_data['input']['model']['unit_' + unit_id]['bed_length']
                 config_data['input']['model']['unit_' + unit_id]['discretization']['AXIAL_GRID_FACES'] = spatial_discretization['grid_function'](x0, x1, nCol)
 
         config_data['input']['model']['unit_' + unit_id]['discretization'].update(

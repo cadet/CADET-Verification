@@ -28,7 +28,7 @@ def get_model(
     column = Dict()
     column.UNIT_TYPE = 'COLUMN_MODEL_' + column_resolution
     
-    column.col_length = 0.014
+    column.bed_length = 0.014
     column.col_radius = 0.01
     column.col_porosity = 0.37
     column.npartype = 0 if particle_type is None else 1
@@ -42,7 +42,7 @@ def get_model(
 
     # Spatial discretization of interstitial / bulk volume
     column.discretization.spatial_method = 'DG'
-    column.discretization.POLYNOMIAL_INTEGRATION_TYPE = 1
+    column.discretization.USE_COLLOCATION_DG = 1
     if column_resolution == '2D':
         column.discretization.AX_POLYDEG = kwargs.get('axP', polyDeg)
         column.discretization.AX_NELEM = axNElem

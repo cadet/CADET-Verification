@@ -24,7 +24,7 @@ def get_model(
     # Column unit
     column = Dict()
     column.UNIT_TYPE = 'COLUMN_MODEL_2D'
-    column.col_length = 0.014
+    column.bed_length = 0.014
     column.col_radius = 0.01
     
     # Build a radially resolved porosity profile to mimic wall effects in packed columns.
@@ -63,7 +63,7 @@ def get_model(
 
     # Spatial discretization of interstitial / bulk volume
     column.discretization.spatial_method = 'DG'
-    column.discretization.POLYNOMIAL_INTEGRATION_TYPE = 1
+    column.discretization.USE_COLLOCATION_DG = 1
     column.discretization.AX_POLYDEG = kwargs.get('axP', polyDeg)
     column.discretization.AX_NELEM = axNElem
     column.discretization.RADIAL_DISC_TYPE = 'EQUIDISTANT'

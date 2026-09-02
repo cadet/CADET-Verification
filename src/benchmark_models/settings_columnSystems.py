@@ -60,11 +60,13 @@ def SMB_model1(nelem, polydeg, exactInt):
 
     # Columns
     smb_model.model.unit_004.unit_type = 'COLUMN_MODEL_1D'
+    smb_model.model.unit_004.geometry = 'AXIAL_FLOW_CYLINDER'
+    smb_model.model.unit_004.forward_flow = 1
     smb_model.model.unit_004.ncomp = n_comp
     smb_model.model.unit_004.npartype = 1
     smb_model.model.unit_004.total_porosity = 0.38
     smb_model.model.unit_004.col_dispersion = 3.81e-6
-    smb_model.model.unit_004.col_length = 5.36e-1
+    smb_model.model.unit_004.bed_length = 5.36e-1
     # From Lubke2007, is not important
     smb_model.model.unit_004.cross_section_area = 5.31e-4
 
@@ -91,7 +93,7 @@ def SMB_model1(nelem, polydeg, exactInt):
 
     # Polynomial order
     smb_model.model.unit_004.discretization.POLYDEG = polydeg
-    smb_model.model.unit_004.discretization.POLYNOMIAL_INTEGRATION_TYPE = exactInt
+    smb_model.model.unit_004.discretization.USE_COLLOCATION_DG = exactInt
 
     smb_model.model.unit_004.discretization.par_disc_type = 'EQUIDISTANT_PAR'
     smb_model.model.unit_004.discretization.use_analytic_jacobian = 1
@@ -341,11 +343,13 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Unit LRMP2
     Cyclic_model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    Cyclic_model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    Cyclic_model.root.input.model.unit_001.forward_flow = 1
     Cyclic_model.root.input.model.unit_001.ncomp = n_comp
     Cyclic_model.root.input.model.unit_001.npartype = 1
     Cyclic_model.root.input.model.unit_001.col_porosity = 0.37
     Cyclic_model.root.input.model.unit_001.col_dispersion = 2e-7
-    Cyclic_model.root.input.model.unit_001.col_length = 1.4e-2
+    Cyclic_model.root.input.model.unit_001.bed_length = 1.4e-2
     Cyclic_model.root.input.model.unit_001.cross_section_area = 1
     LRMP_Q3 = 3.45*1e-2 / 60 * 0.37
     # particle
@@ -376,7 +380,7 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Polynomial order
     Cyclic_model.root.input.model.unit_001.discretization.POLYDEG = polydeg
-    Cyclic_model.root.input.model.unit_001.discretization.POLYNOMIAL_INTEGRATION_TYPE = exactInt
+    Cyclic_model.root.input.model.unit_001.discretization.USE_COLLOCATION_DG = exactInt
 
     Cyclic_model.root.input.model.unit_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     Cyclic_model.root.input.model.unit_001.discretization.USE_ANALYTIC_JACOBIAN = 1
@@ -496,11 +500,13 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Unit LRMP3
     Acyclic_model.root.input.model.unit_002.unit_type = 'COLUMN_MODEL_1D'
+    Acyclic_model.root.input.model.unit_002.geometry = 'AXIAL_FLOW_CYLINDER'
+    Acyclic_model.root.input.model.unit_002.forward_flow = 1
     Acyclic_model.root.input.model.unit_002.ncomp = n_comp
     Acyclic_model.root.input.model.unit_002.npartype = 1
     Acyclic_model.root.input.model.unit_002.col_porosity = 0.37
     Acyclic_model.root.input.model.unit_002.col_dispersion = 2e-7
-    Acyclic_model.root.input.model.unit_002.col_length = 1.4e-2
+    Acyclic_model.root.input.model.unit_002.bed_length = 1.4e-2
     Acyclic_model.root.input.model.unit_002.cross_section_area = 1
     LRMP_Q3 = 3.45*1e-2 / 60 * 0.37
     # Particle
@@ -531,7 +537,7 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
 
     # Polynomial order
     Acyclic_model.root.input.model.unit_002.discretization.POLYDEG = polydeg
-    Acyclic_model.root.input.model.unit_002.discretization.POLYNOMIAL_INTEGRATION_TYPE = exactInt
+    Acyclic_model.root.input.model.unit_002.discretization.USE_COLLOCATION_DG = exactInt
 
     Acyclic_model.root.input.model.unit_002.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
     Acyclic_model.root.input.model.unit_002.discretization.USE_ANALYTIC_JACOBIAN = 1
@@ -554,7 +560,7 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
         Acyclic_model.root.input.model.unit_002)
 
     # Unit LRMP4
-    Acyclic_model.root.input.model.unit_003.col_length = 4.2e-2
+    Acyclic_model.root.input.model.unit_003.bed_length = 4.2e-2
     Acyclic_model.root.input.model.unit_003.particle_type_000.adsorption.is_kinetic = False    # Kinetic binding
     Acyclic_model.root.input.model.unit_003.particle_type_000.adsorption.LIN_KA = [
         35.5]  # m^3 / (mol * s)   (mobile phase)

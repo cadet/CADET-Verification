@@ -56,29 +56,21 @@ def get_model():
     # Frustum column
     # ------------------------------------------------------------
     col = m.input.model.unit_001
-    col.unit_type = "FRUSTUM_COLUMN_MODEL_1D"
+    col.unit_type = "COLUMN_MODEL_1D"
     col.ncomp = 1
 
     # No particle model: pure bulk transport
     col.npartype = 0
 
     # Geometry
-    col.col_length = 0.20               # m
-    col.col_radius_inner = 0.1823       # m, chosen to get 5.75e-4 interstitial velocity
-    col.col_radius_outer = 0.2235       # m   (same 1.5 area expansion)
+    col.bed_length = 0.20                                # m
+    col.cross_section_area_small_end = np.pi * 0.1823 * 0.1823       # m, chosen to get 5.75e-4 interstitial velocity
+    col.cross_section_area_large_end = np.pi * 0.2235 * 0.2235       # m   (same 1.5 area expansion)
     # new interface, used for DG already, but not for FV, so we need to set it here
     col.geometry = "AXIAL_FLOW_FRUSTUM"
-    col.bed_length = 0.20                   # m
-    col.col_radius_small_end = 0.1823       # m, chosen to get 5.75e-4 interstitial velocity
-    col.col_radius_large_end = 0.2235       # m   (same 1.5 area expansion)
     col.forward_flow = 1
-
-    # Packed-bed porosity (physically realistic)
+    
     col.col_porosity = 0.37
-    col.total_porosity = 0.37
-
-    # Transport data
-    col.velocity_coeff = 1              # flow direction
     col.col_dispersion = [5.0e-7]       # m^2/s
 
     # Initial condition

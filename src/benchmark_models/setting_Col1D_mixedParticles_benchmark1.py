@@ -41,12 +41,13 @@ def get_model(spatial_method_bulk, spatial_method_particle):
     
     # Column unit
     model.input.model.unit_001.UNIT_TYPE = 'COLUMN_MODEL_1D'
+    model.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.input.model.unit_001.forward_flow = 1
+    model.input.model.unit_001.cross_section_area = 6.e-05 / (5.75e-4 * 0.37) # Q / (v + epsilon)
     model.input.model.unit_001.ncomp = 2
-    model.input.model.unit_001.velocity = 5.75e-4
     model.input.model.unit_001.col_dispersion = [5.75e-8]
-    model.input.model.unit_001.col_length = 0.014
+    model.input.model.unit_001.bed_length = 0.014
     model.input.model.unit_001.col_porosity = 0.37
-    model.input.model.unit_001.col_porosity = 0.37 + (1.0 - 0.37) * (0.6 * 0.75 + 0.4 * 0.5)
     model.input.model.unit_001.init_c = np.array([0., 0.])
     
     # Spatial discretization unit level
@@ -54,7 +55,7 @@ def get_model(spatial_method_bulk, spatial_method_particle):
     model.input.model.unit_001.discretization.SPATIAL_METHOD = spatial_method_bulk
     model.input.model.unit_001.discretization.POLYDEG = 3
     model.input.model.unit_001.discretization.NELEM = 5
-    model.input.model.unit_001.discretization.POLYNOMIAL_INTEGRATION_TYPE = 0
+    model.input.model.unit_001.discretization.USE_COLLOCATION_DG= 1
     
     
     # Particles

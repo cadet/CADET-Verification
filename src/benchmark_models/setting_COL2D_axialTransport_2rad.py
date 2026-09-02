@@ -58,7 +58,7 @@ def get_model():
     column.unit_type = 'COLUMN_MODEL_2D'
     column.ncomp = 1
     column.npartype = 1
-    column.col_length = 1.0
+    column.bed_length = 1.0
     column.col_radius = col_radius
     column.cross_section_area = np.pi * col_radius**2
     column.col_dispersion_axial = [1e-4]

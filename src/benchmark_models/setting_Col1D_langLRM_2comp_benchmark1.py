@@ -22,36 +22,32 @@ def get_column_geometry_configuration(
     if geometry == "AXIAL_FLOW_CYLINDER":
 
         return {
+            'geometry': geometry,
             "cross_section_area": A,
-            "col_length": bed_length,
             "bed_length": bed_length,
         }
 
     elif geometry == "AXIAL_FLOW_FRUSTUM":
 
         return {
-            "cross_section_area": A,
-            "col_radius_large_end": inlet_radius,
-            "col_radius_small_end": inlet_radius * frustum_ratio,
-            "col_radius_outer": inlet_radius,
-            "col_radius_inner": inlet_radius * frustum_ratio,
-            "col_length": bed_length,
+            'geometry': geometry,
+            "cross_section_area_large_end": A,
+            "cross_section_area_small_end": A * frustum_ratio,
             "bed_length": bed_length,
         }
 
     elif geometry == "RADIAL_FLOW_CYLINDER_SHELL":
 
-        r_inner = inlet_radius
-        r_outer = r_inner + bed_length
-
+        r_outer = inlet_radius 
+        r_inner = r_outer - bed_length
         # choose height so inlet area equals axial inlet area
-        height = A / (2 * np.pi * r_inner)
+        height = A / (2 * np.pi * r_outer)
 
         return {
-            "cross_section_area": A,
-            "col_length": height,
-            "col_radius_inner": r_inner,
-            "col_radius_outer": r_outer,
+            'geometry': geometry,
+            "cross_section_area_outer": A,
+            "cross_section_area_inner": 2.0 * np.pi * height * r_inner,
+            "cylinder_height": height,
             "bed_length": bed_length,
         }
 
@@ -76,15 +72,9 @@ def get_model(
 
     #%% Column unit
     column = Dict()
-    if column_geometry == 'AXIAL_FLOW_CYLINDER':
-        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
-    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
-    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
-        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
-    else:
+    if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_COLUMN_MODEL_1D', 'AXIAL_FLOW_FRUSTUM']:
         raise ValueError(f"Unknown column geometry: {column_geometry}")
-    column.geometry = column_geometry
+    column.unit_type = "COLUMN_MODEL_1D"
     column.update(get_column_geometry_configuration(column_geometry))
     column.forward_flow = 1
     
