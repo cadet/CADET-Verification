@@ -12,12 +12,68 @@ import numpy as np
 from addict import Dict
 
 
-def get_binding_configuration(is_kinetic:bool=True):
+def get_binding_configuration(is_kinetic:bool=False, par_porosity:float=0.66):
+    """
+    SMA parameters mapped from the paper's driving-force form (Eq. 4) onto CADET's
+    Brooks & Cramer mass-action SMA, transforming *input parameters only*.
+
+    The paper states the solid-phase balance (Eq. 2) in terms of q_i, the adsorbed
+    concentration per pore-liquid volume, whereas CADET's solid-phase state c^s_i is
+    per solid volume. Eliminating q_i from the paper's equations via the constant
+    factor q_i = alpha * c^s_i, alpha = (1 - eps_p)/eps_p, and dividing Eq. 4 by
+    alpha yields (with Q := Lambda/alpha - sum_j (nu_j + sigma_j) c^s_j)
+
+        d(c^s_i)/dt = (ka_bar/alpha) c^p_i
+                      - (ka_bar/(keq_i alpha^nu_i)) (c^p_0 / Q)^nu_i c^s_i.
+
+    CADET's SMA with reference concentrations refq = refc0 = Lambda/alpha reads
+
+        d(c^s_i)/dt = ka_i c^p_i (Q/refq)^nu_i - kd_i c^s_i (c^p_0/refc0)^nu_i.
+
+    Matching the two term by term requires ka_i, kd_i ~ (refq/Q)^nu_i, i.e. an exact
+    match needs state-dependent rate "constants" -- the two kinetic laws genuinely
+    differ. However, the ratio is state-independent:
+
+        ka_i / kd_i = keq_i * alpha^(nu_i - 1)      (exact),
+
+    so the paper's equilibrium isotherm is reproduced exactly for any Q, via
+
+        ka_i = ka_bar / alpha,
+        kd_i = ka_bar / (keq_i * alpha^nu_i).
+
+    The kinetic-form difference is handled by using rapid-equilibrium binding
+    (is_kinetic = 0): the paper's forward rate is ka_bar = 10/s at *any* loading,
+    ~70x faster than film transfer (0.139/s), so its solid phase is effectively in
+    local equilibrium with the pore liquid. CADET's kinetic mass-action form cannot
+    mimic that with constant rates: its forward rate carries the factor
+    (Q/refq)^nu_i, which collapses by many orders of magnitude at moderate loading
+    (nu ~ 20), artificially freezing adsorption during the load phase and letting
+    protein break through in a nonphysical early spike. Rapid-equilibrium binding
+    imposes the exactly-mapped isotherm instead, consistent with the paper's
+    near-equilibrium kinetics.
+
+    The reference concentrations keep all parameter values well-scaled; without them
+    ka, kd would be ~1e-60 due to the nu-th powers of absolute concentrations.
+    """
+    alpha = (1.0 - par_porosity) / par_porosity
+
+    lambda_paper = 324.7  # ionic capacity, Table 3; 324.7 mol/m^3 = 0.3247 mol/L
+    sma_lambda = lambda_paper / alpha
+
+    nu = np.array([22.0, 22.0, 21.0, 20.0, 10.0, 23.0])
+    keq = np.array([1.0e5, 1.0e5, 3.0e4, 5.0e2, 5.0, 1.0e6])
+    ka_bar = 10.0  # effective adsorption-rate coefficient, Table 4
+
+    ka = np.full(6, ka_bar / alpha)
+    kd = ka_bar / (keq * alpha ** nu)
+
     return {
         'is_kinetic': 1 if is_kinetic else 0,
-        'sma_ka': [ 0.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0],
-        'sma_kd': [ 0.0, 1.0e-4, 1.0e-4, 1.0 / 3.0e3, 2.0e-2, 2.0, 1.0e-5],
-        'sma_lambda': 324.7, # 324.7 mol / m^3 = 0.3247 mol / L
+        'sma_ka': np.concatenate(([0.0], ka)),
+        'sma_kd': np.concatenate(([0.0], kd)),
+        'sma_lambda': sma_lambda,
+        'sma_refq': sma_lambda,
+        'sma_refc0': sma_lambda,
         'sma_nu': [ 0.0, 22, 22, 21, 20, 10, 23 ],
         'sma_sigma': [ 0.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 ]
         }
@@ -116,17 +172,30 @@ def get_model(
     # note: the radius is only assumed and not from the source, which lumps radius and film diffusion coefficient into a single parameter
     column.particle_type_000.par_radius = 4.5e-05
     column.particle_type_000.par_coreradius = 0.0
-    column.particle_type_000.par_porosity = 0.66
+    # Table 3's particle porosity eps_p = 0.66 is used literally, as the pore volume fraction
+    # CADET's PAR_POROSITY expects. The paper's pore-phase mass balance (eq. 2) is
+    #   d(c_p,i)/dt + d(q_i)/dt = kMT,i*(c_i - c_p,i)         [coefficient 1 on d(q_i)/dt]
+    # while CADET's HOMOGENEOUS_PARTICLE (LRMP) pore balance is
+    #   d(c_p,i)/dt + (1-eps_p)/eps_p * d(c^s_i)/dt = 3/(eps_p*par_radius) * film_diffusion * (c_i - c_p,i).
+    # The paper's q_i (adsorbed amount per pore-liquid volume) and CADET's c^s_i (per solid
+    # volume) are related by q_i = (1-eps_p)/eps_p * c^s_i, which turns eq. (2) into CADET's
+    # pore balance exactly. This substitution only rescales *input parameters* (eps_p, the
+    # film diffusion coefficient below, and the SMA lambda/ka/kd in
+    # get_binding_configuration()); no state variable is transformed -- CADET's own c^s_i then
+    # automatically equals q_i * eps_p/(1-eps_p).
+    par_porosity = 0.66
+    column.particle_type_000.par_porosity = par_porosity
     # we compute film diffusion coefficient from the lumped parameter in the source, which is 1.39/s and 0.139/s for salt and proteins respectively.
     # The paper's bulk balance (eq. 1) uses the coefficient (1-eps_c)/eps_c * eps_p * kMT,i, while CADET's HOMOGENEOUS_PARTICLE
     # (LRMP) model uses (1-eps_c)/eps_c * (3/par_radius) * film_diffusion. Equating the two gives
     # kMT,i = (3/par_radius) * film_diffusion / eps_p, i.e. film_diffusion = kMT,i * par_radius * eps_p / 3.
+    # (par_porosity above is used here too, so the bulk-equation match holds for whichever eps_p we use.)
     fd_salt = 1.39 * column.particle_type_000.par_radius * column.particle_type_000.par_porosity / 3.0
     fd_protein = 0.139 * column.particle_type_000.par_radius * column.particle_type_000.par_porosity / 3.0
     column.particle_type_000.film_diffusion = [fd_salt, fd_protein, fd_protein, fd_protein, fd_protein, fd_protein, fd_protein]
     
     column.particle_type_000.adsorption_model = 'STERIC_MASS_ACTION'
-    column.particle_type_000.adsorption = get_binding_configuration(is_kinetic=True)
+    column.particle_type_000.adsorption = get_binding_configuration(is_kinetic=False, par_porosity=par_porosity)
     column.particle_type_000.nbound = [1, 1, 1, 1, 1, 1, 1]
     
     init_salt = column.particle_type_000.adsorption['sma_lambda']
@@ -212,7 +281,7 @@ from cadet import Cadet
 
 sim = Cadet()
 sim.install_path = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
-sim.root = get_model(spatial_method_bulk=0, axNElem=64)
+sim.root = get_model(spatial_method_bulk=0, axNElem=256)
 sim.filename = "NovoNordiskIEXbenchmark.h5"
 sim.save()
 return_data = sim.run_simulation()
@@ -221,118 +290,32 @@ sim.save()
 if return_data.return_code != 0:
     raise RuntimeError(f"Simulation failed with return code {return_data.return_code} and message: {return_data.error_message}\n and LOG:\n {return_data.log}")
 
-from matplotlib import pyplot as plt
 
-# Extinction coefficient from Section 4.2
-w = 1.167e4  # AU L mol^-1 cm^-1
+# --- Comparison against the chromatogram extracted from the paper's Figure 1 ---
+# Data extracted from the figure PNG by color matching (see extract_fig1_data.py in the
+# repository root): per-component CSVs with columns time_s, OD_AU_per_cm.
+# Note: points are sparse where curves overlap at the zero baseline (only the topmost-drawn
+# curve owns those pixels); missing time points there mean ~0.
+import os
+from matplotlib import pyplot as plt
 
 times = sim.root.output.solution.solution_times
 outlet = sim.root.output.solution.unit_000.solution_outlet
+w = 1.167e4  # AU L mol^-1 cm^-1
 
-# Salt concentration
-plt.figure()
-plt.plot(times, outlet[:, 0], label='salt')
-plt.xlabel('Time (s)')
-plt.ylabel('Salt concentration (mol/m³)')
-plt.legend()
-plt.savefig("salt_concentration.png")
+extracted_dir = "chromops_fig1_extracted"
+component_names = ["A", "B", "C", "D", "E", "F"]
+colors = plt.cm.tab10(np.arange(7))
 
-# Protein concentrations
-plt.figure()
-for i in range(1, 7):
-    plt.plot(
-        times,
-        outlet[:, i] / 1000.0,
-        label=f'protein {i}'
-    )
+for i, name in enumerate(component_names):
+    plt.plot(times, (w / 1000.0) * outlet[:, i + 1], color=colors[i + 1], label=f"{name} CADET")
+    ext = np.genfromtxt(os.path.join(extracted_dir, f"{name}.csv"), delimiter=",", skip_header=1)
+    plt.plot(ext[:, 0], ext[:, 1], ".", color=colors[i + 1], ms=2.5, alpha=0.7)
+plt.plot([], [], "k.", ms=2.5, label="paper plt. 1 (extracted)")
+plt.ylabel("OD (AU/cm)")
+plt.title("CADET (reparameterized, solid) vs. paper Figure 1 (extracted, dots)")
+plt.legend(ncol=2, fontsize=8)
 
-plt.xlabel('Time (s)')
-plt.ylabel('Concentration (mol/L)')
-plt.legend()
-plt.savefig("protein_concentrations.png")
-
-# Protein optical density — as in the paper
-plt.figure()
-for i in range(1, 7):
-    od = (w / 1000.0) * outlet[:, i]
-    plt.plot(times, od, label=f'protein {i}')
-
-plt.xlabel('Time (s)')
-plt.ylabel('OD (AU/cm)')
-plt.legend()
-plt.savefig("protein_optical_density.png")
-
-
-import pandas as pd
-
-df = pd.read_csv(
-    "proteinA.csv",
-    sep=";",
-    decimal=",",
-    header=None,
-    names=["time", "concentrationOD"]
-)
-
-time = df["time"].to_numpy()
-concentrationOD = df["concentrationOD"].to_numpy()
-
-plt.figure()
-plt.plot(time, concentrationOD, label='protein A ChromOps')
-plt.plot(times, (w / 1000.0) * outlet[:, 1], label='protein A CADET')
-plt.xlabel('Time (s)')
-plt.ylabel('OD (AU/cm)')
-plt.legend()
-plt.savefig("proteinA_experimental_data.png")
+plt.tight_layout()
+plt.savefig("comparison_cadet_vs_paper_equations.png", dpi=150)
 plt.show()
-
-
-
-
-# Feed concentrations from the paper, mol/m^3
-cfeed = np.array([
-    1.381,
-    0.03046,
-    0.3087,
-    0.06092,
-    0.1665,
-    0.08326
-])
-
-# Integrated outlet concentration
-outlet_area = np.array([
-    np.trapz(outlet[:, i], times)
-    for i in range(1, 7)
-])
-
-# Integrated inlet concentration
-inlet_area = cfeed * 360.0
-
-print("Protein    inlet area    outlet area    outlet/inlet")
-for i in range(6):
-    print(
-        f"{i+1:7d}    "
-        f"{inlet_area[i]:11.4f}    "
-        f"{outlet_area[i]:12.4f}    "
-        f"{outlet_area[i]/inlet_area[i]:12.4f}"
-    )
-
-import numpy as np
-
-cadet_od = (w / 1000.0) * outlet[:, 1]
-
-print("\n--- Protein A comparison ---")
-
-print("CADET:")
-print("  max OD =", cadet_od.max())
-print("  area   =", np.trapz(cadet_od, times))
-
-print("\nCSV:")
-print("  max OD =", concentrationOD.max())
-print("  area   =", np.trapz(concentrationOD, time))
-
-print("\nRatio CSV / CADET:")
-print("  max ratio  =", concentrationOD.max() / cadet_od.max())
-print("  area ratio =", (
-    np.trapz(concentrationOD, time) /
-    np.trapz(cadet_od, times)
-))
