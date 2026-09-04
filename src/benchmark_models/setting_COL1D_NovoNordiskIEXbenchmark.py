@@ -319,3 +319,48 @@ plt.legend(ncol=2, fontsize=8)
 plt.tight_layout()
 plt.savefig("comparison_cadet_vs_paper_equations.png", dpi=150)
 plt.show()
+
+
+# --- Error metrics: CADET vs. paper Figure 1 (proteins only) ---
+# Metrics are computed on the extracted time points of each component (the extracted
+# curves are sparse near the zero baseline, so this restricts the comparison to where
+# figure data actually exists). CADET is linearly interpolated onto those points.
+#   peak_err   : relative peak height error
+#   dt_peak    : peak time difference (CADET - figure), s
+#   area_err   : relative error of the integrated OD signal (mass proxy)
+#   NRMSE      : RMSE normalized by the figure's peak height
+#   dt*        : uniform time shift applied to CADET that minimizes the RMSE
+#   NRMSE(dt*) : shift-corrected NRMSE, i.e. remaining shape error after removing
+#                the systematic time offset between simulation and figure
+shifts = np.arange(-200.0, 800.0, 5.0)
+print("\n--- Error metrics vs. extracted Figure 1 data (proteins only) ---")
+print(f"{'comp':>4} {'peak_err':>9} {'dt_peak':>8} {'area_err':>9} {'NRMSE':>7} {'dt*':>6} {'NRMSE(dt*)':>11}")
+nrmse_all, nrmse_shift_all = [], []
+for i, name in enumerate(component_names):
+    ext = np.genfromtxt(os.path.join(extracted_dir, f"{name}.csv"), delimiter=",", skip_header=1)
+    t_ref, od_ref = ext[:, 0], ext[:, 1]
+    od_sim_full = (w / 1000.0) * outlet[:, i + 1]
+    od_sim = np.interp(t_ref, times, od_sim_full)
+
+    peak_err = (od_sim_full.max() - od_ref.max()) / od_ref.max()
+    dt_peak = times[od_sim_full.argmax()] - t_ref[od_ref.argmax()]
+    area_sim = np.trapz(od_sim_full, times)
+    area_ref = np.trapz(od_ref, t_ref)
+    area_err = (area_sim - area_ref) / area_ref
+    nrmse = np.sqrt(np.mean((od_sim - od_ref) ** 2)) / od_ref.max()
+
+    # best uniform time shift of the CADET signal (positive = CADET shifted later)
+    rmse_s = [np.sqrt(np.mean((np.interp(t_ref - s, times, od_sim_full) - od_ref) ** 2))
+              for s in shifts]
+    j = int(np.argmin(rmse_s))
+    dt_star, nrmse_star = shifts[j], rmse_s[j] / od_ref.max()
+
+    nrmse_all.append(nrmse)
+    nrmse_shift_all.append(nrmse_star)
+    print(f"{name:>4} {peak_err:>8.1%} {dt_peak:>7.0f}s {area_err:>8.1%} "
+          f"{nrmse:>7.3f} {dt_star:>5.0f}s {nrmse_star:>11.3f}")
+
+print(f"\nmean NRMSE           : {np.mean(nrmse_all):.3f}")
+print(f"mean NRMSE (shifted) : {np.mean(nrmse_shift_all):.3f}")
+print("A consistent dt* across components indicates a systematic time offset between")
+print("the paper's figure and the stated inlet program, rather than a model mismatch.")
