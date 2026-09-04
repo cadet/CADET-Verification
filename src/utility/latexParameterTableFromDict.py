@@ -19,13 +19,9 @@ PARAMETERS = {
 
         Parameter("Flow rate",                r"$Q$",                     r"$m^3/s$", "flow_rate"),
 
-        Parameter("Bed length",             r"$L^\mathrm{b}$",                     r"$m$", "bed_length"),
-        Parameter("Inner radius",           r"$R_{\mathrm{in}}$",       r"$m$", "col_radius_inner"),
-        Parameter("Outer radius",           r"$R_{\mathrm{out}}$",      r"$m$", "col_radius_outer"),
-
         Parameter("Bed length",             r"$L_{\mathrm{bed}}$",      r"$m$", "bed_length"),
-        Parameter("Small-end radius",       r"$R_{\mathrm{small}}$",    r"$m$", "col_radius_small_end"),
-        Parameter("Large-end radius",       r"$R_{\mathrm{large}}$",    r"$m$", "col_radius_large_end"),
+        Parameter("Small-end cross section area", r"$A_{\mathrm{small}}$", r"$m^2$", "cross_section_area_small_end"),
+        Parameter("Large-end cross section area", r"$A_{\mathrm{large}}$", r"$m^2$", "cross_section_area_large_end"),
 
         Parameter("Column porosity",          r"$\varepsilon_c$",         r"$-$", "col_porosity"),
         Parameter("Total porosity",           r"$\varepsilon_t$",         r"$-$", "total_porosity"),

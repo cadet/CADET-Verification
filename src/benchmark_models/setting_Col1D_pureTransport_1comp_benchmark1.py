@@ -665,11 +665,16 @@ def get_model(
         radial_inner_radius = None
         radial_outer_radius = None
         if column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-            radial_inner_radius = column.col_radius_inner
-            radial_outer_radius = column.col_radius_outer
+            # r(xi=0) = inner radius, r(xi=1) = outer radius, derived from the mandatory
+            # cross_section_area_outer/cylinder_height/bed_length (cross_section_area_inner is only
+            # an optional double-check field and may not be present).
+            radial_outer_radius = column.cross_section_area_outer / (2.0 * np.pi * column.cylinder_height)
+            radial_inner_radius = radial_outer_radius - column.bed_length
         elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
-            radial_inner_radius = column.col_radius_inner
-            radial_outer_radius = column.col_radius_outer
+            # r(xi=0) = large-end radius, r(xi=1) = small-end radius (CADET-Core places the large end
+            # at the start of the bed and the small end at x = bed_length).
+            radial_inner_radius = np.sqrt(column.cross_section_area_large_end / np.pi)
+            radial_outer_radius = np.sqrt(column.cross_section_area_small_end / np.pi)
 
         # Normalized cell faces; non-equidistant (equivolume) grids are passed
         # to CADET-Core via GRID_FACES in physical coordinates (radius for the

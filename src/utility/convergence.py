@@ -1397,21 +1397,42 @@ def _get_fv_bulk_geometry_weighting(simulation, unit):
                 return unit_dict[k]
         return default
 
-    unit_type = _get('unit_type', '')
-    unit_type = np.asarray(unit_type).ravel()[0] if np.size(unit_type) else ''
-    if isinstance(unit_type, bytes):
-        unit_type = unit_type.decode()
-    unit_type = str(unit_type).upper()
+    def _get_str(key, default=''):
+        value = _get(key, default)
+        value = np.asarray(value).ravel()[0] if np.size(value) else default
+        if isinstance(value, bytes):
+            value = value.decode()
+        return str(value).upper()
 
-    if 'RADIAL' in unit_type:
+    # GEOMETRY is the current interface's field for this; UNIT_TYPE substring matching is kept as a
+    # fallback for simulation output generated with the old (pre geometry-unification) interface,
+    # where the unit type itself was prefixed (e.g. RADIAL_GENERAL_RATE_MODEL).
+    geometry = _get_str('geometry')
+    unit_type = _get_str('unit_type')
+
+    if geometry == 'RADIAL_FLOW_CYLINDER_SHELL' or 'RADIAL' in unit_type:
         weight_power = 1
-    elif 'FRUSTUM' in unit_type:
+    elif geometry == 'AXIAL_FLOW_FRUSTUM' or 'FRUSTUM' in unit_type:
         weight_power = 2
     else:
         return 0, None, None
 
-    r_inner = float(np.asarray(_get('col_radius_inner')).ravel()[0])
-    r_outer = float(np.asarray(_get('col_radius_outer')).ravel()[0])
+    if geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        # r(xi=0) = inner radius, r(xi=1) = outer radius, derived from the mandatory
+        # CROSS_SECTION_AREA_OUTER/CYLINDER_HEIGHT/BED_LENGTH (CROSS_SECTION_AREA_INNER is only an
+        # optional double-check field and may not be present).
+        height = float(np.asarray(_get('cylinder_height')).ravel()[0])
+        r_outer = float(np.asarray(_get('cross_section_area_outer')).ravel()[0]) / (2.0 * np.pi * height)
+        r_inner = r_outer - float(np.asarray(_get('bed_length')).ravel()[0])
+    elif geometry == 'AXIAL_FLOW_FRUSTUM':
+        # r(xi=0) = large-end radius, r(xi=1) = small-end radius (CADET-Core places the large end
+        # at the start of the bed and the small end at x = bed_length).
+        r_inner = np.sqrt(float(np.asarray(_get('cross_section_area_large_end')).ravel()[0]) / np.pi)
+        r_outer = np.sqrt(float(np.asarray(_get('cross_section_area_small_end')).ravel()[0]) / np.pi)
+    else:
+        # Legacy (pre geometry-unification) interface.
+        r_inner = float(np.asarray(_get('col_radius_inner')).ravel()[0])
+        r_outer = float(np.asarray(_get('col_radius_outer')).ravel()[0])
     return weight_power, r_inner, r_outer
 
 

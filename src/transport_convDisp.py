@@ -276,9 +276,12 @@ def transport_tests(n_jobs, small_test,
                     config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](x0, x1, nCol)
 
                 elif unit_geometry == "RADIAL_FLOW_CYLINDER_SHELL":
-                
-                    r0 = config_data['input']['model']['unit_' + unit_id]['cross_section_area_inner'] / (2.0 * np.pi * config_data['input']['model']['unit_' + unit_id]['cylinder_height'])
+
+                    # r1 (outer) from the mandatory cross_section_area_outer/cylinder_height, r0 (inner)
+                    # from the mandatory bed_length (cross_section_area_inner is only an optional
+                    # double-check field and may not be present).
                     r1 = config_data['input']['model']['unit_' + unit_id]['cross_section_area_outer'] / (2.0 * np.pi * config_data['input']['model']['unit_' + unit_id]['cylinder_height'])
+                    r0 = r1 - config_data['input']['model']['unit_' + unit_id]['bed_length']
                     config_data['input']['model']['unit_' + unit_id]['discretization']['GRID_FACES'] = spatial_discretization['grid_function'](r0, r1, nCol)
         
                 elif unit_geometry == "AXIAL_FLOW_FRUSTUM":

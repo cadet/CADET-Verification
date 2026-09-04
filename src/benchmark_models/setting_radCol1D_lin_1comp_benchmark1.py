@@ -43,7 +43,10 @@ def get_model(
     # Q = 6.e-05, A = Q / (v*porosity) and A = 2.0 * pi * H * r_outer -> H = Q / (v*porosity) / (2.0 * pi * r_outer) = 0.2 m
     column.cylinder_height = 6.e-05 / (0.000575 * 0.37) / (2.0 * np.pi * 0.2)
     column.cross_section_area_outer = 2.0 * np.pi * column.cylinder_height * 0.2
+    # bed_length is mandatory (r_outer - r_inner = 0.2 - 0.01 = 0.19); cross_section_area_inner is
+    # optional and only used to double-check the geometry, so it is kept here for that purpose.
     column.cross_section_area_inner = 2.0 * np.pi * column.cylinder_height * 0.01
+    column.bed_length = 0.19
     column.col_porosity = 0.37
     column.ncomp = 1
     column.col_dispersion = 5.75e-08
