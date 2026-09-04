@@ -18,30 +18,30 @@ def get_column_geometry_configuration(geometry: str):
     # flow rate Q = 6.e-05
 
     axial_flow_cross_section_area = 6.e-05 / 0.000575 / 0.37
-    axial_flow_radius = np.sqrt(axial_flow_cross_section_area / np.pi)
 
     if geometry == 'AXIAL_FLOW_CYLINDER':
         return {
+            'geometry': geometry,
             # A = Q / (velocity * col_porosity)
             'cross_section_area': axial_flow_cross_section_area,
-            'col_length': 0.014,
+            'bed_length': 0.014,
         }
     elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
+        radius_outer = np.sqrt(axial_flow_cross_section_area / np.pi)
+        radius_inner = radius_outer - 0.014
         return {
-            # A = 2 * pi * \rho * L^b -> \rho = A / 2.0 / pi / L^b
-            'cross_section_area': axial_flow_cross_section_area,
-            'col_length': 0.25, # height
-            'col_radius_outer': axial_flow_cross_section_area / 2.0 / np.pi / 0.25,
-            'col_radius_inner': axial_flow_cross_section_area / 2.0 / np.pi / 0.25 - 0.014,
+            'geometry': geometry,
+            'cylinder_height': 0.25,
+            'cross_section_area_outer': axial_flow_cross_section_area,
+            'cross_section_area_inner': 2.0 * np.pi * radius_inner * 0.25,
+            'bed_length': 0.014,
         }
     elif geometry == 'AXIAL_FLOW_FRUSTUM':
         return {
-            'cross_section_area': axial_flow_cross_section_area,
-            'col_radius_outer': axial_flow_radius,
-            'col_radius_inner': axial_flow_radius * 0.75,
-            'col_radius_large_end': axial_flow_radius,
-            'col_radius_small_end': axial_flow_radius * 0.75,
-            'col_length': 0.014,
+            'geometry': geometry,
+            'cross_section_area_large_end': axial_flow_cross_section_area,
+            'cross_section_area_small_end': axial_flow_cross_section_area * 0.75,
+            'bed_length': 0.014,
         }
     else:
         raise ValueError(f"Unknown geometry: {geometry}")
@@ -71,14 +71,9 @@ def get_model(
     
     #%% Column unit
     column = Dict()
-    if column_geometry == 'AXIAL_FLOW_CYLINDER':
-        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
-    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
-    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
-        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
-    else:
+    if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_COLUMN_MODEL_1D', 'AXIAL_FLOW_FRUSTUM']:
         raise ValueError(f"Unknown column geometry: {column_geometry}")
+    column.unit_type = "COLUMN_MODEL_1D"
     column.geometry = column_geometry
     column.update(get_column_geometry_configuration(column_geometry))
     column.forward_flow = 1
@@ -93,7 +88,7 @@ def get_model(
     
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.POLYNOMIAL_INTEGRATION_TYPE = kwargs.get('POLYNOMIAL_INTEGRATION_TYPE', 0)
+        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     elif spatial_method_bulk == 0:

@@ -578,7 +578,7 @@ def get_model(
         n_solution_times (601), idas_reftol (1e-12),
         write_solution_bulk (1), initial profile parameters
         (see get_initial_profile) and axRefinement, weno_order,
-        POLYNOMIAL_INTEGRATION_TYPE as in setting_Col1D_lin_1comp_benchmark1.
+        USE_COLLOCATION_DG  as in setting_Col1D_lin_1comp_benchmark1.
 
     Returns
     -------
@@ -618,15 +618,7 @@ def get_model(
 
     #%% Column unit
     column = Dict()
-    if column_geometry == 'AXIAL_FLOW_CYLINDER':
-        column.UNIT_TYPE = 'COLUMN_MODEL_1D'
-    elif column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-        column.UNIT_TYPE = 'RADIAL_COLUMN_MODEL_1D'
-    elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
-        column.UNIT_TYPE = 'FRUSTUM_COLUMN_MODEL_1D'
-    else:
-        raise ValueError(f"Unknown column geometry: {column_geometry}")
-    column.geometry = column_geometry
+    column.UNIT_TYPE = 'COLUMN_MODEL_1D'
     column.update(get_column_geometry_configuration(column_geometry))
     column.forward_flow = 1
 
@@ -645,7 +637,7 @@ def get_model(
                 "spatial method (spatial_method_bulk=0)."
             )
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.POLYNOMIAL_INTEGRATION_TYPE = kwargs.get('POLYNOMIAL_INTEGRATION_TYPE', 0)
+        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     elif spatial_method_bulk == 0:
@@ -673,11 +665,16 @@ def get_model(
         radial_inner_radius = None
         radial_outer_radius = None
         if column_geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
-            radial_inner_radius = column.col_radius_inner
-            radial_outer_radius = column.col_radius_outer
+            # r(xi=0) = inner radius, r(xi=1) = outer radius, derived from the mandatory
+            # cross_section_area_outer/cylinder_height/bed_length (cross_section_area_inner is only
+            # an optional double-check field and may not be present).
+            radial_outer_radius = column.cross_section_area_outer / (2.0 * np.pi * column.cylinder_height)
+            radial_inner_radius = radial_outer_radius - column.bed_length
         elif column_geometry == 'AXIAL_FLOW_FRUSTUM':
-            radial_inner_radius = column.col_radius_inner
-            radial_outer_radius = column.col_radius_outer
+            # r(xi=0) = large-end radius, r(xi=1) = small-end radius (CADET-Core places the large end
+            # at the start of the bed and the small end at x = bed_length).
+            radial_inner_radius = np.sqrt(column.cross_section_area_large_end / np.pi)
+            radial_outer_radius = np.sqrt(column.cross_section_area_small_end / np.pi)
 
         # Normalized cell faces; non-equidistant (equivolume) grids are passed
         # to CADET-Core via GRID_FACES in physical coordinates (radius for the
@@ -700,9 +697,9 @@ def get_model(
                 phys_faces[0] = radial_inner_radius
                 phys_faces[-1] = radial_outer_radius
             else:
-                phys_faces = column.col_length * xi_faces
+                phys_faces = column.bed_length * xi_faces
                 phys_faces[0] = 0.0
-                phys_faces[-1] = column.col_length
+                phys_faces[-1] = column.bed_length
             column.discretization.GRID_FACES = phys_faces.tolist()
 
         column.INIT_STATE = get_initial_cell_averages(

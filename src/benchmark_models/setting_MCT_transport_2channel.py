@@ -41,7 +41,7 @@ def get_model():
     column = m.input.model.unit_001
     column.unit_type = 'MULTI_CHANNEL_TRANSPORT'
     column.ncomp = 1
-    column.col_length = 1.0
+    column.bed_length = 1.0
     column.col_dispersion = [1e-4]
     column.velocity = [0.01]
     column.init_c = [0.0]

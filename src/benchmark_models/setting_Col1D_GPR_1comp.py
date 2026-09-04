@@ -97,12 +97,14 @@ def get_model(kernel):
     config.model.unit_000.sec_001.quad_coeff = np.array([0.])
     
     config.model.unit_001.unit_type = np.bytes_(b'COLUMN_MODEL_1D')
+    config.model.unit_001.geometry = np.bytes_(b'AXIAL_FLOW_CYLINDER')
+    config.model.unit_001.forward_flow = np.int32(1)
+    config.model.unit_001.cross_section_area = np.float64(9.503317777109126e-05)
     config.model.unit_001.ncomp = np.int32(1)
     config.model.unit_001.col_dispersion = np.float64(0.0)
-    config.model.unit_001.col_length = np.float64(0.1)
+    config.model.unit_001.bed_length = np.float64(0.1)
     config.model.unit_001.npartype = 1
     config.model.unit_001.col_porosity = np.float64(0.25)
-    config.model.unit_001.cross_section_area = np.float64(9.503317777109126e-05)
     config.model.unit_001.init_c = np.array([0.])
     # Discretization
     config.model.unit_001.discretization.spatial_method = "FV"

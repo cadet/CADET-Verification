@@ -313,8 +313,10 @@ def DPFR_PBM_primarySecondaryNucleationGrowth(n_x, n_col, cadet_path, output_pat
 
     # Tubular reactor
     model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.root.input.model.unit_001.forward_flow = 1
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.col_length = 0.47
+    model.root.input.model.unit_001.bed_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4  # m^2
     model.root.input.model.unit_001.col_porosity = 0.21
     model.root.input.model.unit_001.col_dispersion = 4.2e-05     # m^2/s
@@ -905,8 +907,10 @@ def Agg_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c, 
 
     # Tubular reactor
     model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.root.input.model.unit_001.forward_flow = 1
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.col_length = 0.47
+    model.root.input.model.unit_001.bed_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
     model.root.input.model.unit_001.col_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
@@ -1020,8 +1024,10 @@ def Frag_DPFR(n_x: 'int, number of x bins', n_col: 'int, number of z bins', x_c,
 
     # Tubular reactor
     model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.root.input.model.unit_001.forward_flow = 1
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.col_length = 0.47
+    model.root.input.model.unit_001.bed_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
     model.root.input.model.unit_001.col_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s
@@ -1155,8 +1161,10 @@ def DPFR_PBM_NGGR_aggregation(n_x: 'int, number of x bins', n_col: 'int, number 
 
     # Tubular reactor
     model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.root.input.model.unit_001.forward_flow = 1
     model.root.input.model.unit_001.ncomp = nComp
-    model.root.input.model.unit_001.col_length = 0.47
+    model.root.input.model.unit_001.bed_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 3.066e-05
     model.root.input.model.unit_001.col_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05
@@ -1289,8 +1297,10 @@ def Agg_Frag_DPFR(n_x : 'int, number of x bins', n_col : 'int, number of z bins'
 
     # Tubular reactor
     model.root.input.model.unit_001.unit_type = 'COLUMN_MODEL_1D'
+    model.root.input.model.unit_001.geometry = 'AXIAL_FLOW_CYLINDER'
+    model.root.input.model.unit_001.forward_flow = 1
     model.root.input.model.unit_001.ncomp = n_x
-    model.root.input.model.unit_001.col_length = 0.47
+    model.root.input.model.unit_001.bed_length = 0.47
     model.root.input.model.unit_001.cross_section_area = 1.46e-4*0.21  # m^2
     model.root.input.model.unit_001.col_porosity = 1.0
     model.root.input.model.unit_001.col_dispersion = 4.2e-05           # m^2/s

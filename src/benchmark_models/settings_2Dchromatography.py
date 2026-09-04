@@ -207,7 +207,7 @@ def GRM2D_linBnd_benchmark1(
     nComp = 1
     column.NCOMP = nComp
 
-    column.COL_LENGTH = 0.014
+    column.BED_LENGTH = 0.014
     column.COL_RADIUS = 0.0035
     column.CROSS_SECTION_AREA = np.pi * column.COL_RADIUS**2
 
@@ -272,7 +272,7 @@ def GRM2D_linBnd_benchmark1(
 
         rad_coords = np.zeros(nRadPoints)
         ax_coords = np.zeros((axMethod+1)*axNElem)
-        ax_delta = column.COL_LENGTH / axNElem
+        ax_delta = column.BED_LENGTH / axNElem
         rad_delta = column.COL_RADIUS / radNElem
 
         if axMethod > 0:
@@ -303,7 +303,7 @@ def GRM2D_linBnd_benchmark1(
         else:
             column.discretization.POLYDEG = axMethod
             column.discretization.NELEM = axNElem
-            column.discretization.POLYNOMIAL_INTEGRATION_TYPE = 1
+            column.discretization.USE_COLLOCATION_DG = 1
     elif axMethod == 0:
         column.discretization.SPATIAL_METHOD = "FV"
         column.discretization.NCOL = axNElem

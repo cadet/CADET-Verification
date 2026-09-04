@@ -38,14 +38,15 @@ def get_model():
     m.input.model.unit_000.sec_001.cube_coeff  = [0.0]
 
     column = m.input.model.unit_001
-    column.unit_type = 'COLUMN_MODEL_1D'
     column.ncomp = 1
-    column.npartype = 0
-    column.col_length = 1.0
+    column.unit_type = 'COLUMN_MODEL_1D'
+    column.geometry = 'AXIAL_FLOW_CYLINDER'
+    column.forward_flow = 1
+    column.cross_section_area = 1.0 / (0.01 * 1.0)
+    column.bed_length = 1.0
     column.col_porosity = 1.0
-    column.total_porosity = 1.0
     column.col_dispersion = [1e-4]
-    column.velocity = 0.01
+    column.npartype = 0
     column.init_c = [0.0]
 
     disc = column.discretization
