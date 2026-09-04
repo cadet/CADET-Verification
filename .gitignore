@@ -21,3 +21,12 @@ dist/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
+
+# AI folders
+.claude
+.claude/
+.cursor/
+.aider*
+.copilot/
+.continue/
+.codeium/
