@@ -114,15 +114,14 @@ documented but previously-unused parameter-dependency mechanism:
     required, with Db_i(X1)=Db_i|V=1 by construction. See docs at
     https://cadet.github.io/master/modelling/parameter_dependencies.html
     and https://cadet.github.io/master/interface/parameter_dependencies_config.html.
-    NOTE: the analogous FILM_DIFFUSION_DEP mechanism exists in CADET-Core
-    but is only wired into the legacy GeneralRateModel/LumpedRateModelWithPores
-    classes (old GENERAL_RATE_MODEL/LUMPED_RATE_MODEL_WITH_PORES unit
-    types), NOT into GeneralRateParticle.cpp/ParticleDiffusionOperatorFV.cpp
-    (the particle framework actually used by COLUMN_MODEL_1D, confirmed by
-    grepping for FILM_DIFFUSION_DEP/ParameterDependence usage in those
-    files) -- so Bi_i(V)'s position-dependence still cannot be represented
-    exactly for this unit type; the iave=2 fallback below remains necessary
-    for that piece specifically.
+    NOTE: the analogous FILM_DIFFUSION_DEP mechanism originally existed in
+    CADET-Core only for the legacy GeneralRateModel/LumpedRateModelWithPores
+    classes (old GENERAL_RATE_MODEL/LUMPED_RATE_MODEL_WITH_PORES unit types),
+    not for GeneralRateParticle.cpp/ParticleDiffusionOperatorFV.cpp (the
+    particle framework used by COLUMN_MODEL_1D) -- this has since been
+    implemented (see point (6) below), so Bi_i(V)'s position-dependence IS
+    now represented via FILM_DIFFUSION_DEP, superseding the iave=2 fallback
+    previously used here.
 
 (4) DG bulk discretization cross-validation, and a THIRD bug found+fixed:
     the user asked whether these scripts also reproduce the paper using DG
@@ -197,19 +196,46 @@ documented but previously-unused parameter-dependency mechanism:
     convergence and the MSE-vs-FV check above already pass well before this
     resolution is reached).
 
-Fixes (1), (2), (4), and (5) were rebuilt and installed to
+(6) FILM_DIFFUSION_DEP implemented for GeneralRateParticle/COLUMN_MODEL_1D
+    (user request): per Eq. (14.16), Bi_i(V) (hence k_i(V)) scales with the
+    local velocity as k_i(V) ~ v^(1/3) -- structurally identical to the
+    dispersion dependency (3) above, just with EXPONENT=1/3 instead of 1, and
+    living on the PARTICLE side of the model rather than the bulk operator.
+    This did not exist for COLUMN_MODEL_1D's particle framework before this
+    change (only for the legacy GeneralRateModel/LumpedRateModelWithPores
+    classes) and required new communication between the bulk operator (which
+    owns the position/velocity information) and the particle module (which
+    owns the film-diffusion coefficient), bridged by the unit operation
+    (ColumnModel1D): `columnPackingParameters` (the existing per-bulk-point
+    channel from ColumnModel1D to GeneralRateParticle) gained a `velocity`
+    field, populated once per bulk point via a new/existing
+    `currentVelocity(pos)` accessor on the bulk operator (already present for
+    FV; newly added for the DG variable-cross-section operator, mirroring
+    FV's convention exactly). `ParticleDiffusionOperatorBase` gained a
+    `_filmDiffusionDep` (mirroring `_dispersionDep`) and a
+    `modifiedFilmDiffusion()` helper evaluating it pointwise at that
+    velocity. This is a pointwise/"mass-lumped" evaluation for BOTH FV and
+    DG -- for FV this is standard (matches the doc's own "midpoint rule"
+    treatment of this exact term); for DG this is a deliberate simplification
+    of the fully-consistent alternative (a per-DG-element weighted mass
+    matrix, mirroring how dispersion's stiffness matrix is built via Gauss
+    quadrature), chosen because film diffusion is a reaction/source-type term
+    in the bulk PDE (not a derivative/stiffness term like dispersion): for a
+    CONSTANT k_f, the area-weighted mass matrix cancels exactly against its
+    own inverse, collapsing to the identical pointwise form used here, so the
+    pointwise treatment introduces only a (small, standard, order-reducing)
+    mass-lumping approximation once k_f varies spatially -- not a
+    qualitatively different fidelity level than what FV already accepts for
+    this term.
+
+Fixes (1), (2), (4), and (5), and feature (6), were rebuilt and installed to
 C:/Users/jmbr/software/CADET-Core/out/install/aRELEASE.
 
 --- Position-dependent Bi_i(V) (Eq. 14.16, the paper's iave=0 treatment) ---
-As noted in (3) above, FILM_DIFFUSION_DEP is unavailable for this particle
-framework, so the paper's true position-dependent iave=0 Bi_i(V) still
-cannot be represented exactly. FALLBACK (explicitly sanctioned by the
-paper's own text as a legitimate alternative): the paper's own "iave=2"
-approximation -- a single constant Bi_i (hence film-diffusion coefficient
-k_i), evaluated once via Eq. (14.16) at V=0.5, instead of the true
-position-dependent field. Given V0=0.04 is small, the iave=0 vs iave=2
-deviation is expected to be minor -- this is exactly the comparison the
-paper itself uses to validate the constant-Bi approximation.
+Represented via FILM_DIFFUSION_DEP='POWER_LAW' with EXPONENT=1/3 (see point
+(6) above), evaluated at the true local velocity for every bulk point -- the
+paper's own "iave=0" treatment, no longer needing the "iave=2"
+constant-Bi-at-V=0.5 fallback used in earlier versions of this script.
 
 ===========================================================================
 Step 2 -- reparameterization (paper's dimensionless -> CADET's dimensional)
@@ -307,10 +333,18 @@ for i, p in PAPER.items():
     # EXPONENT=1, CADET computes Db_i(X) = COL_DISPERSION[i] * v(X), so we
     # supply Db_i|V=1 / v(X1) here to get Db_i(X1) = Db_i|V=1 exactly.
     p['col_dispersion_value'] = p['Db_V1'] / V_REF
+    # FILM_DIFFUSION config value: with FILM_DIFFUSION_DEP='POWER_LAW' and
+    # EXPONENT=1/3 (per Eq. (14.16): k_i(V) ~ v^(1/3), the same relationship
+    # expressed w.r.t. the actual local velocity that CADET's native
+    # POWER_LAW dependency multiplies by), we supply k_i|V=1 / v(X1)^(1/3)
+    # here to get k_i(X1) = k_i|V=1 exactly -- see Step 1 point (5) in the
+    # module docstring for the full derivation and how this now supersedes
+    # the "iave=2" constant-Bi fallback used previously.
+    p['film_diffusion_value'] = p['k_V1'] / V_REF ** (1.0 / 3.0)
 
-# "iave = 2" fallback for Bi_i/k_i only (FILM_DIFFUSION_DEP unavailable for
-# this particle framework, see Step 1(3)): constant k_i evaluated at V=0.5
-# via Eq. (14.16).
+# "iave=2" constant-Bi fallback (paper's own alternative to true
+# position-dependent Bi_i(V), Eq. 14.16 at V=0.5) -- used when
+# film_diffusion_velocity_dep=False in get_model() (see there).
 IAVE2_FACTOR = ((1.0 - V0) / (0.5 + V0)) ** (1.0 / 6.0)
 for i, p in PAPER.items():
     p['k_avg'] = p['k_V1'] * IAVE2_FACTOR
@@ -329,12 +363,24 @@ def dimless_time(t_phys):
 # Step 5: CADET model definition
 # ---------------------------------------------------------------------------
 def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
-              dg_polydeg=4):
+              dg_polydeg=4, col_dispersion_velocity_dep=True,
+              film_diffusion_velocity_dep=True):
     """bulk_discretization: 'FV' (default, validated) or 'DG' (cross-validation,
     see Step 1 point (4) in the module docstring -- also requires
     DISPERSION_SPATIAL_DEPENDENCE_POLYDEG for COL_DISPERSION_DEP with DG).
     dg_nelem defaults to max(ncol // (dg_polydeg + 1), 4) if not given, so the
-    two discretizations can be compared at a roughly similar total DOF count."""
+    two discretizations can be compared at a roughly similar total DOF count.
+
+    col_dispersion_velocity_dep: if True (default), Db_i(X) ~ v(X) via
+        COL_DISPERSION_DEP='POWER_LAW' (Eq. 14.15, see Step 1 point (3)). If
+        False, COL_DISPERSION is held constant at Db_i|V=1 everywhere (an
+        ablation of the paper's own model, since the paper does not offer a
+        non-dependent variant of the dispersion relationship).
+    film_diffusion_velocity_dep: if True (default), k_i(X) ~ v(X)^(1/3) via
+        FILM_DIFFUSION_DEP='POWER_LAW' (Eq. 14.16, see Step 1 point (6)). If
+        False, falls back to the paper's own "iave=2" constant-Bi
+        approximation (k_i evaluated once at V=0.5) used by earlier versions
+        of this script."""
     m = Dict()
     m.input.model.nunits = 3
 
@@ -377,9 +423,12 @@ def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
     col.cylinder_height = CYL_HEIGHT
     col.bed_length = BED_LENGTH
     col.col_porosity = EPS_B
-    col.col_dispersion = [PAPER[1]['col_dispersion_value'], PAPER[2]['col_dispersion_value']]
-    col.col_dispersion_dep = 'POWER_LAW'
-    col.col_dispersion_dep_exponent = 1.0
+    if col_dispersion_velocity_dep:
+        col.col_dispersion = [PAPER[1]['col_dispersion_value'], PAPER[2]['col_dispersion_value']]
+        col.col_dispersion_dep = 'POWER_LAW'
+        col.col_dispersion_dep_exponent = 1.0
+    else:
+        col.col_dispersion = [PAPER[1]['Db_V1'], PAPER[2]['Db_V1']]
     col.forward_flow = [0]
     col.init_c = [0.0, 0.0]
 
@@ -412,7 +461,12 @@ def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
     col.particle_type_000.init_cs = [0.0, 0.0]
 
     col.particle_type_000.has_film_diffusion = 1
-    col.particle_type_000.film_diffusion = [PAPER[1]['k_avg'], PAPER[2]['k_avg']]
+    if film_diffusion_velocity_dep:
+        col.particle_type_000.film_diffusion = [PAPER[1]['film_diffusion_value'], PAPER[2]['film_diffusion_value']]
+        col.particle_type_000.film_diffusion_dep = 'POWER_LAW'
+        col.particle_type_000.film_diffusion_dep_exponent = 1.0 / 3.0
+    else:
+        col.particle_type_000.film_diffusion = [PAPER[1]['k_avg'], PAPER[2]['k_avg']]
     col.particle_type_000.has_pore_diffusion = 1
     col.particle_type_000.has_surface_diffusion = 0
     col.particle_type_000.par_geom = 'SPHERE'
@@ -617,12 +671,11 @@ if __name__ == '__main__':
     for i, p in PAPER.items():
         print(f"  Component {i}: Db(V=1)={p['Db_V1']:.4g} m^2/s (COL_DISPERSION={p['col_dispersion_value']:.4g}), "
               f"Dp={p['Dp']:.4g} m^2/s, "
-              f"k(V=1)={p['k_V1']:.4g} m/s, k(avg,V=0.5,iave2)={p['k_avg']:.4g} m/s, "
+              f"k(V=1)={p['k_V1']:.4g} m/s (FILM_DIFFUSION={p['film_diffusion_value']:.4g}), "
               f"ka={p['ka']:.4g}, kd={p['kd']:.4g}, qmax={p['qmax']:.4g}")
     print(f"  X0={X0:.4g} m, X1={X1:.4g} m, bed_length={BED_LENGTH:.4g} m, "
           f"V_REF={V_REF:.4g} m/s, V_CHAR={V_CHAR:.4g} m/s, "
           f"Q={Q_FLOW:.4g} m^3/s, T_END={T_END:.4g} s")
-    print(f"  iave=2 averaging factor at V=0.5: {IAVE2_FACTOR:.5g}")
 
     print("\nRunning CADET simulation...")
     t_phys, outlet = run_model()
@@ -650,8 +703,8 @@ if __name__ == '__main__':
     ax.set_xlim(0, 6)
     ax.set_ylim(0, 1.4)
     ax.set_title('Gu (2015), Fig. 14.3 -- binary frontal adsorption, inward-flow RFC\n'
-                  '(CADET native radial geometry; velocity-scaled dispersion via\n'
-                  'COL_DISPERSION_DEP; iave=2 constant-Bi approx.; see script docstring)',
+                  '(CADET native radial geometry; velocity-scaled dispersion and film\n'
+                  'diffusion via COL_DISPERSION_DEP/FILM_DIFFUSION_DEP; see script docstring)',
                   fontsize=9)
     ax.legend(loc='center right', fontsize=8)
     ax.grid(alpha=0.3)
