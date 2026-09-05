@@ -107,7 +107,21 @@ docstring, scripts/fig14_3.py -- summarized here):
     dependence still cannot be represented exactly; the iave=2 fallback
     below remains necessary for that piece.
 
-Fixes (1) and (2) were rebuilt and installed to
+(4) DG bulk discretization cross-validation, and a THIRD bug found+fixed:
+    get_model()'s bulk_discretization='DG' option exposes this. A genuine
+    bug in `VariableCrossSectionConvectionDispersionOperatorBaseDG::
+    computeOperatorsRadial()`/`computeOperatorsFrustum()`
+    (ConvectionDispersionOperatorDG.cpp) passed the CONFIGURED base
+    dispersion value itself as the argument to the POWER_LAW dependency
+    (instead of the local velocity) and never multiplied the result by that
+    base value -- silently mis-scaling the dispersion by roughly 1/v(X1).
+    Fixed by computing the true local velocity at each Gauss quadrature node
+    and multiplying the dependency's result by the base dispersion, matching
+    the FV kernel's convention. Verified: DG (NELEM=8/16, POLYDEG=4) now
+    matches FV and the digitized reference closely. Full detail in the
+    sibling Fig. 14.3 script's docstring, scripts/fig14_3.py.
+
+Fixes (1), (2), and (4) were rebuilt and installed to
 C:/Users/jmbr/software/CADET-Core/out/install/aRELEASE. With all of the
 above in place, this script uses genuine inward flow (FORWARD_FLOW=[0],
 single unchanging direction) and CADET's true radial PDE -- no axial-column
@@ -242,7 +256,12 @@ def dimless_time(t_phys):
 # ---------------------------------------------------------------------------
 # Step 5: CADET model definition
 # ---------------------------------------------------------------------------
-def get_model(ncol=120, par_ncells=4, n_points=800):
+def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
+              dg_polydeg=4, dg_nelem=None):
+    """bulk_discretization: 'FV' (default, validated) or 'DG' (cross-validation,
+    see fig14_3.py's Step 1 point (4) for the CADET-Core DG dispersion-
+    dependence bug this required finding and fixing). dg_nelem defaults to
+    max(ncol // (dg_polydeg + 1), 4) if not given."""
     m = Dict()
     m.input.model.nunits = 3
 
@@ -294,16 +313,23 @@ def get_model(ncol=120, par_ncells=4, n_points=800):
     col.init_c = [0.0, 0.0]
 
     col.discretization.USE_ANALYTIC_JACOBIAN = 1
-    col.discretization.SPATIAL_METHOD = 'FV'
-    col.discretization.NCOL = ncol
-    col.discretization.RECONSTRUCTION = 'WENO'
-    col.discretization.weno.WENO_ORDER = 3
-    col.discretization.weno.WENO_EPS = 1e-10
-    col.discretization.weno.BOUNDARY_MODEL = 0
-    col.discretization.GS_TYPE = 1
-    col.discretization.MAX_KRYLOV = 0
-    col.discretization.MAX_RESTARTS = 10
-    col.discretization.SCHUR_SAFETY = 1e-8
+    if bulk_discretization == 'DG':
+        col.discretization.SPATIAL_METHOD = 'DG'
+        col.discretization.POLYDEG = dg_polydeg
+        col.discretization.NELEM = dg_nelem if dg_nelem is not None else max(ncol // (dg_polydeg + 1), 4)
+        col.discretization.USE_COLLOCATION_DG = 0
+        col.dispersion_spatial_dependence_polydeg = dg_polydeg
+    else:
+        col.discretization.SPATIAL_METHOD = 'FV'
+        col.discretization.NCOL = ncol
+        col.discretization.RECONSTRUCTION = 'WENO'
+        col.discretization.weno.WENO_ORDER = 3
+        col.discretization.weno.WENO_EPS = 1e-10
+        col.discretization.weno.BOUNDARY_MODEL = 0
+        col.discretization.GS_TYPE = 1
+        col.discretization.MAX_KRYLOV = 0
+        col.discretization.MAX_RESTARTS = 10
+        col.discretization.SCHUR_SAFETY = 1e-8
 
     # --- Particles: GENERAL_RATE_PARTICLE (film + pore diffusion, spherical),
     # instantaneous local equilibrium multicomponent Langmuir ---
@@ -363,8 +389,8 @@ def get_model(ncol=120, par_ncells=4, n_points=800):
     return m
 
 
-def run_model(ncol=120, par_ncells=4, n_points=800, fname='fig14_5.h5'):
-    model = get_model(ncol=ncol, par_ncells=par_ncells, n_points=n_points)
+def run_model(ncol=120, par_ncells=4, n_points=800, fname='fig14_5.h5', **kwargs):
+    model = get_model(ncol=ncol, par_ncells=par_ncells, n_points=n_points, **kwargs)
     c = Cadet(install_path=INSTALL_PATH)
     c.root.input = model.input
     c.filename = os.path.join(HERE, fname)
@@ -533,3 +559,16 @@ if __name__ == '__main__':
     outpath = os.path.join(HERE, 'fig14_5_comparison.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+    # --- DG bulk-discretization cross-validation (see fig14_3.py Step 1 point (4)) ---
+    print("\nCross-validating against DG bulk discretization (bulk_discretization='DG')...")
+    for dg_nelem in (8, 16):
+        t_dg, outlet_dg = run_model(par_ncells=4, bulk_discretization='DG', dg_polydeg=4,
+                                     dg_nelem=dg_nelem, fname=f'fig14_5_dg{dg_nelem}.h5')
+        tau_dg = dimless_time(t_dg)
+        c1_dg = outlet_dg[:, 0] / PAPER[1]['C0_phys']
+        c2_dg = outlet_dg[:, 1] / PAPER[2]['C0_phys']
+        i1_dg, i2_dg = np.argmax(c1_dg), np.argmax(c2_dg)
+        print(f"  DG NELEM={dg_nelem:2d} POLYDEG=4: peak1 tau={tau_dg[i1_dg]:.4g} h1={c1_dg[i1_dg]:.4g}"
+              f"  peak2 tau={tau_dg[i2_dg]:.4g} h2={c2_dg[i2_dg]:.4g}"
+              f"  (FV/ref: 2.34/0.578, 5.41/0.151 -- 2.375/0.568, 5.375/0.153)")

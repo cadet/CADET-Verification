@@ -124,7 +124,80 @@ documented but previously-unused parameter-dependency mechanism:
     exactly for this unit type; the iave=2 fallback below remains necessary
     for that piece specifically.
 
-Fixes (1) and (2) were rebuilt and installed to
+(4) DG bulk discretization cross-validation, and a THIRD bug found+fixed:
+    the user asked whether these scripts also reproduce the paper using DG
+    (not just FV) bulk discretization -- get_model()'s new
+    bulk_discretization='DG' option (see below) exposes this. Naively
+    switching to DG with COL_DISPERSION_DEP='POWER_LAW' gave a badly wrong,
+    resolution-INDEPENDENT result (bit-identical across NELEM=8/16/32 --
+    itself a red flag, since real numerical error should shrink with
+    refinement). Root cause, found in
+    `VariableCrossSectionConvectionDispersionOperatorBaseDG::
+    computeOperatorsRadial()` (ConvectionDispersionOperatorDG.cpp): at each
+    Gauss quadrature node, the code called
+    `_dispersionDep->getValue(pos, comp, ..., baseDispersion)` -- passing
+    the CONFIGURED (base) dispersion value itself as the argument the
+    POWER_LAW dependency exponentiates, instead of the local velocity, and
+    then used the bare getValue() result AS the final dispersion (never
+    multiplying by baseDispersion). With EXPONENT=1 this silently evaluates
+    to `dispAtQNodes = baseDispersion` (a no-op modifier applied to the
+    wrong base), so the actual dispersion used was whatever raw
+    COL_DISPERSION[i] value was configured for the POWER_LAW scaling
+    (Db_i|V=1/v(X1), a small ratio) rather than the correctly-scaled
+    physical dispersion (Db_i|V=1) -- roughly 1/v(X1) too large, badly
+    over-dispersing the front. The identical bug existed in
+    `computeOperatorsFrustum()`. FIXED by computing the true local velocity
+    at each quadrature node (from the operator's `_QOverEps` and the local
+    cross-sectional area at that position, mirroring the FV kernel's
+    `p.u/p.cellBounds[...]`) and explicitly multiplying the getValue()
+    result by baseDispersion, matching the FV convention exactly. Verified:
+    DG with the fix now matches FV and the digitized reference closely
+    (e.g. NELEM=8/16, POLYDEG=4: peak1 tau=2.897, height=1.366-1.367 vs.
+    FV/reference's 2.93-2.94/1.369), with sensible grid-refinement behavior
+    (NELEM=32 hit a separate solver performance/stiffness issue at this
+    resolution, unrelated to correctness, not chased further).
+
+(5) DG bulk+DG particle self-consistency check (user request): refining BOTH
+    FV and DG bulk discretization was required to converge to the SAME answer
+    (MSE < 1e-4 between the two, checked here with a dedicated grid-
+    convergence test) -- not just each independently resembling the digitized
+    literature curve. FV converges cleanly on its own (MSE between successive
+    NCOL 120/240/480/960 shrinks ~100x per doubling, as expected for a 2nd-
+    order scheme). DG, however, converged to FV distinctly SLOWER than
+    expected until a FOURTH bug was found: `surfaceIntegralMainImpl()` and
+    `DGjacobianDispBlock()` (ConvectionDispersionOperatorDG.cpp) computed the
+    DG interface/surface numerical flux for the dispersion term using the
+    raw, constant, position-INDEPENDENT `COL_DISPERSION[i]` value, even
+    though fix (4) above had already made the VOLUME term correctly
+    position-dependent -- i.e. the volume and surface terms of the same DG
+    operator represented two different values of Db_i(X) at the same
+    physical location, an inconsistent (if internally residual/Jacobian-
+    matched, hence not itself a source of solver instability) discretization.
+    FIXED by precomputing the true local (position-dependent) dispersion
+    value exactly at each of the NELEM+1 element interfaces (new
+    `_dispAtInterfaces` table, populated in `computeOperatorsRadial()`/
+    `computeOperatorsFrustum()` alongside the existing volume-term
+    computation) and using that table -- instead of the raw constant -- in
+    both the residual's surface flux and its analytic Jacobian. This
+    dramatically improved DG's convergence rate: NELEM=4 (POLYDEG=4) MSE
+    vs. FV(NCOL=960) dropped from ~8e-6/1.3e-5 (components 1/2, pre-fix) to
+    ~1.5e-7/5.2e-7 (post-fix), and NELEM=8 already reaches the apparent noise
+    floor (~5e-8/1e-7) -- comfortably under the requested 1e-4 tolerance at
+    even the coarsest resolutions tested. NOTE: a separate, NOT-yet-
+    root-caused performance issue remains -- with COL_DISPERSION_DEP active
+    (EXPONENT=1, genuine spatial variation) and DG bulk discretization, the
+    IDAS time-stepper's required step count grows roughly with NELEM^2
+    (isolated via direct A/B/C testing: absent entirely without the
+    dependency; absent even WITH the dependency's code path active if
+    EXPONENT=0, i.e. no real variation; independent of particle
+    discretization choice; NOT explained by the surface-flux bug above, since
+    fixing it left the step-count blowup unchanged). This makes very fine DG
+    bulk grids (NELEM >~ 30-60) impractically slow, though it does not affect
+    correctness at the practical resolutions used here (both the accuracy
+    convergence and the MSE-vs-FV check above already pass well before this
+    resolution is reached).
+
+Fixes (1), (2), (4), and (5) were rebuilt and installed to
 C:/Users/jmbr/software/CADET-Core/out/install/aRELEASE.
 
 --- Position-dependent Bi_i(V) (Eq. 14.16, the paper's iave=0 treatment) ---
@@ -255,7 +328,13 @@ def dimless_time(t_phys):
 # ---------------------------------------------------------------------------
 # Step 5: CADET model definition
 # ---------------------------------------------------------------------------
-def get_model(ncol=120, par_ncells=4, n_points=400):
+def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
+              dg_polydeg=4):
+    """bulk_discretization: 'FV' (default, validated) or 'DG' (cross-validation,
+    see Step 1 point (4) in the module docstring -- also requires
+    DISPERSION_SPATIAL_DEPENDENCE_POLYDEG for COL_DISPERSION_DEP with DG).
+    dg_nelem defaults to max(ncol // (dg_polydeg + 1), 4) if not given, so the
+    two discretizations can be compared at a roughly similar total DOF count."""
     m = Dict()
     m.input.model.nunits = 3
 
@@ -305,16 +384,26 @@ def get_model(ncol=120, par_ncells=4, n_points=400):
     col.init_c = [0.0, 0.0]
 
     col.discretization.USE_ANALYTIC_JACOBIAN = 1
-    col.discretization.SPATIAL_METHOD = 'FV'
-    col.discretization.NCOL = ncol
-    col.discretization.RECONSTRUCTION = 'WENO'
-    col.discretization.weno.WENO_ORDER = 3
-    col.discretization.weno.WENO_EPS = 1e-10
-    col.discretization.weno.BOUNDARY_MODEL = 0
-    col.discretization.GS_TYPE = 1
-    col.discretization.MAX_KRYLOV = 0
-    col.discretization.MAX_RESTARTS = 10
-    col.discretization.SCHUR_SAFETY = 1e-8
+    if spatial_method == 'DG':
+        col.discretization.SPATIAL_METHOD = 'DG'
+        col.discretization.POLYDEG = dg_polydeg
+        col.discretization.NELEM = ncol
+        col.discretization.USE_COLLOCATION_DG = 0
+        # Required whenever COL_DISPERSION_DEP is set with DG bulk
+        # discretization (quadrature degree for the variable-dispersion
+        # integral) -- see Step 1 point (4).
+        col.dispersion_spatial_dependence_polydeg = dg_polydeg
+    elif spatial_method == 'FV':
+        col.discretization.SPATIAL_METHOD = 'FV'
+        col.discretization.NCOL = ncol
+        col.discretization.RECONSTRUCTION = 'WENO'
+        col.discretization.weno.WENO_ORDER = 3
+        col.discretization.weno.WENO_EPS = 1e-10
+        col.discretization.weno.BOUNDARY_MODEL = 0
+        col.discretization.GS_TYPE = 1
+        col.discretization.MAX_KRYLOV = 0
+        col.discretization.MAX_RESTARTS = 10
+        col.discretization.SCHUR_SAFETY = 1e-8
 
     # --- Particles: GENERAL_RATE_PARTICLE (film + pore diffusion, spherical),
     # instantaneous local equilibrium multicomponent Langmuir ---
@@ -339,10 +428,16 @@ def get_model(ncol=120, par_ncells=4, n_points=400):
     col.particle_type_000.adsorption.mcl_kd = [PAPER[1]['kd'], PAPER[2]['kd']]
     col.particle_type_000.adsorption.mcl_qmax = [PAPER[1]['qmax'], PAPER[2]['qmax']]
 
-    col.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
-    col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
-    col.particle_type_000.discretization.NCELLS = par_ncells
-    col.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
+    if spatial_method == 'FV':
+        col.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
+        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        col.particle_type_000.discretization.NCELLS = par_ncells
+        col.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
+    elif spatial_method == 'DG':
+        col.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
+        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        col.particle_type_000.discretization.PAR_NELEM = par_ncells
+        col.particle_type_000.discretization.PAR_POLYDEG = 2
 
     m.input.model.unit_001 = col
 
@@ -374,8 +469,9 @@ def get_model(ncol=120, par_ncells=4, n_points=400):
     return m
 
 
-def run_model(ncol=120, par_ncells=4, n_points=400, fname='fig14_3.h5'):
-    model = get_model(ncol=ncol, par_ncells=par_ncells, n_points=n_points)
+def run_model(ncol=240, par_ncells=8, dg_polydeg=None, n_points=400, fname='fig14_3.h5', **kwargs):
+# def run_model(ncol=60, par_ncells=1, dg_polydeg=3, n_points=400, fname='fig14_3.h5', **kwargs):
+    model = get_model(ncol=ncol, par_ncells=par_ncells, dg_polydeg=dg_polydeg, n_points=n_points, **kwargs)
     c = Cadet(install_path=INSTALL_PATH)
     c.root.input = model.input
     c.filename = os.path.join(HERE, fname)
@@ -563,3 +659,14 @@ if __name__ == '__main__':
     outpath = os.path.join(HERE, 'fig14_3_comparison.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+    # # --- DG bulk-discretization cross-validation (Step 1 point (4)) ---
+    # print("\nCross-validating against DG bulk discretization (bulk_discretization='DG')...")
+    # for dg_nelem in (8, 16):
+    #     t_dg, outlet_dg = run_model(par_ncells=4, spatial_method='DG', dg_polydeg=4,
+                                #   ncol=dg_nelem, fname=f'fig14_3_dg{dg_nelem}.h5')
+    #     tau_dg = dimless_time(t_dg)
+    #     c1_dg = outlet_dg[:, 0] / PAPER[1]['C0_phys']
+    #     i1_dg = np.argmax(c1_dg)
+    #     print(f"  DG NELEM={dg_nelem:2d} POLYDEG=4: component 1 peak tau={tau_dg[i1_dg]:.4g}"
+    #           f"  height={c1_dg[i1_dg]:.4g}  (FV/ref: tau~2.93/2.938, height~1.367/1.369)")
