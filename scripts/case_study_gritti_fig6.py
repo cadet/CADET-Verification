@@ -882,14 +882,21 @@ def main():
 
     ax.set_xlabel('Time [s] (digitized-figure axis; CADET curves peak-aligned, see Step 4)')
     ax.set_ylabel('Area-normalized signal (each curve: ' + r'$\int c\,dt=1$' + ')')
-    ax.set_title("Gritti et al. (2019), Fig. 6 -- valerophenone, isocratic elution\n"
-                  "cylindrical vs. conical (frustum) column, both flow directions\n"
-                  "(CADET native COLUMN_MODEL_1D, GEOMETRY=AXIAL_FLOW_CYLINDER/FRUSTUM,\n"
-                  "real flow-dependent H(v) from Fig. 5 via COL_DISPERSION_DEP=VAN_DEEMTER)",
-                  fontsize=8.5)
-    ax.legend(fontsize=7, ncol=1, loc='upper left')
+    # ax.set_title("Gritti et al. (2019), Fig. 6 -- valerophenone, isocratic elution\n"
+    #               "cylindrical vs. conical (frustum) column, both flow directions\n"
+    #               "(CADET native COLUMN_MODEL_1D, GEOMETRY=AXIAL_FLOW_CYLINDER/FRUSTUM,\n"
+    #               "real flow-dependent H(v) from Fig. 5 via COL_DISPERSION_DEP=VAN_DEEMTER)",
+    #               fontsize=12)
+    ax.legend(fontsize=12, ncol=1, loc='upper left')
     ax.grid(alpha=0.3)
     ax.set_xlim(215.0, 250.0)
+    # add MSE metric box to plot for all three configurations
+    for i, key in enumerate(['cone_s2', 'cyl_s2', 'cyl_s1']):
+        mse = all_metrics[key]['mse']
+        ax.text(0.98, 0.02 + i*0.05, f"{key} MSE: {mse:.4g}", transform=ax.transAxes,
+                verticalalignment='bottom', horizontalalignment='right',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
+
     fig.tight_layout()
     outpath = os.path.join(HERE, 'case_study_gritti_fig6_comparison.png')
     fig.savefig(outpath, dpi=150)

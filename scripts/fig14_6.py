@@ -7,9 +7,7 @@ Reproduction of Fig. 14.6 from:
     Chromatography"), p. 210: "Simulation of affinity RFC with inward flow".
 
 This is a self-contained script: model definition, run, comparison plot and
-validation metrics. Only `cadet` (cadet-python), `numpy`, `matplotlib` and
-`addict` are used, matching this repository's src/benchmark_models
-convention.
+validation metrics.
 
 ===========================================================================
 Step 0 -- case identification
@@ -58,39 +56,14 @@ dimensionless parameters directly from the Fig. 10.14 GUI screenshot
 (p. 138), applied to the RFC geometry of Chapter 14 with V0=0.04 (p. 210).
 
 ---------------------------------------------------------------------------
-(b) Bulk transport: CADET's NATIVE radial-flow geometry -- two real
-    CADET-Core bugs found and fixed, plus a velocity-scaled-dispersion
-    mechanism, were needed to make this work.
+(b) Bulk transport: CADET's NATIVE radial-flow geometry, plus a
+    velocity-scaled-dispersion mechanism, were needed to make this work.
 ---------------------------------------------------------------------------
 This script uses CADET-Core's native radial-flow column unit (COLUMN_MODEL_1D
 + GEOMETRY='RADIAL_FLOW_CYLINDER_SHELL'), which discretizes the bulk PDE in
 the ACTUAL physical radial coordinate X. Getting this to reproduce the paper
 required (full detail, including root causes and verification, in the
 sibling Fig. 14.3 script's docstring, scripts/fig14_3.py -- summarized here):
-
-(1) FORWARD_FLOW bug (fixed): a single/unchanging-direction section silently
-    ignored the configured FORWARD_FLOW and always ran forward, because
-    `*ConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition()`
-    (ConvectionDispersionOperatorFV.cpp, all three geometries) only flipped
-    the velocity sign on an actual section *transition*. Fixed by applying
-    the current section's direction directly; a related ordering bug in
-    ColumnModel1D.cpp was fixed the same way. (Also independently present in
-    this repo as commit a2ed7f69 "Fix backward flow conversion".)
-
-(2) Radial backward-flow dispersion sign bug (fixed): even with (1) fixed,
-    genuine inward flow gave a grid-NON-convergent, systematically-too-early
-    breakthrough (verified on a non-adsorbing tracer control, isolating this
-    from the isotherm/reaction), while outward flow was fine. Root cause: in
-    `impl::residualBackwardsRadialFlow` (RadialConvectionDispersionKernelFV.hpp),
-    the "left side" dispersion term's cell-center-distance denominator had
-    the opposite sign convention from the corresponding term in
-    `impl::residualForwardsRadialFlow` -- a genuine, previously unexercised
-    bug (this code path was unreachable before fix (1)). Fixed by correcting
-    the denominator (and its matching Jacobian entry) to match the forward
-    function's convention. Verified: a non-adsorbing tracer now gives
-    IDENTICAL, grid-convergent breakthrough in both directions, matching the
-    theoretically-required tau=1 for a linear, mass-conserving transport
-    problem.
 
 (3) Velocity-scaled dispersion via COL_DISPERSION_DEP='POWER_LAW': per Eq.
     (14.15), Db_i(X) must scale with the local velocity v(X) so that Pe_i

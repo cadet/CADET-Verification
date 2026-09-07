@@ -428,7 +428,7 @@ if __name__ == '__main__':
     print("\nRunning CADET simulation...")
 
     model_kwargs = {
-        'film_diffusion_velocity_dep': True,
+        'film_diffusion_velocity_dep': False,
         'col_dispersion_velocity_dep': True
 
     }
@@ -436,9 +436,11 @@ if __name__ == '__main__':
     spatial_method = 'DG'
 
     if spatial_method == 'DG':
-        t_phys, outlet = run_model(ncol=128, par_ncells=8, dg_polydeg=4, n_points=400, fname=f'fig14_3_{spatial_method}.h5', **model_kwargs)
+        t_phys, outlet = run_model(ncol=64, par_ncells=2, dg_polydeg=4, spatial_method=spatial_method,
+                                   n_points=400, fname=f'fig14_3_{spatial_method}.h5', **model_kwargs)
     elif spatial_method == 'FV':
-        t_phys, outlet = run_model(ncol=240, par_ncells=8, dg_polydeg=None, n_points=400, fname=f'fig14_3_{spatial_method}.h5', **model_kwargs)
+        t_phys, outlet = run_model(ncol=240, par_ncells=8, dg_polydeg=None, spatial_method=spatial_method,
+                                    n_points=400, fname=f'fig14_3_{spatial_method}.h5', **model_kwargs)
 
     tau_sim = dimless_time(t_phys)
     c1_sim = outlet[:, 0] / PAPER[1]['C0_phys']
@@ -471,7 +473,7 @@ if __name__ == '__main__':
     mse_text = f"MSE Component 1: {metrics['component_1']['mse']:.4g}\nMSE Component 2: {metrics['component_2']['mse']:.4g}"
     box_text = mse_text # + "\n" + peak_text + "\n" + height_text
     ax.text(0.95, 0.95, box_text, transform=ax.transAxes, fontsize=12,
-            verticalalignment='top', horizontalalignment='right',
+            verticalalignment='top', horizontalalignment='right', multialignment='left',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
     ax.legend(loc='center right', fontsize=12)
     ax.grid(alpha=0.3)

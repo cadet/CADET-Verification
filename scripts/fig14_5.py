@@ -462,7 +462,7 @@ if __name__ == '__main__':
 
     }
 
-    spatial_method = 'DG'
+    spatial_method = 'FV'
 
     if spatial_method == 'DG':
         t_phys, outlet = run_model(ncol=16, par_ncells=1, dg_polydeg=4, bulk_discretization=spatial_method,
@@ -499,10 +499,10 @@ if __name__ == '__main__':
     # add a box with MSE, peak position and height deviation
     peak_text = f"Peak Component 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak Component 2: {metrics['component_2']['peak_time_relerr_%']:.4g}"
     height_text = f"Peak Deviation Component 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak Deviation Component 2: {metrics['component_2']['peak_time_relerr_%']:.4g}\nHeight Deviation Component 1: {metrics['component_1']['peak_height_relerr_%']:.4g}\nHeight Deviation Component 2: {metrics['component_2']['peak_height_relerr_%']:.4g}"
-    mse_text = f"MSE Component 1: {metrics['component_1']['mse']:.4g}\nMSE Component 2: {metrics['component_2']['mse']:.4g}"
+    mse_text = f"MSE Component 1: {metrics['component_1']['mse']:.4g}\n"+f"MSE Component 2: {metrics['component_2']['mse']:.4g}"
     box_text = mse_text # + "\n" + peak_text + "\n" + height_text
-    ax.text(0.55, 0.95, box_text, transform=ax.transAxes, fontsize=12,
-            verticalalignment='top', horizontalalignment='right',
+    ax.text(0.98, 0.65, box_text, transform=ax.transAxes, fontsize=12,
+            verticalalignment='top', horizontalalignment='right', multialignment='left',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
     ax.legend(loc='upper right', fontsize=12)
     ax.grid(alpha=0.3)
