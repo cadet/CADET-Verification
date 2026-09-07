@@ -462,10 +462,10 @@ if __name__ == '__main__':
 
     }
 
-    spatial_method = 'FV'
+    spatial_method = 'DG'
 
     if spatial_method == 'DG':
-        t_phys, outlet = run_model(ncol=16, par_ncells=1, dg_polydeg=4, bulk_discretization=spatial_method,
+        t_phys, outlet = run_model(ncol=32, par_ncells=2, dg_polydeg=4, bulk_discretization=spatial_method,
                                    n_points=400, fname=f'fig14_5_{spatial_method}.h5', **model_kwargs)
     elif spatial_method == 'FV':
         t_phys, outlet = run_model(ncol=240, par_ncells=8, dg_polydeg=None, bulk_discretization=spatial_method,
