@@ -44,6 +44,106 @@ Target for validation: Fig. 6 (isocratic), NOT Fig. 7 (the analogous
 gradient-elution figure) -- Fig. 6 is the figure named in the task.
 
 ===========================================================================
+REVISION NOTE (this version supersedes an earlier one after user review)
+===========================================================================
+User feedback on the first version of this script was: (1) the digitized
+reference data did not look precise enough right at the peaks, and (2) the
+three simulated curves were visually indistinguishable in the comparison
+plot even though the three real curves in Fig. 6 clearly are (cylinder
+visibly taller/narrower, with more tailing, than the near-overlapping cone
+pair). Both points were investigated in depth; the concrete findings and
+fixes are:
+
+(1) DIGITIZATION ACCURACY. Fig. 6 was re-rendered from the source PDF at
+    600 DPI (up from 300 DPI) and re-digitized from scratch with a
+    dedicated, hand-verified pixel-classification script (axis ticks
+    located programmatically and cross-checked to <0.013 s / <0.0002 AU
+    residuals; explicit exclusion of the title-box shadow border and the
+    legend box, both confirmed by direct pixel inspection to otherwise
+    contaminate the extraction). The new peak values (black/red/blue =
+    0.1696/0.1591/0.1613 AU) agree with the original 300-DPI extraction
+    (0.1695/0.1589/0.1611 AU) to <0.15% -- i.e. the digitization was
+    ALREADY accurate at the peak; seeing this confirmed the real problem
+    was elsewhere (point 2). The re-digitized, higher point-density
+    (1709 points, 600 DPI) CSV is used in this version regardless, since
+    it is strictly higher quality.
+
+(2) CURVE DISTINGUISHABILITY. This turned out to be driven by TWO
+    separate, compounding issues, one a plotting mistake and one a
+    genuine, deliberately-flagged modelling simplification -- both are
+    now fixed/replaced:
+
+    (a) PLOTTING BUG (the dominant cause): the comparison plot normalized
+        EVERY curve (both simulated and digitized) to its OWN peak height
+        of 1. This *by construction* erases exactly the relative
+        peak-height information that makes the three real curves visually
+        distinguishable in Fig. 6, regardless of how accurate the
+        underlying physics is. Fixed by normalizing each curve by its own
+        AREA (zeroth moment) instead of its own peak height -- i.e. all
+        three curves represent the same "detected mass", and the
+        resulting peak-height differences are a genuine, physically
+        meaningful consequence of their different peak widths (exactly
+        the quantity this whole case study is about), for BOTH the
+        digitized group and the simulated group independently. (Absolute
+        cross-group calibration, sim-AU-per-mol vs. real-AU-per-mol, is
+        not attempted: Table 1 itself reports the zeroth moment of the
+        cylindrical column in different units, "[a.u.]", than the two
+        conical-column runs, "[min.mV]", strongly suggesting the real
+        experiment's absolute detector calibration was not necessarily
+        identical across the two column hardware setups -- so matching
+        relative, per-curve-normalized shape is the honest, defensible
+        comparison, not absolute peak height.)
+
+    (b) MODELLING SIMPLIFICATION (real, but smaller in effect than (a)):
+        the previous version used a single, flow-rate-INDEPENDENT plate
+        height H=9.5 micron for all three configurations (the paper's own
+        "H uniform along the column" cross-check scenario, H_bar=10.8
+        micron prediction), explicitly instead of the real, measured
+        flow-rate-DEPENDENT H(xi) shown in Fig. 5 (paper's full result,
+        H_bar=11.6 micron). Per the user's explicit request, Fig. 5 was
+        now digitized (see below) and the real van Deemter-type H(v)
+        relationship is used instead, via a NEWLY IMPLEMENTED CADET-Core
+        parameter dependency, 'VAN_DEEMTER' (see Step 1 for why POWER_LAW
+        cannot represent this -- Fig. 5's H(xi) is a genuine U-shaped
+        curve, decreasing then increasing, not a single monomial in
+        velocity).
+
+        Using the real H(v) DOES bring the cylinder-vs-cone gap into
+        better quantitative agreement with the full paper result
+        (H_bar_cone: 10.8 -> ~11.6 micron, matching Table 1 more closely)
+        -- but a rigorous, paper-consistent analytical argument (proven
+        below, and then explicitly verified numerically) shows that it
+        CANNOT, even in principle, make cone_rho_s=2 and cone_rho_s=0.5
+        distinguishable from EACH OTHER: for any plate height that depends
+        on velocity alone (H=H(v), regardless of whether it is constant,
+        the "H uniform" approximation, or the real Fig. 5 van Deemter
+        curve), reversing the flow direction of the SAME physical tube
+        maps the set of local velocities encountered along the column
+        onto itself in reverse traversal order. The Giddings/Poppe
+        variance integral (paper's Eq. 20) is a definite integral over
+        this set, whose value is invariant under such a relabelling
+        (a plain substitution of the integration variable) -- so the
+        predicted apparent plate height (and hence peak width and height)
+        for rho_s=2 and rho_s=0.5 MUST be identical for any velocity-only
+        H(v), a fact the paper itself states for the constant-H case (Eq.
+        26: "invariant after the transformation s -> 1/s") and which
+        generalizes immediately to any H(v). The paper attributes the
+        small (~2.5%) REAL difference it does observe between the two
+        flow directions explicitly to "wall and border effects... not
+        equivalent in both directions" (p. 43) -- a real non-ideality with
+        no documented parameters in this paper, and hence not
+        reproducible by any 1D model. This is verified numerically below
+        (see `run_symmetry_check()` and the VERDICT section) using the
+        real Fig. 5 based H(v): cone_rho_s=2 and cone_rho_s=0.5 come out
+        equal to within ~0.1%, i.e. visually on top of each other in the
+        comparison plot -- exactly as in Fig. 6 itself (where the red and
+        blue curves are likewise nearly on top of each other, clearly
+        distinguishable as a PAIR from cylinder, but not really from one
+        another). This is accordingly reported as a confirmed physical/
+        mathematical property of the paper's own model, not an unresolved
+        deficiency of this reproduction.
+
+===========================================================================
 Step 1 -- model mapping to CADET
 ===========================================================================
 The paper's OWN theoretical treatment (Sec. 2, "Theory") is not a
@@ -73,68 +173,64 @@ mapped onto CADET's NATIVE geometries as instructed:
                           both rho_s=2 and rho_s=0.5 -- only FORWARD_FLOW
                           differs between the two flow directions)
 
---- Reproducing the paper's own "H uniform along the column" scenario via
-    COL_DISPERSION_DEP='POWER_LAW' ---
+--- Reproducing the paper's REAL, flow-dependent local plate height H(v)
+    (Fig. 5) via a NEW CADET-Core parameter dependency, 'VAN_DEEMTER' ---
 
-The paper explicitly separates TWO distinct contributions to the
-observed efficiency loss of the conical column (p. 43, Sec. 4.2.1, last
-two paragraphs):
-  (a) the purely GEOMETRIC contribution -- band broadening caused solely
-      by the continuously changing cross-section/velocity along a conical
-      tube, evaluated by the paper itself under the explicit assumption
-      that the *local* plate height H(z) is uniform (flow-rate
-      independent) and equal to the cylindrical column's own measured
-      value, H=9.5 micron. Under this assumption the paper computes (Eq.
-      25-26) H_bar=10.8 micron, i.e. a 12.1% efficiency loss.
-  (b) an ADDITIONAL contribution from the fact that H is *not* actually
-      flow-rate independent (Fig. 5: measured H(z) increases with local
-      velocity for these small, weakly-retained analytes) -- accounting
-      for this raises the prediction to H_bar=11.6 micron (18.1% loss),
-      matching the full experimental observation.
+Fig. 5 (p. 42) gives the actual measured H(xi) for valerophenone along the
+2.1/4.2 mm i.d. conical column (i.e. exactly the geometry used for
+cone_rho_s=0.5 here) -- a genuine van-Deemter-shaped curve, decreasing
+from ~10.5 micron at xi=0 to a minimum ~9.5 micron around xi=0.4-0.6, then
+rising to ~11.6-11.7 micron at xi=1. Reproducing this requires the LOCAL
+axial dispersion coefficient to satisfy D_ax(v) = H(v)*v/2 (the standard,
+retention-factor-independent equilibrium-dispersive-model relation, see
+the Step 1 discussion in the previous version of this script for the
+derivation) for a genuinely non-monomial H(v) = A + B/v + C*v (van
+Deemter form: A/2 = longitudinal-diffusion-independent term, B = B-term
+prefactor, C = C-term prefactor) -- i.e. D_ax(v) = (A*v + B + C*v^2)/2, a
+quadratic in v, NOT achievable with CADET's existing 'POWER_LAW'
+COL_DISPERSION_DEP (a single monomial alpha*v^k).
 
-This script reproduces contribution (a) -- the intrinsic geometric/
-frustum-shape effect that is the actual object of this CADET-Core
-geometry validation -- and deliberately leaves out contribution (b),
-since quantifying it would require digitizing a SEPARATE figure (Fig. 5,
-H(z) for 7 additional flow rates) that is not the assigned validation
-target and is not needed to test the native frustum geometry itself. This
-scoping choice, and the resulting ~12% vs ~18% partial-vs-full agreement
-with Table 1, is reported explicitly in the validation section below --
-it is a deliberate, paper-justified scope reduction, not a silent
-approximation.
+CADET-Core therefore gained a new parameter dependency this session,
+'VAN_DEEMTER' (src/libcadet/model/paramdep/VanDeemterParameterDependence.cpp,
+registered in ParameterDependenceFactory.cpp, alongside the existing
+'POWER_LAW'/'IDENTITY'/'CONSTANT_ONE'), following the exact same
+ParameterParameterDependenceBase plugin pattern as PowerLawParameterDependence:
+given COL_DISPERSION_DEP='VAN_DEEMTER' and per-unit meta-parameters
+COL_DISPERSION_DEP_A/_B/_C, it returns, at every point where CADET already
+evaluates a velocity-dependent dispersion factor (bulk operator volume AND
+surface/interface terms, for both AXIAL_FLOW_CYLINDER and
+AXIAL_FLOW_FRUSTUM, FV and DG),
+    dependence_factor(v) = (A*|v| + B + C*v^2) / 2,
+which -- combined with COL_DISPERSION[i] left at 1.0 (a dimensionless
+placeholder, since the dependence factor IS the full physical D_ax(v) by
+construction) -- gives exactly D_ax(v) = H(v)*v/2 for H(v)=A+B/v+C*v. This
+required no changes to ConvectionDispersionOperatorDG.cpp/FV.cpp at all:
+those already call the generic `_dispersionDep->getValue(...)` interface
+(as fixed/verified earlier this session for the two bugs described below),
+so any new IParameterParameterDependence plugin automatically works for
+both AXIAL_FLOW_CYLINDER and AXIAL_FLOW_FRUSTUM, FV and DG -- confirmed
+directly (see validation section) by reproducing the exact paper cross-
+check H=9.50 micron on the (trivially constant-velocity) cylinder AND
+matching the frustum grid-convergence behavior already established for
+POWER_LAW.
 
-Reproducing "H uniform along the column" in CADET requires the LOCAL
-axial dispersion coefficient to be proportional to the LOCAL velocity,
-D_ax(x) = (H/2)*u(x) (since H(x) = 2*D_ax(x)/u(x) by the standard
-equilibrium-dispersive-model relation, exact and retention-factor-
-independent for a linear/equilibrium system) -- i.e. exactly the
-'POWER_LAW' COL_DISPERSION_DEP mechanism (EXPONENT=1) highlighted for
-this session's frustum work: D_ax(x) = COL_DISPERSION_DEP_BASE *
-COL_DISPERSION[i] * |v(x)|^COL_DISPERSION_DEP_EXPONENT. With BASE=1 and
-EXPONENT=1, setting COL_DISPERSION[i] = H/2 (a single constant, the same
-for all three configurations, since it is the SAME batch of particles)
-gives D_ax(x) = (H/2)*v(x) at every axial position -- exactly the
-relation needed, and it collapses to the ordinary constant-Dax model for
-the cylindrical column (where v(x) is constant), so the SAME model
-construction is used, unmodified, across all three configurations.
+--- Two genuine CADET-Core bugs found and fixed while building the FIRST
+    version of this case study (control-case methodology, per the task
+    protocol); unaffected by, and prerequisite for, the above ---
 
---- Two genuine CADET-Core bugs found and fixed while building this case
-    study (control-case methodology, per the task protocol) ---
-
-Building the model above and validating it with the standard control-case
-protocol (a grid-convergence study against an independently, analytically
-derived expected variance -- not just "does it look reasonable") surfaced
-TWO real, previously-unknown bugs in the DG bulk discretization's
-COL_DISPERSION_DEP handling, both in
+Building the "H uniform" version of this model and validating it with the
+standard control-case protocol (a grid-convergence study against an
+independently, analytically derived expected variance -- not just "does it
+look reasonable") surfaced TWO real, previously-unknown bugs in the DG
+bulk discretization's COL_DISPERSION_DEP handling, both in
 `VariableCrossSectionConvectionDispersionOperatorBaseDG` (file
 src/libcadet/model/parts/ConvectionDispersionOperatorDG.cpp). Both were
 isolated with a minimal control case (constant-vs-position-dependent
 dispersion, both flow directions, cross-checked against FV at high grid
 refinement and against an independent from-scratch analytic integral of
-the governing equation -- not merely "first results looked odd"), fixed
-at the C++ source level, and verified by rebuilding
-(`C:/Users/jmbr/software/CADET-Core/build_RELEASE`, target INSTALL,
-config Release) before being used for the results below.
+the governing equation), fixed at the C++ source level, and verified by
+rebuilding (`C:/Users/jmbr/software/CADET-Core/build_RELEASE`, target
+INSTALL, config Release) before being used for any of the results below.
 
   (A) `computeOperatorsAxial()` (the GEOMETRY='AXIAL_FLOW_CYLINDER'
       branch) silently IGNORED `COL_DISPERSION_DEP` entirely: it used the
@@ -142,71 +238,49 @@ config Release) before being used for the results below.
       dispersion coefficient, both in the volume-term mass matrix and in
       `_dispAtInterfaces`, never calling `_dispersionDep->getValue(...)`
       at all (unlike the RadialFlowCylinderShell/AxialFlowFrustum
-      branches, which do). Symptom: with COL_DISPERSION configured as
-      H/2 (m, to be scaled by velocity) and COL_DISPERSION_DEP='POWER_LAW'
-      active, the cylindrical column's DG simulation used H/2 [[m]]
-      *directly* as if it were already the m^2/s dispersion coefficient
-      -- off by a factor of ~1/v(x) (~700x too large in this case study's
-      parameter regime), giving a grossly wrong (but grid-converged, i.e.
-      silently wrong) peak variance. FIX: evaluate `_dispersionDep->
-      getValue(...)` once (velocity is spatially constant for this
-      geometry) and use that as the effective dispersion coefficient in
-      both the volume-term matrix and `_dispAtInterfaces`, mirroring the
-      other two geometry branches. Verified: cylinder DG now reproduces
-      H_bar = 9.500 micron for a configured local H=9.500 micron (exact,
-      as required: H_bar=H identically for a cylindrical column), grid-
-      converged by NELEM=8.
+      branches, which do). FIX: evaluate `_dispersionDep->getValue(...)`
+      once (velocity is spatially constant for this geometry) and use
+      that as the effective dispersion coefficient in both the
+      volume-term matrix and `_dispAtInterfaces`, mirroring the other two
+      geometry branches. Verified: cylinder DG now reproduces H_bar=9.500
+      micron for a configured constant local H=9.500 micron (exact, as
+      required), grid-converged by NELEM=8; and (this version) reproduces
+      H_bar=9.53 micron for the REAL van Deemter H(v) evaluated at the
+      cylinder's own velocity -- matching the paper's directly measured
+      value of 9.50 micron at that same velocity to within 0.3%, an
+      independent cross-check of both the C++ fix and the Fig. 5 digiti-
+      zation/fit below.
 
   (B) `computeOperatorsFrustum()`'s POSITION-DEPENDENT-dispersion branch
       (used whenever COL_DISPERSION_DEP is active) was missing a factor
-      of pi in its Gauss-quadrature-based volume-term integral. The
+      of pi in its Gauss-quadrature-based volume-term integral (the
       "gamma/beta1/beta2" geometric-weight coefficients passed into
       `dgtoolbox::weightedQuadMassMatrix()` encode only the r(x)^2
-      polynomial (NOT pi*r(x)^2 = A(x)); the sibling non-dependent branch
-      compensates with an explicit `M_A *= pi;` a few lines above, and
-      `computeOperatorsRadial()` compensates by baking the full
-      2*pi*H*rho area formula (pi included) directly into its own
-      gamma/beta before the quadrature call -- but the frustum
-      variable-dispersion branch did neither, silently under-weighting
-      the position-dependent dispersion term by a factor of pi
-      everywhere. Symptom: grid-converged (DG, NELEM=8/16) apparent plate
-      height for the "H uniform along the column" scenario (H=9.5 micron,
-      COL_DISPERSION_DEP='POWER_LAW', EXPONENT=1) came out at H_bar=3.42
-      micron in BOTH flow directions (self-consistent between directions,
-      hence easy to mistake for "just how the physics/paper's Eq. 25-26
-      works out" without an independent check) -- a factor of ~pi below
-      an independent, from-scratch numerical integration of the governing
-      ODE (dsigma_t^2/dz = (1+k)^2 * H(z)/u(z)^2, giving sigma_t^2=3.8898
-      s^2, H_bar=10.80 micron) AND below the FV discretization's own
-      grid-convergence trend (NCOL 400/1600/3200: sigma_t^2 -> 4.93 / 4.11
-      / 3.93 s^2, clearly heading to ~3.89, NOT ~1.23-1.24). FIX: multiply
-      the quadrature result by pi, matching the non-dependent branch's
-      convention. Verified: both flow directions now converge (NELEM=8:
-      H_bar=10.80/10.80 micron; NELEM=16: 10.81/10.82 micron for
-      rho_s=2/rho_s=0.5 respectively) to within 0.1-0.3% of BOTH the
-      independent analytic integral (10.8 micron) AND the paper's own
-      quoted cross-check value (p. 43: "H_bar=10.8 micron... according to
-      Eq. (25)") -- and the two flow directions agree with each other to
-      within numerical noise, as required by the direction-independence
-      of hold-up volume/variance for equilibrium transport in a passive
-      tube (mass conservation).
+      polynomial, NOT pi*r(x)^2 = A(x); the sibling non-dependent branch
+      compensates with an explicit `M_A *= pi;`, but the variable-
+      dispersion branch did not). FIX: multiply the quadrature result by
+      pi, matching the non-dependent branch's convention. Verified: both
+      flow directions converge (NELEM=8/16) to H_bar=10.80-10.82 micron
+      for the "H uniform" H=9.5 micron case, matching BOTH an independent
+      analytic integral (10.8898 micron) AND the paper's own quoted
+      cross-check (10.8 micron) to <0.2%, with the two flow directions
+      agreeing with each other to within numerical noise (required by
+      direction-independence of hold-up volume/variance for equilibrium
+      transport in a passive tube -- mass conservation).
 
-Both fixes were essential for this case study: without them, the DG
-results for exactly the geometry and mechanism this case study is meant
-to validate (AXIAL_FLOW_FRUSTUM + COL_DISPERSION_DEP) were wrong by very
-large, easily-overlooked factors despite being fully grid-converged and
-direction-symmetric. This is precisely the situation the task's control-
-case protocol is designed to catch: convergence and self-consistency
-checks alone are NOT sufficient evidence of correctness; an independent,
-from-scratch analytic cross-check (and cross-discretization comparison
-against FV) is what actually exposed both bugs here.
+Both fixes were essential: without them, the DG results for exactly the
+geometry and mechanism this case study is meant to validate
+(AXIAL_FLOW_FRUSTUM + COL_DISPERSION_DEP) were wrong by very large,
+easily-overlooked factors despite being fully grid-converged and
+direction-symmetric -- precisely the situation the task's control-case
+protocol is designed to catch.
 
 ===========================================================================
 Step 2 -- reparameterization (paper's notation -> CADET parameters)
 ===========================================================================
 Paper symbols: r_e, r_s (entrance/exit radii), s=r_s/r_e, L (column
-length), k (retention factor), H (local, here constant, plate height),
-epsilon_t (total porosity, "et").
+length), k (retention factor), H(v) (local plate height as a function of
+local velocity), epsilon_t (total porosity, "et").
 
 epsilon_t is NOT given directly for the real experimental columns (only
 "assumed 65%" for the separate, purely theoretical Sec. 4.1 calculations)
@@ -220,18 +294,37 @@ on it (mu_1=3.869 min, Table 1), and its retention factor (k=1.08, p.
     t_0   = mu_1 / (1+k)                              [void time]
     et    = t_0 * Fv / V_bed                           [total porosity]
     K_eq  = k * et / (1 - et)                          [LINEAR ka/kd, kd=1]
-    D_ax,config := H / 2                               [COL_DISPERSION,
-                                                          with COL_DISPERSION_DEP
-                                                          = 'POWER_LAW', EXPONENT=1]
 
-This same (et, K_eq, H) triple is applied, UNCHANGED, to both conical
-configurations (paper's own stated assumption for the theoretical part,
-Sec. 4.1: "All columns are packed identically with the same particles...
-and have the same external porosity" -- and Table 1 confirms retention
-times/moments are indeed very similar across all three configurations, as
-intended by the experimental design). Column geometry (radii, length,
-flow rate, injection volume) is otherwise the real, physical, reported
-geometry -- no other free/fitted parameters are introduced.
+H(v) = A + B/v + C*v is obtained by:
+  1. Digitizing Fig. 5's solid curve (the fitted valerophenone H(xi)) at
+     600 DPI -- see `case_study_gritti_fig6_fig5H_digitized.csv`
+     (1749 points; axis-tick calibration residuals <0.015 units; title/
+     legend regions explicitly excluded; a handful of stray misclassified
+     pixels removed by a rolling-median outlier filter, <0.6 micron
+     threshold).
+  2. Converting xi -> local INTERSTITIAL velocity v(xi) for the exact
+     column Fig. 5 was measured on (r_e=2.1 mm, s=0.5, Fv=0.40 mL/min,
+     divided by the same total porosity et derived above -- consistent
+     with CADET's own `_QOverEps = flowRate/colPorosity/flowFraction`
+     convention, confirmed by source inspection).
+  3. Fitting A, B, C by nonlinear least squares (`scipy.optimize.curve_fit`)
+     to H(v) = A + B/v + C*v: RMSE=0.071 micron, max abs. error=0.39
+     micron (over a 9.5-12 micron range) -- see
+     `VD_A, VD_B, VD_C` below.
+  As an independent cross-check (not used in the fit itself): evaluating
+  the fitted H(v) at the CYLINDER's own velocity (0.35 mL/min, i.e. a
+  velocity never included in the ~cone-only fit data) gives H=9.53
+  micron, matching the paper's own DIRECTLY MEASURED cylinder value of
+  9.50 micron (p. 43) to within 0.3% -- strong evidence the digitization,
+  velocity convention, and fit are all self-consistent and correct.
+
+This same (et, K_eq, H(v)) triple is applied, UNCHANGED, to all three
+configurations (paper's own stated assumption, Sec. 4.1: "All columns are
+packed identically with the same particles... and have the same external
+porosity"; H(v) is a velocity-only relationship, with no further xi- or
+geometry-dependence, exactly as measured). Column geometry (radii,
+length, flow rate, injection volume) is otherwise the real, physical,
+reported geometry -- no other free/fitted parameters are introduced.
 
 ===========================================================================
 Step 3 -- extracted parameters (all traceable to a specific paper location)
@@ -245,13 +338,17 @@ Step 3 -- extracted parameters (all traceable to a specific paper location)
   Fv (both cones) = 0.40 mL/min             (Sec. 4.2.2 / Table 1 header)
   V_inj           = 0.5 microL              (Sec. 3.4.2)
   k (valerophenone) = 1.08                  (p. 43, efficiency-loss list)
-  H (cylinder, 0.35 mL/min) = 9.5 micron    (p. 43, "measured at H=9.5 micron")
-  H_bar (cone, "H uniform" scenario) = 10.8 micron, 12.1% loss (p. 43;
-                                              this is the paper's OWN quoted
-                                              cross-check value, used below
-                                              as an independent analytic
-                                              target for the CADET result)
-  mu_1, mu_2' (Table 1, p. 44)  -- see table above; used for et and as the
+  H(xi), valerophenone (Fig. 5, digitized)  -- see Step 2 above.
+  H_bar_paper_uniform = 10.8 micron, 12.1% loss (p. 43; the paper's own
+                                              "H uniform" cross-check,
+                                              superseded in THIS version
+                                              by the real H(v) below, kept
+                                              only for reference/context)
+  H_bar_paper_full = 11.6 micron, 18.1% loss (p. 43; the paper's full,
+                                              flow-dependent-H result --
+                                              THIS version's primary
+                                              target)
+  mu_1, mu_2' (Table 1, p. 44)  -- see table above; used for et and as a
                                     primary quantitative validation target.
 
 No parameter here required unit conversion beyond the trivial mm/micron/
@@ -261,27 +358,25 @@ below. No parameter was ambiguous, missing, or unit-less.
 ===========================================================================
 Step 4 -- reference data
 ===========================================================================
-Fig. 6 was digitized (3 curves: black=cylinder, red=cone rho_s=2,
-blue=cone rho_s=0.5) via the digitize_figure.py pixel-colour-thresholding
-pipeline; see case_study_gritti_fig6_digitized.csv (columns: time_s,
-cylinder_black, cone_s2_red, cone_s05_blue). The paper explicitly states
-peak positions were "slightly adjusted" for visual overlay in Fig. 6, so
-absolute peak timing is not, by the authors' own admission, exactly the
-physical elution time -- Table 1's numerical moments (not affected by
-this cosmetic shift) are used as the primary quantitative target, and the
-digitized curve is used for peak-SHAPE comparison after aligning each
-simulated curve's peak time to the corresponding digitized curve's peak
-time (both are then plotted on a common relative-time axis). The
-detector response (UV absorbance, arbitrary units) has no known
-molar-absorptivity conversion to concentration in the paper, so digitized
-and simulated curves are compared after normalizing each to its own peak
-height of 1.
+Fig. 6 was re-digitized at 600 DPI (see REVISION NOTE above; 3 curves:
+black=cylinder, red=cone rho_s=2, blue=cone rho_s=0.5) via a dedicated
+pixel-classification script; see case_study_gritti_fig6_digitized.csv
+(columns: time_s, cylinder_black, cone_s2_red, cone_s05_blue). The paper
+explicitly states peak positions were "slightly adjusted" for visual
+overlay in Fig. 6, so absolute peak TIMING is not, by the authors' own
+admission, exactly the physical elution time (Table 1's numerical
+moments, unaffected by this cosmetic shift, are used as the primary
+timing/width validation target). Peak HEIGHT is compared after
+area-normalizing each curve to its own zeroth moment = 1 (see REVISION
+NOTE 2(a) for why, given Table 1's own inconsistent zeroth-moment units
+between the cylindrical and conical column runs, this -- not an attempted
+absolute AU match -- is the honest, defensible comparison).
 
 ===========================================================================
 Step 5/6 -- implementation, run, and validation
 ===========================================================================
-See `get_model()`, `run_config()`, the tracer control check
-`run_tracer_control_check()`, and `main()` below.
+See `get_model()`, `run_config()`, `run_tracer_control_check()`,
+`run_symmetry_check()`, and `main()` below.
 """
 import os
 
@@ -292,6 +387,7 @@ from cadet import Cadet
 HERE = os.path.dirname(os.path.abspath(__file__))
 INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 DIGITIZED_CSV = os.path.join(HERE, 'case_study_gritti_fig6_digitized.csv')
+FIG5_DIGITIZED_CSV = os.path.join(HERE, 'case_study_gritti_fig6_fig5H_digitized.csv')
 
 # ---------------------------------------------------------------------------
 # Step 3: paper parameters (SI units; conversions shown explicitly)
@@ -308,10 +404,10 @@ R_LARGE = 2.10 * MM               # m, conical column large-end radius (4.2 mm i
 DP = 5.0 * MICRON                 # m, particle diameter (XBridge-C18)
 
 K_RET = 1.08                      # valerophenone retention factor (p. 43)
-H_PLATE = 9.5 * MICRON            # m, measured plate height, cylinder @ 0.35 mL/min (p. 43)
-H_BAR_PAPER_UNIFORM = 10.8 * MICRON   # m, paper's own "H uniform" cross-check value (p. 43)
-H_BAR_PAPER_FULL = 11.6 * MICRON      # m, paper's full (flow-dependent H) value (p. 43) -- NOT
-                                       # reproduced here, see Step 1 docstring discussion.
+H_BAR_PAPER_UNIFORM = 10.8 * MICRON   # m, paper's own "H uniform" cross-check (p. 43;
+                                       # superseded here, kept for reference)
+H_BAR_PAPER_FULL = 11.6 * MICRON      # m, paper's full (flow-dependent H) value (p. 43) --
+                                       # THIS version's primary target.
 
 V_INJ = 0.5e-9                    # m^3 (0.5 microL), Sec. 3.4.2
 
@@ -333,9 +429,16 @@ V_BED_CYL = np.pi * R_CYL ** 2 * L_BED               # m^3; matches paper's "1.0
 T0_CYL = TABLE1['cylinder']['mu1'] / (1.0 + K_RET)    # s, void time of the cylinder column
 ET = T0_CYL * TABLE1['cylinder']['Fv'] / V_BED_CYL    # total porosity (dimensionless)
 KEQ = K_RET * ET / (1.0 - ET)                         # LINEAR isotherm ka/kd (kd=1)
-COL_DISPERSION_CONFIG = H_PLATE / 2.0                 # m; used with COL_DISPERSION_DEP='POWER_LAW', EXPONENT=1
 
 V_BED_CONE = np.pi / 3.0 * L_BED * (R_SMALL ** 2 + R_SMALL * R_LARGE + R_LARGE ** 2)  # matches "1.21 cm^3"
+
+# Van Deemter fit to Fig. 5 (H(v) = A + B/v + C*v), derived once (see Step 2
+# docstring above and the digitization/fit procedure) and hardcoded here for
+# a fully self-contained script; case_study_gritti_fig6_fig5H_digitized.csv
+# is kept alongside as the supporting/traceable raw digitized data.
+VD_A = 3.15452704e-06   # m
+VD_B = 4.52688414e-09   # m^2/s
+VD_C = 2.23971679e-03   # s
 
 CONFIGS = {
     'cylinder': dict(
@@ -373,9 +476,14 @@ def get_model(config_key, spatial_method='FV', ncol=100, dg_polydeg=4, dg_nelem=
         method the frustum documentation officially lists, but far slower
         to converge for this problem's very narrow peak -- see below).
 
+    Dispersion: COL_DISPERSION_DEP='VAN_DEEMTER' (see Step 1 docstring),
+        with COL_DISPERSION=[1.0] (dimensionless placeholder -- the
+        dependence factor (VD_A*v + VD_B + VD_C*v^2)/2 already IS the full
+        physical D_ax(v) = H(v)*v/2 by construction).
+
     A resolution note (found while building this case study, not a
     correctness bug): the physical peak here is very narrow (temporal
-    std. dev. ~1.85-1.97 s) relative to the ~400 s simulation window and
+    std. dev. ~1.85-2.1 s) relative to the ~400 s simulation window and
     the ~230 s elution time, i.e. a locally very sharp feature. At coarse
     DG resolution (e.g. NELEM=8) this produces visible Gibbs-type
     ringing (small negative/positive over- and under-shoots flanking the
@@ -442,9 +550,11 @@ def get_model(config_key, spatial_method='FV', ncol=100, dg_polydeg=4, dg_nelem=
     col.col_porosity = ET  # placeholder (unused: TOTAL_POROSITY governs
                             # velocity/capacity whenever HAS_FILM_DIFFUSION=0,
                             # per axial_flow_column_1D_config.rst)
-    col.col_dispersion = [COL_DISPERSION_CONFIG]
-    col.col_dispersion_dep = 'POWER_LAW'
-    col.col_dispersion_dep_exponent = 1.0
+    col.col_dispersion = [1.0]
+    col.col_dispersion_dep = 'VAN_DEEMTER'
+    col.col_dispersion_dep_a = VD_A
+    col.col_dispersion_dep_b = VD_B
+    col.col_dispersion_dep_c = VD_C
     col.init_c = [0.0]
 
     col.discretization.use_analytic_jacobian = 1
@@ -560,14 +670,9 @@ def run_model(config_key, fname=None, **kwargs):
 
 # ---------------------------------------------------------------------------
 # Control check: non-adsorbing tracer, both flow directions through the
-# SAME conical (frustum) tube, at two grid resolutions -- verifies
+# SAME conical (frustum) tube, at two discretizations/resolutions -- verifies
 # mass-conservation-implied, direction-independent, grid-convergent mean
-# transit time BEFORE trusting the retained-solute simulation. See the
-# task's instruction to isolate any discrepancy with such a minimal control
-# case before concluding a native-geometry limitation (historically, in
-# the closely analogous radial-flow case study, "unexpected" native-
-# geometry behavior turned out to be fixable CADET-Core bugs, not genuine
-# physical limitations).
+# transit time BEFORE trusting the retained-solute simulation.
 # ---------------------------------------------------------------------------
 def run_tracer_control_check():
     print("=" * 78)
@@ -601,11 +706,42 @@ def run_tracer_control_check():
     print("converges to the analytic void time with grid/order refinement, the")
     print("native FRUSTUM geometry + FORWARD_FLOW mechanism is behaving")
     print("correctly on this install, and the retained-solute results below")
-    print("can be trusted. (This check, extended with an independent analytic")
-    print("cross-check of the retained-solute variance -- not just this tracer")
-    print("mean -- is what originally surfaced the two dispersion-dependence")
-    print("bugs documented in the Step 1 docstring discussion, now fixed.)")
+    print("can be trusted.")
     print()
+
+
+def run_symmetry_check():
+    """Explicit numerical verification (requested follow-up investigation)
+    that using the REAL, flow-rate-dependent H(v) from Fig. 5 (instead of
+    the earlier, simpler H-uniform approximation) still cannot, even in
+    principle, make cone_rho_s=2 and cone_rho_s=0.5 distinguishable from
+    each other -- see the analytical argument in the REVISION NOTE
+    docstring above. Runs the actual retained-solute (valerophenone)
+    simulation in both directions with VAN_DEEMTER dispersion and compares
+    moments directly."""
+    print("=" * 78)
+    print("SYMMETRY CHECK: does the REAL (Fig. 5) flow-dependent H(v)")
+    print("differentiate cone_rho_s=2 from cone_rho_s=0.5?")
+    print("=" * 78)
+    results = {}
+    for key in ('cone_s2', 'cone_s05'):
+        t, c_out, _ = run_model(key, spatial_method='DG', dg_polydeg=4, dg_nelem=64,
+                                 t_end=400.0, n_points=4000,
+                                 fname=os.path.join(HERE, f'_symcheck_{key}.h5'))
+        m0, m1, m2 = moments(t, c_out)
+        Hb = L_BED * m2 / m1 ** 2 / MICRON
+        results[key] = dict(mu1=m1, mu2=m2, Hbar=Hb, peak=c_out.max())
+        print(f"  {key:9s}: mu1={m1:.4f} s   mu2={m2:.5f} s^2   H_bar={Hb:.4f} micron"
+              f"   peak_height(raw)={c_out.max():.6g}")
+    rel_mu1 = 100 * abs(results['cone_s2']['mu1'] - results['cone_s05']['mu1']) / results['cone_s2']['mu1']
+    rel_H = 100 * abs(results['cone_s2']['Hbar'] - results['cone_s05']['Hbar']) / results['cone_s2']['Hbar']
+    print(f"  rel. difference: mu1={rel_mu1:.3g}%   H_bar={rel_H:.3g}%")
+    print("  (paper's OWN real data shows a genuine but small ~2.5% difference")
+    print("  here, attributed explicitly (p. 43) to wall/border effects with")
+    print("  no documented parameters -- not reproducible by any 1D velocity-")
+    print("  dependent-H model, including this one with the real Fig. 5 H(v).)")
+    print()
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -646,7 +782,7 @@ def compute_metrics(config_key, t_sim, c_sim, t_inj_duration, c_inj_area, ref_t,
 
     # (extra, not in the standard 4-metric table, but directly checks the
     # frustum/dispersion-dependence physics against the paper's own
-    # explicit "H uniform" analytic cross-check number)
+    # full, flow-dependent-H result)
     m['mu2_sim'] = m2_sim
     m['mu2_ref_measured'] = ref['mu2']
     H_sim = L_BED * m2_sim / m1_sim ** 2
@@ -658,14 +794,19 @@ def compute_metrics(config_key, t_sim, c_sim, t_inj_duration, c_inj_area, ref_t,
     m_out = m0_sim
     m['mass_balance_relerr_%'] = 100 * abs(m_out - m_in) / m_in
 
-    # 4) Chromatogram MSE vs digitized reference (both normalized to unit
-    # peak height, and time-aligned by peak position, since the paper
-    # itself "slightly adjusted" peak positions in Fig. 6 for display)
+    # 4) Chromatogram MSE vs digitized reference, AREA-normalized (each
+    # curve divided by its own zeroth moment = 1, see REVISION NOTE 2(a)
+    # above for why this -- not a peak-height or absolute-AU match -- is
+    # the correct, honest comparison here), and time-aligned by peak
+    # position (paper itself "slightly adjusted" peak positions in Fig. 6
+    # for display).
     valid = ~np.isnan(ref_c)
     rt = ref_t[valid]
-    rc = ref_c[valid] / np.nanmax(ref_c[valid])
-    t_shift = t_sim - t_peak_sim + rt[np.argmax(rc)]
-    c_sim_n = c_sim / c_sim[i_peak]
+    rc_raw = ref_c[valid]
+    rc_area = np.trapz(rc_raw, rt)
+    rc = rc_raw / rc_area
+    t_shift = t_sim - t_peak_sim + rt[np.argmax(rc_raw)]
+    c_sim_n = c_sim / m0_sim
     c_sim_interp = np.interp(rt, t_shift, c_sim_n, left=0.0, right=0.0)
     m['mse'] = float(np.mean((c_sim_interp - rc) ** 2))
 
@@ -679,7 +820,7 @@ def print_metrics(config_key, m):
     print(f"  Elution time (mu1): sim={m['mu1_sim']:.4f} s  ref(Table 1)={m['mu1_ref']:.4f} s"
           f"  rel.err={m['mu1_relerr_%']:.3g}%")
     print(f"  Mass balance    : rel.err={m['mass_balance_relerr_%']:.3g}%")
-    print(f"  Chromatogram MSE (normalized, aligned): {m['mse']:.4g}")
+    print(f"  Chromatogram MSE (area-normalized, peak-aligned): {m['mse']:.4g}")
     print(f"  [extra] H_bar from sim moments: {m['H_bar_sim_micron']:.3f} micron"
           f"   (mu2_sim={m['mu2_sim']:.6g} s^2 vs Table-1 measured mu2'={m['mu2_ref_measured']:.6g} s^2)")
 
@@ -694,10 +835,11 @@ def main():
     print(f"  t0 (cylinder)    = {T0_CYL:.4f} s = {T0_CYL/MIN:.4f} min")
     print(f"  total porosity epsilon_t = {ET:.4f}")
     print(f"  LINEAR K_eq (ka, kd=1)   = {KEQ:.4f}")
-    print(f"  COL_DISPERSION (config, = H/2) = {COL_DISPERSION_CONFIG:.4e} m")
+    print(f"  Van Deemter H(v)=A+B/v+C*v : A={VD_A:.4e} m, B={VD_B:.4e} m^2/s, C={VD_C:.4e} s")
     print()
 
     run_tracer_control_check()
+    run_symmetry_check()
 
     digitized = load_digitized()
     ref_time = digitized['time_s']
@@ -723,29 +865,31 @@ def main():
         all_metrics[key] = m
         print_metrics(key, m)
 
-        # plot: CADET curve normalized & time-shifted to align with the
-        # digitized peak, matching the comparison convention documented
-        # in Step 4 above (paper itself display-shifted the peaks)
+        # plot: CADET curve AREA-normalized (own zeroth moment = 1, see
+        # REVISION NOTE 2(a)) and time-shifted to align with the digitized
+        # peak (paper itself display-shifted the peaks)
         i_peak = np.argmax(c_sim)
         valid = ~np.isnan(ref_c)
         rt = ref_time[valid]
-        rc = ref_c[valid] / np.nanmax(ref_c[valid])
-        t_shift = t_sim - t_sim[i_peak] + rt[np.argmax(rc)]
-        ax.plot(t_shift, c_sim / c_sim[i_peak], '-', color=cfg['color'], lw=1.5,
+        rc_raw = ref_c[valid]
+        rc = rc_raw / np.trapz(rc_raw, rt)
+        t_shift = t_sim - t_sim[i_peak] + rt[np.argmax(rc_raw)]
+        m0_sim = np.trapz(c_sim, t_sim)
+        ax.plot(t_shift, c_sim / m0_sim, '-', color=cfg['color'], lw=1.5,
                 label=f"{cfg['label']} (CADET)")
         ax.plot(rt, rc, 'o', color=cfg['color'], ms=2.5, mfc='none', mew=0.7,
                 label=f"{cfg['label']} (digitized)")
 
     ax.set_xlabel('Time [s] (digitized-figure axis; CADET curves peak-aligned, see Step 4)')
-    ax.set_ylabel('Normalized signal (peak height = 1)')
+    ax.set_ylabel('Area-normalized signal (each curve: ' + r'$\int c\,dt=1$' + ')')
     ax.set_title("Gritti et al. (2019), Fig. 6 -- valerophenone, isocratic elution\n"
                   "cylindrical vs. conical (frustum) column, both flow directions\n"
-                  "(CADET native COLUMN_MODEL_1D, GEOMETRY=AXIAL_FLOW_CYLINDER/FRUSTUM)",
-                  fontsize=9)
+                  "(CADET native COLUMN_MODEL_1D, GEOMETRY=AXIAL_FLOW_CYLINDER/FRUSTUM,\n"
+                  "real flow-dependent H(v) from Fig. 5 via COL_DISPERSION_DEP=VAN_DEEMTER)",
+                  fontsize=8.5)
     ax.legend(fontsize=7, ncol=1, loc='upper left')
     ax.grid(alpha=0.3)
     ax.set_xlim(215.0, 250.0)
-    ax.set_ylim(-0.05, 1.08)
     fig.tight_layout()
     outpath = os.path.join(HERE, 'case_study_gritti_fig6_comparison.png')
     fig.savefig(outpath, dpi=150)
@@ -757,9 +901,7 @@ def main():
     # peak (physical std. dev. ~2 s against an ~400 s simulation window)
     # -- NCOL=1600 is used here purely as an independent cross-check of
     # the DG result, not as a practical everyday resolution for this
-    # model; see the FV grid-convergence trend recorded in the Step 1
-    # bug-fix discussion above (NCOL 400/1600/3200 -> sigma_t^2 4.93/
-    # 4.11/3.93 s^2, heading towards DG's 3.89 s^2).
+    # model.
     # -----------------------------------------------------------------
     print("\nCross-validating DG (primary) vs. FV bulk discretization (config 'cone_s2', NCOL=1600)...")
     try:
@@ -772,7 +914,7 @@ def main():
         print(f"  DG (NELEM=128) mu1 = {mu1_dg:.4f} s   sigma_t^2 = {m2_dg:.4f} s^2")
         print(f"  FV (NCOL=1600) mu1 = {mu1_fv:.4f} s   sigma_t^2 = {m2_fv:.4f} s^2"
               f"   (rel. diff in mu1 = {100*abs(mu1_dg-mu1_fv)/mu1_fv:.4g}%;"
-              f" FV not yet fully grid-converged for sigma_t^2, see above)")
+              f" FV not yet fully grid-converged for sigma_t^2)")
     except RuntimeError as e:
         print(f"  FV cross-validation run failed: {e}")
 
@@ -787,17 +929,29 @@ def main():
     print(f"  Worst-case mass-balance  rel. error : {worst_mass:.3g}%  (tol: 1%)")
     for key in ('cone_s2', 'cone_s05'):
         Hb = all_metrics[key]['H_bar_sim_micron']
-        print(f"  {key}: H_bar (CADET, from sim. moments) = {Hb:.3f} micron   "
-              f"vs. paper's own 'H uniform' cross-check = {H_BAR_PAPER_UNIFORM/MICRON:.1f} micron"
-              f"  (rel.err={100*abs(Hb-H_BAR_PAPER_UNIFORM/MICRON)/(H_BAR_PAPER_UNIFORM/MICRON):.2g}%)"
-              f"   [paper's FULL measured value: {H_BAR_PAPER_FULL/MICRON:.1f} micron, NOT targeted here]")
-    print("  NOTE: this model reproduces the paper's own 'H uniform along the")
-    print("  column' analytic baseline (H_bar=10.8 micron, 12.1% efficiency")
-    print("  loss vs. the cylindrical column) -- NOT the full experimentally")
-    print("  measured 18.1% loss (H_bar=11.6 micron), which additionally")
-    print("  requires the flow-rate-dependent local plate height digitized")
-    print("  in Fig. 5 (a separate figure, out of scope for this Fig. 6")
-    print("  reproduction). See the Step 1 docstring discussion above.")
+        print(f"  {key}: H_bar (CADET, real Fig.5 H(v)) = {Hb:.3f} micron   "
+              f"vs. paper's FULL measured value = {H_BAR_PAPER_FULL/MICRON:.1f} micron"
+              f"  (rel.err={100*abs(Hb-H_BAR_PAPER_FULL/MICRON)/(H_BAR_PAPER_FULL/MICRON):.2g}%)"
+              f"   [paper's simplified 'H uniform' cross-check: {H_BAR_PAPER_UNIFORM/MICRON:.1f} micron]")
+    peak_cyl = sim_results['cylinder'][1].max() / np.trapz(sim_results['cylinder'][1], sim_results['cylinder'][0])
+    peak_s2 = sim_results['cone_s2'][1].max() / np.trapz(sim_results['cone_s2'][1], sim_results['cone_s2'][0])
+    peak_s05 = sim_results['cone_s05'][1].max() / np.trapz(sim_results['cone_s05'][1], sim_results['cone_s05'][0])
+    print(f"  Area-normalized peak heights: cylinder={peak_cyl:.4f}  cone_s2={peak_s2:.4f}"
+          f"  cone_s05={peak_s05:.4f}  (ratios cone/cyl: {peak_s2/peak_cyl:.3f}, {peak_s05/peak_cyl:.3f};"
+          f" digitized-figure ratios: {0.1589/0.1695:.3f}, {0.1611/0.1695:.3f})")
+    print("  NOTE: this model now uses the REAL, flow-rate-dependent plate")
+    print("  height H(v) digitized from Fig. 5 (van Deemter fit), superseding")
+    print("  the earlier 'H uniform' simplification, and closely reproduces")
+    print("  the paper's FULL measured efficiency loss (H_bar~11.6 micron,")
+    print("  18.1%) rather than only its simplified baseline (10.8 micron,")
+    print("  12.1%). Cone_rho_s=2 and cone_rho_s=0.5 remain numerically")
+    print("  indistinguishable from each other even with this real H(v) --")
+    print("  see run_symmetry_check() above and the REVISION NOTE docstring")
+    print("  for the analytical proof that this is an exact, expected")
+    print("  property of any velocity-only H(v) model, not a deficiency;")
+    print("  the paper's own small residual difference between the two flow")
+    print("  directions is explicitly attributed (p. 43) to wall/border")
+    print("  effects with no documented parameters.")
 
 
 if __name__ == '__main__':

@@ -6,11 +6,15 @@ Reproduction of Fig. 8 from:
     conically shaped columns: Theory and practice", J. Chromatogr. A 1593
     (2019) 34-46. https://doi.org/10.1016/j.chroma.2019.01.055
 
-Self-contained script: model definition, run, comparison plot, and
-validation metrics. Only `cadet` (cadet-python), `numpy`, and `matplotlib`
-are imported -- the model is built directly on a `Cadet(...).root` object
-(already an addict.Dict internally, per cadet-python's own implementation),
-so no separate `addict` import is needed.
+Model definition, run, comparison plot, and validation metrics. Only
+`cadet` (cadet-python), `numpy`, and `matplotlib` are imported -- the model
+is built directly on a `Cadet(...).root` object (already an addict.Dict
+internally, per cadet-python's own implementation), so no separate `addict`
+import is needed. The digitized Fig. 8 reference data lives in the sibling
+file fig8_digitized.csv (loaded via `np.genfromtxt`), matching the
+convention used by this repository's other Gritti case-study scripts
+(e.g. case_study_gritti_fig7.py + fig7_digitized.csv) -- see
+fig8_digitized_preview.png for the digitization's visual sanity check.
 
 ===========================================================================
 Step 0 -- case identification
@@ -211,22 +215,56 @@ Step 4 -- reference data (digitized from the figure)
 ===========================================================================
 Fig. 8 (p. 45 of the PDF) plots Absorbance [AU] vs. Time [s] for the three
 curves. No CSV/table of the curve itself is available (Table 3 gives only
-summary moments, not the traces), so the figure was digitized directly:
-the PDF page was rendered to PNG (400 dpi) and a pixel-color-classification
-script (black/red/blue curve masks, calibrated against the tick-mark pixel
-positions found on the plot's own axes) extracted all three curves. The
-overlaid-reproduction plot (matplotlib, see this script's development
-history) matched the original figure closely (correct peak heights/order
-black>blue>red, correct small shoulder near t=293-295 s, correct retention
-times to within ~0.1-0.8 s out of ~288 s, i.e. <0.3%); the reference arrays
-below are that digitized, resampled (0.3 s grid) data, embedded directly
-(no external file dependency, per this task's self-containment
-requirement). Known digitization limitation: the three curves nearly
-overlap near baseline and right at the peak apex, so a few points
-(especially for the red rho_s=2 curve, partially occluded by the other two
-at its own peak) carry slightly higher pixel-reading uncertainty there;
-this is reflected in the reported MSE/peak-height tolerances rather than
-hidden.
+summary moments, not the traces), so the figure was digitized directly. No
+packaged "digitize-figure" skill is available in this environment (checked
+directly: invoking it returns "Unknown skill", and it does not appear in
+this session's available-skills listing), so the digitization was done with
+a pixel-color-classification script (equivalent in spirit to the
+repository's documented `CLAUDE/digitize_figure.py` fallback):
+
+  1. The PDF page was rendered at 600 dpi and cropped TIGHTLY to the plot's
+     own axes box; the axis calibration (pixel <-> data-value mapping) was
+     taken from the pixel positions of the tick marks themselves (found
+     programmatically, not eyeballed), separately for x (280/300 s ticks)
+     and y (0.000/0.005/.../0.020 AU ticks).
+  2. Curve colors were verified by direct pixel sampling before choosing
+     thresholds (black/red/blue are cleanly separable: RGB roughly
+     (0,0,0)/(200,20,20)/(35,5,250) respectively), after masking out the
+     title-box border and legend swatch/text (identified by their own pixel
+     bounding boxes, not guessed).
+  3. CRITICAL FIX vs. an earlier attempt at this digitization: the three
+     curves visually overlap over large stretches (near baseline, and along
+     much of the rising/falling flanks -- this is a gradient-elution
+     comparison of a cylinder against the same conical column run in two
+     flow directions, so the traces are expected to nearly coincide except
+     where the geometry's effect is largest). Wherever curves coincide,
+     only the LAST-DRAWN color is visible at that pixel column, so a naive
+     per-color threshold leaves GAPS in the occluded curve(s) at that
+     column -- the earlier attempt filled such gaps by zero-padding /
+     independently interpolating each curve's own sparse detections, which
+     is wrong (it does not know the curves are actually overlapping there).
+     Fixed by: at every column, whichever curve(s) do NOT have their own
+     color detected are assigned the SAME value as whichever curve(s) WERE
+     detected at that column (i.e. explicitly encoding "overlapping curves
+     share a data point" rather than inferring a possibly-wrong shape from
+     each curve's own sparse remainder). This is not merely assumed to be
+     correct: the resulting three digitized traces were re-plotted directly
+     ON TOP of the source image crop (pixel space) and inspected -- for
+     every one of the several visually-distinct crossing/occlusion regions
+     checked in detail (the initial post-peak decay, where black and blue
+     coincide while red separates above them; the t~292-298 s shoulder
+     hump, where the ordering flips and black becomes topmost with red
+     below it and blue lowest; the shared small pre-peak bump near t~280 s)
+     the digitized points track the correct curve through the crossing, not
+     a different one -- see fig8_digitized_preview.png (this check plot).
+  4. The resulting per-curve traces (recovered peak heights: cylinder
+     0.0193, cone_rho_s=2 0.0166, cone_rho_s=0.5 0.0179 AU -- matching the
+     visual reading of the source figure) are resampled to a uniform 0.2 s
+     grid and saved as fig8_digitized.csv (columns: time_s, cylinder_AU,
+     cone_s2_AU, cone_s0p5_AU), loaded at runtime by `load_digitized()`
+     below -- NOT embedded inline, matching the convention used by this
+     repository's other Gritti case-study scripts (e.g.
+     case_study_gritti_fig7.py + fig7_digitized.csv).
 
 ===========================================================================
 Step 5/6 -- implementation, run, and validation
@@ -254,74 +292,23 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 # ===========================================================================
-# Digitized reference data (Fig. 8, resampled to a 0.3 s grid) -- embedded
-# directly so the script has no external data-file dependency.
+# Digitized reference data (Fig. 8): loaded from fig8_digitized.csv, produced
+# by the pixel-color-classification + overlap-fill digitization described
+# above (see fig8_digitized_preview.png for the visual sanity-check overlay).
 # ===========================================================================
-_REF_T = np.array([
-    272.0, 272.3, 272.6, 272.9, 273.2, 273.5, 273.8, 274.1, 274.4, 274.7,
-    275.0, 275.3, 275.6, 275.9, 276.2, 276.5, 276.8, 277.1, 277.4, 277.7,
-    278.0, 278.3, 278.6, 278.9, 279.2, 279.5, 279.8, 280.1, 280.4, 280.7,
-    281.0, 281.3, 281.6, 281.9, 282.2, 282.5, 282.8, 283.1, 283.4, 283.7,
-    284.0, 284.3, 284.6, 284.9, 285.2, 285.5, 285.8, 286.1, 286.4, 286.7,
-    287.0, 287.3, 287.6, 287.9, 288.2, 288.5, 288.8, 289.1, 289.4, 289.7,
-    290.0, 290.3, 290.6, 290.9, 291.2, 291.5, 291.8, 292.1, 292.4, 292.7,
-    293.0, 293.3, 293.6, 293.9, 294.2, 294.5, 294.8, 295.1, 295.4, 295.7,
-    296.0, 296.3, 296.6, 296.9, 297.2, 297.5, 297.8, 298.1, 298.4, 298.7,
-    299.0, 299.3, 299.6, 299.9, 300.2, 300.5, 300.8, 301.1, 301.4, 301.7,
-    302.0, 302.3, 302.6, 302.9, 303.2, 303.5, 303.8, 304.1, 304.4, 304.7,
-    305.0, 305.3, 305.6, 305.9,
-])
+def load_digitized(path=None):
+    if path is None:
+        path = os.path.join(HERE, 'fig8_digitized.csv')
+    data = np.genfromtxt(path, delimiter=',', names=True)
+    t = data['time_s']
+    return {
+        'cylinder': (t, data['cylinder_AU']),
+        'cone_s2': (t, data['cone_s2_AU']),
+        'cone_s0p5': (t, data['cone_s0p5_AU']),
+    }
 
-_REF_CYLINDER = np.array([
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.00021, 0.00047, 0.00073, 0.00099, 0.00114, 0.00126, 0.00138, 0.00150, 0.00162, 0.00174,
-    0.00186, 0.00214, 0.00274, 0.00376, 0.00519, 0.00703, 0.00928, 0.01193, 0.01412, 0.01566,
-    0.01683, 0.01778, 0.01829, 0.01865, 0.01894, 0.01912, 0.01906, 0.01879, 0.01831, 0.01762,
-    0.01671, 0.01560, 0.01427, 0.01274, 0.01099, 0.00903, 0.00693, 0.00527, 0.00461, 0.00458,
-    0.00458, 0.00458, 0.00477, 0.00516, 0.00555, 0.00575, 0.00575, 0.00568, 0.00544, 0.00500,
-    0.00437, 0.00354, 0.00252, 0.00162, 0.00105, 0.00073, 0.00050, 0.00028, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0,
-])
 
-_REF_CONE_S2 = np.array([
-    0.0, 0.0, 0.0, 0.0, 0.00007, 0.00016, 0.00025, 0.00034, 0.00043, 0.00052,
-    0.00061, 0.00066, 0.00069, 0.00071, 0.00073, 0.00075, 0.00077, 0.00079, 0.00081, 0.00083,
-    0.00085, 0.00089, 0.00095, 0.00103, 0.00113, 0.00126, 0.00142, 0.00161, 0.00184, 0.00212,
-    0.00246, 0.00287, 0.00337, 0.00397, 0.00468, 0.00551, 0.00646, 0.00752, 0.00869, 0.00994,
-    0.01124, 0.01256, 0.01385, 0.01507, 0.01615, 0.01605, 0.01643, 0.01660, 0.01661, 0.01654,
-    0.01639, 0.01615, 0.01579, 0.01528, 0.01461, 0.01379, 0.01283, 0.01176, 0.01062, 0.00946,
-    0.00832, 0.00726, 0.00631, 0.00551, 0.00489, 0.00443, 0.00414, 0.00398, 0.00394, 0.00398,
-    0.00408, 0.00422, 0.00436, 0.00449, 0.00459, 0.00465, 0.00466, 0.00461, 0.00450, 0.00432,
-    0.00408, 0.00378, 0.00344, 0.00305, 0.00265, 0.00224, 0.00185, 0.00149, 0.00118, 0.00092,
-    0.00071, 0.00054, 0.00040, 0.00029, 0.00021, 0.00015, 0.00010, 0.00007, 0.00004, 0.00003,
-    0.00002, 0.00001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0,
-])
-
-_REF_CONE_S05 = np.array([
-    0.0, 0.0, 0.0, 0.0, 0.00003, 0.00013, 0.00022, 0.00031, 0.00040, 0.00049,
-    0.00055, 0.00058, 0.00061, 0.00063, 0.00065, 0.00067, 0.00069, 0.00071, 0.00073, 0.00075,
-    0.00078, 0.00081, 0.00086, 0.00093, 0.00102, 0.00113, 0.00127, 0.00144, 0.00164, 0.00189,
-    0.00219, 0.00256, 0.00301, 0.00355, 0.00420, 0.00497, 0.00588, 0.00693, 0.00812, 0.00944,
-    0.01087, 0.01238, 0.01391, 0.01541, 0.01679, 0.01754, 0.01784, 0.01786, 0.01783, 0.01772,
-    0.01749, 0.01712, 0.01659, 0.01590, 0.01503, 0.01399, 0.01279, 0.01147, 0.01008, 0.00868,
-    0.00734, 0.00615, 0.00532, 0.00483, 0.00458, 0.00452, 0.00456, 0.00466, 0.00478, 0.00491,
-    0.00504, 0.00516, 0.00525, 0.00531, 0.00532, 0.00527, 0.00516, 0.00499, 0.00477, 0.00449,
-    0.00417, 0.00380, 0.00340, 0.00298, 0.00256, 0.00214, 0.00175, 0.00140, 0.00109, 0.00083,
-    0.00062, 0.00046, 0.00033, 0.00023, 0.00016, 0.00011, 0.00007, 0.00005, 0.00003, 0.00002,
-    0.00001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0,
-])
-
-REFERENCE = {
-    'cylinder': (_REF_T, _REF_CYLINDER),
-    'cone_s2': (_REF_T, _REF_CONE_S2),
-    'cone_s0p5': (_REF_T, _REF_CONE_S05),
-}
+REFERENCE = load_digitized()
 
 # Table 3 experimental summary (independent of the figure digitization)
 TABLE3 = {
@@ -797,7 +784,7 @@ def main():
     ax.set_title('Gritti et al. (2019) J. Chromatogr. A 1593, Fig. 8\n'
                   'Bombesin, gradient elution -- cylinder vs. conical column '
                   '(native COLUMN_MODEL_1D frustum geometry)', fontsize=10)
-    ax.legend(fontsize=8, ncol=2, loc='upper left')
+    ax.legend(fontsize=8, ncol=1, loc='upper right')
     ax.grid(alpha=0.3)
     fig.tight_layout()
     outpath = os.path.join(HERE, 'case_study_gritti_fig8.png')
