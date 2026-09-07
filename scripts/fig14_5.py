@@ -8,15 +8,13 @@ Reproduction of Fig. 14.5 from:
     inward flow RFC".
 
 Self-contained script: model definition, run, comparison plot and validation
-metrics. Only `cadet` (cadet-python), `numpy`, `matplotlib` and `addict`
-are used.
+metrics.
 
 ===========================================================================
 Step 0 -- case identification
 ===========================================================================
-Governing model: Sections 14.1-14.2 of Gu (2015). RFC general rate model
-(GRM) with a transformed radial coordinate V = (X^2-X0^2)/(X1^2-X0^2) in
-[0,1] (V=1 at the inward-flow inlet X1, V=0 at the outlet X0), run in
+Governing model: Sections 14.1-14.2 of Gu (2015). RFC general rate model,
+with 2-component Langmuir binding in rapid-equilibrium, run in
 "elution with inert mobile phase" mode (index = 2): a finite rectangular
 pulse of duration tau_imp is injected at tau=0, then the feed is switched to
 pure (zero-concentration) carrier for the remainder of the run (Eq. 14.12):
@@ -47,96 +45,7 @@ narrow early peak (apex ~0.58 near tau~2.5); component 2 (black) is a
 broader, later, shorter peak (apex ~0.16 near tau~5.5-6) with a long tail.
 
 ===========================================================================
-Step 1 -- model mapping to CADET
-===========================================================================
-CADET binding/particle mapping (unambiguous): GENERAL_RATE_PARTICLE (film +
-pore diffusion, spherical particles) with a rapid-equilibrium (is_kinetic=0)
-MULTI_COMPONENT_LANGMUIR isotherm -- the direct CADET counterpart of Gu's
-RFC-GRM with local equilibrium at the pore surface.
-
---- Bulk transport: CADET's NATIVE radial-flow geometry, with velocity-
-    scaled dispersion via COL_DISPERSION_DEP=POWER_LAW ---
-
-This script uses CADET-Core's native radial-flow column unit (UNIT_TYPE=
-'COLUMN_MODEL_1D', GEOMETRY='RADIAL_FLOW_CYLINDER_SHELL'), which discretizes
-the bulk PDE in the ACTUAL physical radial coordinate X. Getting this to
-reproduce the paper required finding and fixing TWO real bugs in CADET-Core,
-plus using a documented parameter-dependency mechanism (full detail,
-including root causes and verification, in the sibling Fig. 14.3 script's
-docstring, scripts/fig14_3.py -- summarized here):
-
-(1) FORWARD_FLOW bug (fixed): a single/unchanging-direction section silently
-    ignored the configured FORWARD_FLOW and always ran forward, because
-    `*ConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition()`
-    (ConvectionDispersionOperatorFV.cpp) only flipped the velocity sign on
-    an actual section *transition*. Fixed by applying the current section's
-    direction directly; a related ordering bug in ColumnModel1D.cpp was
-    fixed the same way. (Also independently present in this repo as commit
-    a2ed7f69 "Fix backward flow conversion".)
-
-(2) Radial backward-flow dispersion sign bug (fixed): even with (1) fixed,
-    genuine inward flow gave a grid-NON-convergent, systematically-too-early
-    breakthrough (this is what an earlier draft of THIS script diagnosed as
-    a "naive x-space-time-to-tau mapping" problem -- e.g. the pure-transport
-    control breaking through at "tau"~=0.24 instead of ~1.0, and comp 2
-    breaking through before comp 1 -- but the true root cause, found later
-    while investigating fig14_3.py, was this bug, not a mapping issue at
-    all). Root cause: in `impl::residualBackwardsRadialFlow`
-    (RadialConvectionDispersionKernelFV.hpp), the "left side" dispersion
-    term's cell-center-distance denominator had the opposite sign
-    convention from `impl::residualForwardsRadialFlow`'s corresponding term.
-    Fixed by correcting the denominator (and its matching Jacobian entry).
-    Verified: a non-adsorbing tracer now gives IDENTICAL, grid-convergent
-    breakthrough in both directions, matching the theoretically-required
-    tau=1 for a linear, mass-conserving transport problem.
-
-(3) Velocity-scaled dispersion via COL_DISPERSION_DEP='POWER_LAW': per Eq.
-    (14.15), Db_i(X) must scale with the local velocity v(X) so that Pe_i
-    comes out constant in Gu's transformed V-space -- CADET's native radial
-    unit holds COL_DISPERSION constant in physical space by default.
-    CADET-Core's parameter-dependency mechanism (documented at
-    https://cadet.github.io/master/modelling/parameter_dependencies.html
-    and .../interface/parameter_dependencies_config.html) resolves this:
-    `COL_DISPERSION_DEP='POWER_LAW'` with `COL_DISPERSION_DEP_EXPONENT=1.0`
-    multiplies COL_DISPERSION[i] by the operator's actual local radial
-    velocity at each cell face, giving Db_i(X) ~ v(X) exactly. The analogous
-    FILM_DIFFUSION_DEP mechanism originally existed only for the legacy
-    GeneralRateModel/LumpedRateModelWithPores classes, not for
-    GeneralRateParticle.cpp/ParticleDiffusionOperatorFV.cpp (the particle
-    framework COLUMN_MODEL_1D actually uses) -- this has since been
-    implemented (see fig14_3.py's docstring point (6)), so Bi_i(V)'s
-    position dependence IS now represented via FILM_DIFFUSION_DEP,
-    superseding the iave=2 fallback previously used here.
-
-(4) DG bulk discretization cross-validation, and a THIRD bug found+fixed:
-    get_model()'s bulk_discretization='DG' option exposes this. A genuine
-    bug in `VariableCrossSectionConvectionDispersionOperatorBaseDG::
-    computeOperatorsRadial()`/`computeOperatorsFrustum()`
-    (ConvectionDispersionOperatorDG.cpp) passed the CONFIGURED base
-    dispersion value itself as the argument to the POWER_LAW dependency
-    (instead of the local velocity) and never multiplied the result by that
-    base value -- silently mis-scaling the dispersion by roughly 1/v(X1).
-    Fixed by computing the true local velocity at each Gauss quadrature node
-    and multiplying the dependency's result by the base dispersion, matching
-    the FV kernel's convention. Verified: DG (NELEM=8/16, POLYDEG=4) now
-    matches FV and the digitized reference closely. Full detail in the
-    sibling Fig. 14.3 script's docstring, scripts/fig14_3.py.
-
-Fixes (1), (2), and (4) were rebuilt and installed to
-C:/Users/jmbr/software/CADET-Core/out/install/aRELEASE. With all of the
-above in place, this script uses genuine inward flow (FORWARD_FLOW=[0],
-single unchanging direction) and CADET's true radial PDE -- no axial-column
-substitution, no flow-direction trick.
-
---- Position-dependent Bi_i(V) (Eq. 14.16, the paper's iave=0 treatment) ---
-Represented via FILM_DIFFUSION_DEP='POWER_LAW' with EXPONENT=1/3 (see point
-(3) above and fig14_3.py's docstring point (6)), evaluated at the true
-local velocity for every bulk point -- the paper's own "iave=0" treatment,
-no longer needing the "iave=2" constant-Bi-at-V=0.5 fallback used in
-earlier versions of this script.
-
-===========================================================================
-Step 2 -- reparameterization (paper's dimensionless -> CADET's dimensional)
+Step 1 -- reparameterization (paper's dimensionless -> CADET's dimensional)
 ===========================================================================
 Definitions (Ch. 3 / Ch. 14, identical notation):
     Pe_Li = v(X1)*(X1-X0)/Db_i,V=1        Bi_i = k_i*Rp/(eps_p*Dp_i)
@@ -181,10 +90,7 @@ from addict import Dict
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Locally-built CADET-Core install with two real bugs fixed (FORWARD_FLOW
-# direction, and the radial backward-flow dispersion sign bug -- see Step 1
-# discussion above); required for this script's native-radial-geometry model
-# to work at all. NOT the original C:\...\CADET_compiled\...\aRelease build.
+
 INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 # ---------------------------------------------------------------------------
@@ -260,13 +166,9 @@ def dimless_time(t_phys):
 # Step 5: CADET model definition
 # ---------------------------------------------------------------------------
 def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
-              dg_polydeg=4, dg_nelem=None, col_dispersion_velocity_dep=True,
+              dg_polydeg=4, col_dispersion_velocity_dep=True,
               film_diffusion_velocity_dep=True):
-    """bulk_discretization: 'FV' (default, validated) or 'DG' (cross-validation,
-    see fig14_3.py's Step 1 point (4) for the CADET-Core DG dispersion-
-    dependence bug this required finding and fixing). dg_nelem defaults to
-    max(ncol // (dg_polydeg + 1), 4) if not given.
-
+    """
     col_dispersion_velocity_dep: if True (default), Db_i(X) ~ v(X) via
         COL_DISPERSION_DEP='POWER_LAW'. If False, COL_DISPERSION is held
         constant at Db_i|V=1 everywhere.
@@ -274,6 +176,7 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
         FILM_DIFFUSION_DEP='POWER_LAW'. If False, falls back to the paper's
         own "iave=2" constant-Bi approximation (k_i evaluated once at
         V=0.5)."""
+    
     m = Dict()
     m.input.model.nunits = 3
 
@@ -306,8 +209,7 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
         m.input.model.unit_000[sec].quad_coeff = [0.0, 0.0]
         m.input.model.unit_000[sec].cube_coeff = [0.0, 0.0]
 
-    # --- Column: CADET's native radial-flow geometry (see Step 1 for the
-    # two bug fixes and the COL_DISPERSION_DEP mechanism this relies on) ---
+    # --- Column: CADET's native radial-flow geometry ---
     col = Dict()
     col.unit_type = 'COLUMN_MODEL_1D'
     col.geometry = 'RADIAL_FLOW_CYLINDER_SHELL'
@@ -331,7 +233,7 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
     if bulk_discretization == 'DG':
         col.discretization.SPATIAL_METHOD = 'DG'
         col.discretization.POLYDEG = dg_polydeg
-        col.discretization.NELEM = dg_nelem if dg_nelem is not None else max(ncol // (dg_polydeg + 1), 4)
+        col.discretization.NELEM = ncol
         col.discretization.USE_COLLOCATION_DG = 0
         col.dispersion_spatial_dependence_polydeg = dg_polydeg
     else:
@@ -378,7 +280,7 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
         col.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
         col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
         col.particle_type_000.discretization.PAR_NELEM = par_ncells
-        col.particle_type_000.discretization.PAR_POLYDEG = 2
+        col.particle_type_000.discretization.PAR_POLYDEG = dg_polydeg
     else:
         col.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
         col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
@@ -416,7 +318,9 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
 
 
 def run_model(ncol=120, par_ncells=4, n_points=800, fname='fig14_5.h5', **kwargs):
+
     model = get_model(ncol=ncol, par_ncells=par_ncells, n_points=n_points, **kwargs)
+
     c = Cadet(install_path=INSTALL_PATH)
     c.root.input = model.input
     c.filename = os.path.join(HERE, fname)
@@ -498,11 +402,11 @@ def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
         #    C/C0-normalized dimensionless units (c1_sim, c2_sim, c1_ref,
         #    c2_ref are all already C0-normalized). The injected pulse has
         #    normalized concentration 1 for duration tau_imp, so its
-        #    normalized "mass" (area) is exactly tau_imp -- C0 must NOT be
-        #    multiplied in again here. Component 2's long tail is not fully
-        #    captured within tau_max=16 (matching the paper's own truncated
-        #    plot window), so a residual undershoot here is expected and
-        #    consistent with the reference curve, not necessarily a bug.
+        #    normalized "mass" (area) is exactly tau_imp. Component 2's
+        #    long tail is not fully captured within tau_max=16
+        #    (matching the paper's own truncated plot window),
+        #    so a residual undershoot here is expected and consistent
+        #    with the reference curve, not necessarily a bug.
         injected = TAU_IMP
         eluted_sim = np.trapz(np.clip(c_sim_native, 0.0, None), tau_sim)
         eluted_ref = np.trapz(np.nan_to_num(np.clip(c_ref, 0.0, None)), tau_ref)
@@ -550,8 +454,23 @@ if __name__ == '__main__':
           f"V_REF={V_REF:.4g} m/s, V_CHAR={V_CHAR:.4g} m/s, "
           f"Q={Q_FLOW:.4g} m^3/s, tau_imp={TAU_IMP}, T_END={T_END:.4g} s")
 
-    print("\nRunning CADET simulation (native radial geometry, genuine inward flow)...")
-    t_phys, outlet = run_model()
+    print("\nRunning CADET simulation")
+
+    model_kwargs = {
+        'film_diffusion_velocity_dep': True,
+        'col_dispersion_velocity_dep': True
+
+    }
+
+    spatial_method = 'DG'
+
+    if spatial_method == 'DG':
+        t_phys, outlet = run_model(ncol=16, par_ncells=1, dg_polydeg=4, bulk_discretization=spatial_method,
+                                   n_points=400, fname=f'fig14_5_{spatial_method}.h5', **model_kwargs)
+    elif spatial_method == 'FV':
+        t_phys, outlet = run_model(ncol=240, par_ncells=8, dg_polydeg=None, bulk_discretization=spatial_method,
+                                   n_points=400, fname=f'fig14_5_{spatial_method}.h5', **model_kwargs)
+
     tau_sim = dimless_time(t_phys)
     c1_sim = outlet[:, 0] / PAPER[1]['C0_phys']
     c2_sim = outlet[:, 1] / PAPER[2]['C0_phys']
@@ -568,32 +487,26 @@ if __name__ == '__main__':
     ax.plot(tau_sim, c1_sim, '-', color='tab:red', label='Component 1 (CADET)')
     ax.plot(tau_sim, c2_sim, '-', color='black', label='Component 2 (CADET)')
     ax.plot(tau_ref, c1_ref, 'o', color='tab:red', ms=3, mfc='none',
-            label='Component 1 (digitized, Gu 2015)')
+            label='Component 1 (Gu 2015)')
     ax.plot(tau_ref, c2_ref, 's', color='black', ms=3, mfc='none',
-            label='Component 2 (digitized, Gu 2015)')
-    ax.set_xlabel('Dimensionless time, ' + r'$\tau = vt/(X_1-X_0)$')
-    ax.set_ylabel('Dimensionless concentration, ' + r'$C/C_0$')
+            label='Component 2 (Gu 2015)')
+    ax.set_xlabel('Dimensionless time')#, ' + r'$\tau = vt/(X_1-X_0)$')
+    ax.set_ylabel('Dimensionless concentration')#, ' + r'$C/C_0$')
     ax.set_xlim(0, 16)
     ax.set_ylim(0, 0.65)
-    ax.set_title('Gu (2015), Fig. 14.5 -- binary elution with inert mobile phase, inward-flow RFC\n'
-                  '(CADET native radial geometry; velocity-scaled dispersion and film\n'
-                  'diffusion via COL_DISPERSION_DEP/FILM_DIFFUSION_DEP)', fontsize=10)
-    ax.legend(loc='upper right', fontsize=8)
+    # ax.set_title('Gu (2015), Fig. 14.5 -- binary elution with inert mobile phase, inward-flow RFC', fontsize=12)
+
+    # add a box with MSE, peak position and height deviation
+    peak_text = f"Peak Component 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak Component 2: {metrics['component_2']['peak_time_relerr_%']:.4g}"
+    height_text = f"Peak Deviation Component 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak Deviation Component 2: {metrics['component_2']['peak_time_relerr_%']:.4g}\nHeight Deviation Component 1: {metrics['component_1']['peak_height_relerr_%']:.4g}\nHeight Deviation Component 2: {metrics['component_2']['peak_height_relerr_%']:.4g}"
+    mse_text = f"MSE Component 1: {metrics['component_1']['mse']:.4g}\nMSE Component 2: {metrics['component_2']['mse']:.4g}"
+    box_text = mse_text # + "\n" + peak_text + "\n" + height_text
+    ax.text(0.55, 0.95, box_text, transform=ax.transAxes, fontsize=12,
+            verticalalignment='top', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
+    ax.legend(loc='upper right', fontsize=12)
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    outpath = os.path.join(HERE, 'fig14_5_comparison.png')
+    outpath = os.path.join(HERE, f'fig14_5_comparison_{spatial_method}.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
-
-    # --- DG bulk-discretization cross-validation (see fig14_3.py Step 1 point (4)) ---
-    print("\nCross-validating against DG bulk discretization (bulk_discretization='DG')...")
-    for dg_nelem in (8, 16):
-        t_dg, outlet_dg = run_model(par_ncells=4, bulk_discretization='DG', dg_polydeg=4,
-                                     dg_nelem=dg_nelem, fname=f'fig14_5_dg{dg_nelem}.h5')
-        tau_dg = dimless_time(t_dg)
-        c1_dg = outlet_dg[:, 0] / PAPER[1]['C0_phys']
-        c2_dg = outlet_dg[:, 1] / PAPER[2]['C0_phys']
-        i1_dg, i2_dg = np.argmax(c1_dg), np.argmax(c2_dg)
-        print(f"  DG NELEM={dg_nelem:2d} POLYDEG=4: peak1 tau={tau_dg[i1_dg]:.4g} h1={c1_dg[i1_dg]:.4g}"
-              f"  peak2 tau={tau_dg[i2_dg]:.4g} h2={c2_dg[i2_dg]:.4g}"
-              f"  (FV/ref: 2.34/0.578, 5.41/0.151 -- 2.375/0.568, 5.375/0.153)")
