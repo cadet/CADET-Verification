@@ -183,7 +183,9 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
         col.col_dispersion_dep_exponent = 1.0
     else:
         col.col_dispersion = [PAPER[1]['Db_V1'], PAPER[2]['Db_V1'], PAPER[3]['Db_V1']]
-    col.forward_flow = [0, 0, 0]
+    # Gu (2015) uses inward flow, i.e. from the outer to the inner radius, which is
+    # the default direction of CADET's radial flow geometry.
+    col.forward_flow = [1, 1, 1]
     col.init_c = [0.0, 0.0, 0.0]
 
     col.discretization.USE_ANALYTIC_JACOBIAN = 1
