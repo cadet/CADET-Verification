@@ -121,9 +121,7 @@ def get_model(
             column.particle_type_000.has_pore_diffusion = 1
             column.particle_type_000.pore_diffusion = 6.07e-11
             
-            if 'spatial_method_particle' in kwargs:
-                column.particle_type_000.discretization.SPATIAL_METHOD = kwargs['spatial_method_particle']
-            else:
+            if 'spatial_method_particle' not in kwargs:
                 raise Exception("keyword argument spatial_method_particle needs to be specified for general rate particles")
             
             if kwargs.get('surface_diffusion', 0.0) > 0.0:
@@ -132,12 +130,14 @@ def get_model(
             else:
                 column.particle_type_000.has_surface_diffusion = 0
                 
+            # The particle discretization is independent of the bulk discretization,
+            # so it must only set fields of the particle type, never of the column.
             if kwargs['spatial_method_particle'] > 0:
-                column.discretization.SPATIAL_METHOD = "DG"
+                column.particle_type_000.discretization.SPATIAL_METHOD = "DG"
                 column.particle_type_000.discretization.PAR_POLYDEG = kwargs['spatial_method_particle']
                 column.particle_type_000.discretization.PAR_NELEM = parNElem
             elif kwargs['spatial_method_particle'] == 0:
-                column.discretization.SPATIAL_METHOD = "FV"
+                column.particle_type_000.discretization.SPATIAL_METHOD = "FV"
                 column.particle_type_000.discretization.NCELLS = parNElem
                 column.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
             if kwargs['spatial_method_particle'] >= 0:  

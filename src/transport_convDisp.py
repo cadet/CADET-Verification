@@ -19,6 +19,7 @@ import src.benchmark_models.setting_COL1D_radial_transport as setting_radial_tra
 import src.benchmark_models.setting_COL1D_frustum_transport as setting_frustum_transport
 import src.benchmark_models.setting_MCT_transport_2channel as setting_MCT_transport_2channel
 import src.benchmark_models.setting_COL2D_axialTransport_2rad as setting_COL2D_axTransport
+import src.benchmark_models.setting_Col1D_lin_1comp_benchmark1 as setting_Col1D_GRM
 import src.bench_func as bench_func
 import src.bench_configs as bench_configs
 
@@ -574,6 +575,99 @@ def transport_tests(n_jobs, small_test,
         n_jobs=n_jobs,
         rerun_sims=True,
         disc_refinement_functions = disc_refinement_functions
+    )
+
+    #%% Mixed bulk/particle discretization (GRM)
+
+    # The bulk and the particle equations of the GRM are discretized independently,
+    # so besides the pure FV and pure DG combinations, the two mixed combinations
+    # DG bulk / FV particle and FV bulk / DG particle must converge as well.
+    # Both spatial directions are refined simultaneously, hence the observed order is
+    # the minimum of the bulk and the particle order, i.e. second order for both mixed
+    # combinations (limited by the FV part), same as the pure FV combination.
+
+    # reset, the GRM must additionally provide particle discretizations and must run its own convergence analysis
+    cadet_configs = []
+    cadet_config_names = []
+    include_sens = []
+    ref_files = []
+    unit_IDs = []
+    which = []
+    ax_methods = []
+    ax_discs = []
+    par_methods = []
+    par_discs = []
+    idas_abstol = []
+    disc_refinement_functions = []
+
+    # semi-analytical reference solution (CASEMA), same as used in the chromatography tests
+    mixed_GRM_ref = convergence.get_solution(
+        str(Path(__file__).resolve().parent.parent / 'data' / 'CASEMA_reference'
+            / 'GRM_dynLin_1comp_benchmark1.h5')
+    )
+
+    nNumMethods = 4
+    numRefinements = 5 if not small_test else 3
+
+    addition = {
+        'cadet_config_jsons': [
+            setting_Col1D_GRM.get_model(
+                spatial_method_bulk=0, spatial_method_particle=0,
+                particle_type='GENERAL_RATE_PARTICLE'
+            )
+        ],
+        'cadet_config_names': [
+            'GRM_dynLin_1comp_mixedDisc_benchmark1'
+        ],
+        'include_sens': [False],
+        'ref_files': [[mixed_GRM_ref] * nNumMethods],
+        'unit_IDs': ['001'],
+        'which': ['outlet'],
+        'idas_abstol': [[1e-12] * nNumMethods],
+        # bulk: 0 = FV (WENO3), 3 = DG P3
+        'ax_methods': [[0, 3, 3, 0]],
+        'ax_discs': [[
+            bench_func.disc_list(8, numRefinements),
+            bench_func.disc_list(8, numRefinements),
+            bench_func.disc_list(8, numRefinements),
+            bench_func.disc_list(8, numRefinements)
+        ]],
+        # particle: 0 = FV, 3 = DG P3
+        'par_methods': [[0, 3, 0, 3]],
+        'par_discs': [[
+            bench_func.disc_list(1, numRefinements),
+            bench_func.disc_list(1, numRefinements),
+            bench_func.disc_list(1, numRefinements),
+            bench_func.disc_list(1, numRefinements)
+        ]],
+        'disc_refinement_functions': [
+            [bench_func.create_object_from_config] * nNumMethods
+        ]
+    }
+
+    bench_configs.add_benchmark(
+        cadet_configs, include_sens, ref_files, unit_IDs, which,
+        ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol,
+        cadet_config_names=cadet_config_names, addition=addition,
+        disc_refinement_functions=disc_refinement_functions)
+
+    bench_func.run_convergence_analysis(
+        output_path=output_path,
+        cadet_path=cadet_path,
+        cadet_configs=cadet_configs,
+        cadet_config_names=cadet_config_names,
+        include_sens=include_sens,
+        ref_files=ref_files,
+        unit_IDs=unit_IDs,
+        which=which,
+        ax_methods=ax_methods,
+        ax_discs=ax_discs,
+        par_methods=par_methods,
+        par_discs=par_discs,
+        idas_abstol=idas_abstol,
+        n_jobs=n_jobs,
+        rerun_sims=True,
+        disc_refinement_functions=disc_refinement_functions
     )
 
     #%% 2DGRM (General Rate Model 2D) - axial flow transport refinement
