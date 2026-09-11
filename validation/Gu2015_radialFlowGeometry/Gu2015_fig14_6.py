@@ -32,7 +32,7 @@ TAU_MAX_SIM = 60.0
 EPS_B = 0.40
 EPS_P_TOTAL = 0.45
 EXF = 0.8                     # size-exclusion factor, identical for i=1,2,3
-EPS_AP = EXF * EPS_P_TOTAL    # accessible particle porosity used in CADET
+EPS_AP = EXF * EPS_P_TOTAL    # accessible particle porosity = F_acc*eps_p
 
 # component  PeL   eta   Bi    C_inf     C0         Daa   Dad
 PAPER = {
@@ -83,13 +83,12 @@ C0_1_PHYS = PAPER[1]['C0_phys']
 C0_2_PHYS = PAPER[2]['C0_phys']
 C0_3_PHYS = PAPER[3]['C0_phys']  # == C0_1_PHYS by construction (book convention)
 
-# Particle-porosity correction (docstring Sec. 4): CADET's single
-# PAR_POROSITY=eps_ap makes its solid-phase weight (1-eps_ap) instead of the
-# book's own (1-eps_p); rescaling QMAX1 by (1-eps_p)/(1-eps_ap) exactly
-# compensates, since the kinetic Langmuir ODE is linear in qmax for fixed
-# ka1/kd1.
-QMAX1_CORRECTION = (1.0 - EPS_P_TOTAL) / (1.0 - EPS_AP)
-QMAX1_PHYS = PAPER[1]['C_inf_phys'] * QMAX1_CORRECTION
+# Size exclusion (docstring Sec. 4): CADET's PORE_ACCESSIBILITY factor
+# F_acc = ExF reproduces the book's accessible-porosity formulation term by
+# term (eps_ap = F_acc*eps_p enters pore transport and the film boundary
+# condition, while the solid phase keeps the true (1-eps_p) weight) so
+# qmax1 is the paper's own C_inf,1, with no correction factor.
+QMAX1_PHYS = PAPER[1]['C_inf_phys']
 
 KA1 = DA1A * V_CHAR / (BED_LENGTH * C0_1_PHYS)
 KD1 = DA1D * V_CHAR / BED_LENGTH
@@ -233,7 +232,12 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
     col.particle_type_000.has_surface_diffusion = 0
     col.particle_type_000.par_geom = 'SPHERE'
     col.particle_type_000.par_coreradius = 0.0
-    col.particle_type_000.par_porosity = EPS_AP
+    col.particle_type_000.par_porosity = EPS_P_TOTAL
+    # Size exclusion: eps_ap = PORE_ACCESSIBILITY*PAR_POROSITY replaces the
+    # porosity in pore transport and the film BC only, while the solid phase
+    # retains (1-eps_p); exactly the book's split (docstring Sec. 4). ExF
+    # is identical for all three components here.
+    col.particle_type_000.pore_accessibility = [EXF, EXF, EXF]
     col.particle_type_000.par_radius = RP
     col.particle_type_000.pore_diffusion = [PAPER[1]['Dp'], PAPER[2]['Dp'], PAPER[3]['Dp']]
     col.particle_type_000.surface_diffusion = [0.0, 0.0, 0.0]
@@ -566,7 +570,8 @@ if __name__ == '__main__':
     print(f"  KA2(=KFWD)={KA2:.4g}, KD2(=KBWD)={KD2:.4g}  (shared P+I<->PI mass-action reaction)")
     print(f"  X0={X0:.4g} m, X1={X1:.4g} m, bed_length={BED_LENGTH:.4g} m, "
           f"Q={Q_FLOW:.4g} m^3/s, T_END={T_END:.4g} s")
-    print(f"  eps_b={EPS_B}, eps_p(total)={EPS_P_TOTAL}, ExF={EXF}, eps_ap(CADET PAR_POROSITY)={EPS_AP}")
+    print(f"  eps_b={EPS_B}, eps_p(total)={EPS_P_TOTAL} (PAR_POROSITY), ExF={EXF} (PORE_ACCESSIBILITY), "
+          f"eps_ap=ExF*eps_p={EPS_AP:.4g}")
 
     print("\nRunning CADET simulation (native radial geometry, genuine inward flow -- see script docstring)...")
 
