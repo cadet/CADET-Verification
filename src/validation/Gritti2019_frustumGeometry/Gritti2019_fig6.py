@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_digitized.csv')
 FIG5_DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_fig5H_digitized.csv')
 
@@ -96,8 +95,8 @@ CONFIGS = {
 # ---------------------------------------------------------------------------
 # Step 4 -- CADET model definition
 # ---------------------------------------------------------------------------
-def get_model(config_key, spatial_method='FV', ncol=16, dg_polydeg=4,
-             n_points=3000, t_end=400.0, tracer=False):
+def get_model(cadet_path, config_key, spatial_method='FV', ncol=16, dg_polydeg=4,
+              n_points=3000, t_end=400.0, tracer=False):
     """Build the CADET model for one column configuration.
 
     Dispersion: COL_DISPERSION_DEP='VAN_DEEMTER' (see Step 1 in the module
@@ -108,7 +107,7 @@ def get_model(config_key, spatial_method='FV', ncol=16, dg_polydeg=4,
     cfg = CONFIGS[config_key]
     Fv = cfg['Fv']
 
-    c = Cadet(install_path=INSTALL_PATH)
+    c = Cadet(install_path=cadet_path)
     m = c.root.input.model
     m.nunits = 3
 
@@ -236,10 +235,10 @@ def get_model(config_key, spatial_method='FV', ncol=16, dg_polydeg=4,
     return c
 
 
-def run_model(config_key, fname=None, **kwargs):
+def run_model(cadet_path, output_path, config_key, fname=None, **kwargs):
 
-    c = get_model(config_key, **kwargs)
-    c.filename = fname or os.path.join(HERE, f'Gritti2019_fig6_{config_key}.h5')
+    c = get_model(cadet_path, config_key, **kwargs)
+    c.filename = fname or os.path.join(output_path, f'Gritti2019_fig6_{config_key}.h5')
     c.save()
     rc = c.run_simulation()
     if rc.return_code != 0:
@@ -434,7 +433,15 @@ def print_metrics(config_key, m):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def main():
+
+from pathlib import Path
+CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
+
+def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
+
+    os.makedirs(output_path, exist_ok=True)
+
     print("Derived parameters (Step 2):")
     print(f"  V_bed (cylinder) = {V_BED_CYL*1e6:.4f} cm^3  (paper: 1.06 cm^3)")
     print(f"  V_bed (cone)     = {V_BED_CONE*1e6:.4f} cm^3  (paper: 1.21 cm^3)")
@@ -463,7 +470,7 @@ def main():
         print(f"\nRunning CADET (DG, POLYDEG=4, NELEM=128) for configuration '{key}' "
               f"({cfg['geometry']}, Fv={cfg['Fv']/ML_MIN:.2f} mL/min, "
               f"forward_flow={cfg['forward_flow']})...")
-        t_sim, c_sim, c_inlet = run_model(key, spatial_method=spatial_method, dg_polydeg=4, ncol=128,
+        t_sim, c_sim, c_inlet = run_model(cadet_path, output_path, key, spatial_method=spatial_method, dg_polydeg=4, ncol=128,
                                            t_end=400.0, n_points=4000)
         chromatograms[key] = c_sim
         t_inj_duration = V_INJ / cfg['Fv']
@@ -510,7 +517,7 @@ def main():
             )
         )
         fig.tight_layout()
-        outpath = os.path.join(HERE, f'Gritti2019_fig6_comparison_{key}_{spatial_method}.png')
+        outpath = os.path.join(output_path, f'Gritti2019_fig6_comparison_{key}_{spatial_method}.png')
         fig.savefig(outpath, dpi=150)
         plt.close(fig)
         print(f"\nSaved comparison plot to {outpath}")
