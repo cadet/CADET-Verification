@@ -13,16 +13,17 @@ import numpy as np
 def get_column_geometry_configuration(
     geometry,
     bed_length=0.1,
-    inlet_radius=0.02,
+    axial_inlet_radius=0.02,
     frustum_ratio=0.75,
 ):
 
-    A = np.pi * inlet_radius**2
+    A = np.pi * axial_inlet_radius**2
 
     if geometry == "AXIAL_FLOW_CYLINDER":
 
         return {
             'geometry': geometry,
+            "inlet_cross_section_area": A,
             "cross_section_area": A,
             "bed_length": bed_length,
         }
@@ -31,6 +32,7 @@ def get_column_geometry_configuration(
 
         return {
             'geometry': geometry,
+            "inlet_cross_section_area": A,
             "cross_section_area_large_end": A,
             "cross_section_area_small_end": A * frustum_ratio,
             "bed_length": bed_length,
@@ -38,13 +40,14 @@ def get_column_geometry_configuration(
 
     elif geometry == "RADIAL_FLOW_CYLINDER_SHELL":
 
-        r_outer = inlet_radius 
-        r_inner = r_outer - bed_length
+        r_inner = 0.05
+        r_outer = r_inner + bed_length
         # choose height so inlet area equals axial inlet area
         height = A / (2 * np.pi * r_outer)
 
         return {
             'geometry': geometry,
+            "inlet_cross_section_area": A,
             "cross_section_area_outer": A,
             "cross_section_area_inner": 2.0 * np.pi * height * r_inner,
             "cylinder_height": height,
@@ -72,7 +75,7 @@ def get_model(
 
     #%% Column unit
     column = Dict()
-    if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_COLUMN_MODEL_1D', 'AXIAL_FLOW_FRUSTUM']:
+    if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_FLOW_CYLINDER_SHELL', 'AXIAL_FLOW_FRUSTUM']:
         raise ValueError(f"Unknown column geometry: {column_geometry}")
     column.unit_type = "COLUMN_MODEL_1D"
     column.update(get_column_geometry_configuration(column_geometry))
@@ -85,7 +88,7 @@ def get_model(
 
     # Flow sheet
     velocity = 0.01
-    Q = velocity * column.cross_section_area * column.total_porosity
+    Q = velocity * column.inlet_cross_section_area * column.total_porosity
     model.input.model.connections.switch_000.connections = [
         0.e+00, 1.e+00,-1.e+00,-1.e+00, Q, 
         1.e+00, 2.e+00,-1.e+00,-1.e+00, Q
@@ -94,7 +97,7 @@ def get_model(
     
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.EXACT_INTEGRATION = kwargs.get('exact_integration', 0)
+        column.discretization.USE_COLLOCATION_DG = kwargs.get('use_collocation_dg', 1 if column_geometry == 'AXIAL_FLOW_CYLINDER' else 0)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     else:

@@ -36,6 +36,7 @@ def get_column_geometry_configuration(geometry: str):
             'geometry': geometry,
             # A = v * \pi * r^2 * \varepsilon
             'cross_section_area': axial_flow_cross_section_area,
+            'inlet_cross_section_area': axial_flow_cross_section_area,
             'bed_length': 0.014,
         }
     elif geometry == 'RADIAL_FLOW_CYLINDER_SHELL':
@@ -45,6 +46,7 @@ def get_column_geometry_configuration(geometry: str):
         return {
             'geometry': geometry,
             # A = 2 * pi * \rho * L^b -> \rho = A / 2.0 / pi / L^b
+            'inlet_cross_section_area': axial_flow_cross_section_area,
             'cross_section_area_outer': axial_flow_cross_section_area,
             'cylinder_height': cylinder_height,
             'cross_section_area_outer': axial_flow_cross_section_area,
@@ -54,6 +56,7 @@ def get_column_geometry_configuration(geometry: str):
     elif geometry == 'AXIAL_FLOW_FRUSTUM':
         return {
             'geometry': geometry,
+            'inlet_cross_section_area': axial_flow_cross_section_area,
             'cross_section_area_large_end': axial_flow_cross_section_area,
             'cross_section_area_small_end': axial_flow_cross_section_area * 0.75,
             'bed_length': 0.014,
@@ -92,7 +95,7 @@ def get_model(
     # Spatial discretization of interstitial / bulk volume
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = 'DG'
-        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
+        column.discretization.USE_COLLOCATION_DG = kwargs.get('use_collocation_dg', 1 if column_geometry == 'AXIAL_FLOW_CYLINDER' else 0)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     else:
@@ -147,7 +150,7 @@ def get_model(
     model.input.model.unit_000 = column
 
     # Flow sheet
-    flowRate = 0.000575 * column.cross_section_area * 0.37
+    flowRate = 0.000575 * column.inlet_cross_section_area * 0.37
     model.input.model.connections.connections_include_ports = 1
     model.input.model.connections.nswitches = 1
     model.input.model.connections.switch_000.connections = [

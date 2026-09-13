@@ -49,7 +49,7 @@ def get_model(
     
     if spatial_method_bulk > 0:
         column.discretization.SPATIAL_METHOD = "DG"
-        column.discretization.USE_COLLOCATION_DG = kwargs.get('USE_COLLOCATION_DG', 1)
+        column.discretization.USE_COLLOCATION_DG = kwargs.get('use_collocation_dg', 1 if column_geometry == 'AXIAL_FLOW_CYLINDER' else 0)
         column.discretization.POLYDEG = spatial_method_bulk
         column.discretization.NELEM = axNElem
     else:
