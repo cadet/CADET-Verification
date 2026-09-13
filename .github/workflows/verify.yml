@@ -64,8 +64,8 @@ jobs:
               pip install .
 
               echo 'Running verification'
-              pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py \
-                --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\"
+              pytest -s \$PYTEST_ARGS scripts/verify_geometries.py \
+                --commit-message=\"Column Geometry verification and validation via \$EVENT_NAME on \$(date +%F)\"
 
               echo 'Running rdm checks and pushing'
               rdm check

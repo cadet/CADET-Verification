@@ -13,14 +13,9 @@ def pytest_addoption(parser):
     parser.addoption("--n-jobs", type=int, default=-1)
     parser.addoption("--delete-h5-files", type=str2bool, default=True)
 
-    parser.addoption("--run-transport-tests", type=str2bool, default=True)
-    parser.addoption("--run-binding-tests", type=str2bool, default=True)
-    parser.addoption("--run-chromatography-tests", type=str2bool, default=True)
-    parser.addoption("--run-chromatography-sensitivity-tests", type=str2bool, default=True)
-    parser.addoption("--run-chromatography-system-tests", type=str2bool, default=True)
-    parser.addoption("--run-crystallization-tests", type=str2bool, default=True)
-    parser.addoption("--run-mct-tests", type=str2bool, default=True)
-    parser.addoption("--run-2dmodels-tests", type=str2bool, default=True)
+    parser.addoption("--run-performance-tests", type=str2bool, default=True)
+    parser.addoption("--run-validation-tests", type=str2bool, default=True)
+    parser.addoption("--run-eoc-tests", type=str2bool, default=True)
 
     parser.addoption("--commit-message", type=str, default="CADET model test run")
     parser.addoption("--rdm-debug-mode", type=str2bool, default=True)
