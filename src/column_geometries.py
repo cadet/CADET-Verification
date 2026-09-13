@@ -99,7 +99,7 @@ def geometry_tests(n_jobs, small_test, output_path, cadet_path,
 
     # The convergence analysis writes into the chromatography subdirectory, which has
     # to exist before the first simulation is saved.
-    os.makedirs(output_path / "chromatography", exist_ok=True)
+    os.makedirs(output_path / "transport", exist_ok=True)
 
     # Root of the reference data; the analytical and the CADET references live in
     # their respective subdirectories, see src/geometry_references.py.
@@ -164,7 +164,7 @@ def geometry_tests(n_jobs, small_test, output_path, cadet_path,
             ))
 
     bench_func.run_convergence_analysis(
-        output_path=output_path / "chromatography",
+        output_path=output_path / "transport",
         cadet_path=cadet_path,
         cadet_configs=cadet_configs,
         cadet_config_names=cadet_config_names,
@@ -196,4 +196,4 @@ def geometry_tests(n_jobs, small_test, output_path, cadet_path,
     )
 
     if delete_h5_files:
-        convergence.delete_h5_files(str(output_path) + "/chromatography")
+        convergence.delete_h5_files(str(output_path) + "/transport")
