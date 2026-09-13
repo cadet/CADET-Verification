@@ -630,6 +630,67 @@ def paper_geometry_LRMPdynLin_benchmark(setting_name,
     return benchmark_config
 
 
+def geometry_performance_benchmark(spatial_method, ax_disc, par_disc, small_test=False):
+
+    n_settings = 4
+
+    benchmark_config = {
+        'cadet_config_jsons': [
+           setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               column_geometry='RADIAL_FLOW_CYLINDER_SHELL',
+               spatial_method_bulk=spatial_method, spatial_method_particle=spatial_method,
+               particle_type='GENERAL_RATE_PARTICLE'
+               ),
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                column_geometry='RADIAL_FLOW_CYLINDER_SHELL',
+                spatial_method_bulk=spatial_method
+                ),
+           setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+               column_geometry='AXIAL_FLOW_FRUSTUM',
+               spatial_method_bulk=spatial_method, spatial_method_particle=spatial_method,
+               particle_type='GENERAL_RATE_PARTICLE'
+               ),
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                column_geometry='AXIAL_FLOW_FRUSTUM',
+                spatial_method_bulk=spatial_method
+                )
+        ],
+        'cadet_config_names': [
+            'radial_GRM_reqSMA_4comp_benchmark1',
+            'radial_LRM_langmuir_2comp_benchmark1',
+            'frustum_GRM_reqSMA_4comp_benchmark1',
+            'frustum_LRM_langmuir_2comp_benchmark1'
+
+        ],
+        'include_sens': [False] * n_settings,
+        'ref_files': [
+            [None], [None], [None], [None]
+        ],
+        'unit_IDs': [
+            '000','001', '000','001'
+        ],
+        'which': [
+            'outlet', 'outlet', 'outlet', 'outlet',
+        ],
+        'idas_abstol': [
+            [1e-8], [1e-8], [1e-8], [1e-8]
+        ],
+        'ax_methods': [
+            [spatial_method], [spatial_method], [spatial_method], [spatial_method]
+        ],
+        'ax_discs': ax_disc,
+        'par_methods': [
+            [spatial_method], [None], [spatial_method], [None]
+        ],
+        'par_discs': par_disc,
+        'disc_refinement_functions' : [
+            [bench_func.create_object_from_config] for _ in range(n_settings)
+            ]
+    }
+
+    return benchmark_config
+
+
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 
