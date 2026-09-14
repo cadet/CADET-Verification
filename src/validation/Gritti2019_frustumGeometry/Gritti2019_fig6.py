@@ -11,12 +11,22 @@ validation metrics. Further explanation on model and parameter selection is
 provided under Gritti2019_fig6.md.
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# The shared metric definitions live one directory up, so that all six
+# validation case studies report an identical set of numbers. Adding that
+# directory to sys.path keeps this script runnable both directly and as an
+# imported module (scripts/verify_geometries.py imports main()).
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+import validation_metrics as vm  # noqa: E402
+
 DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_digitized.csv')
 FIG5_DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_fig5H_digitized.csv')
 
@@ -320,114 +330,41 @@ def plot_fig5_verification(output_path):
 # ---------------------------------------------------------------------------
 # Validation metrics
 # ---------------------------------------------------------------------------
-def moments(t, c):
-    """Zeroth, first (mean), and second central moment of a chromatogram.
-    Negative values (small DG undershoot/ringing near baseline) are clipped
-    before integrating -- same convention as Gritti2019_fig7.py's and
-    Gritti2019_fig8.py's moments()."""
-    c = np.clip(np.asarray(c), 0.0, None)
-    m0 = np.trapezoid(c, t)
-    m1 = np.trapezoid(t * c, t) / m0
-    m2 = np.trapezoid((t - m1) ** 2 * c, t) / m0
-    return m0, m1, m2
+def compute_metrics(config_key, t_sim, c_sim, c_inj_area, ref_t, ref_c):
+    """The four unified validation metrics -- see src/validation/validation_metrics.py
+    for their definitions, which are shared verbatim by all six case studies.
 
+    The reference for Delta mu_1 and Delta mu_2 is the paper's own Table 1,
+    i.e. moments measured on the real columns. The dispersion coefficient
+    used here is the paper's Fig. 5 H(v) curve and was NOT fitted to Table
+    1's mu_2, so Delta mu_2 is a genuine prediction in this figure (unlike
+    in Gritti2019_fig7.py, and unlike the cylinder of Gritti2019_fig8.py,
+    where the dispersion was calibrated against the tabulated mu_2 and the
+    Delta mu_2 entry is consequently left empty).
 
-def compute_metrics(config_key, t_sim, c_sim, t_inj_duration, c_inj_area, ref_t, ref_c):
-    """Identical metric set/formulas as Gritti2019_fig7.py's/fig8.py's
-    compute_metrics(): peak position and elution time are each checked
-    against BOTH the tabulated (Table 1) ground truth AND the digitized
-    curve; amplitude is a per-column least-squares AU-scale fit (NOT area
-    normalization); chromatogram NRMSE is computed on the RAW (unshifted)
-    time axis, with no peak-realignment step -- see the NOTE printed by
-    print_metrics() for the one known, paper-documented caveat specific to
-    this figure (Fig. 6's own printed peaks were intentionally, cosmetically
-    time-shifted by the paper's authors for display -- Sec. 4.2.2: "for the
-    sake of comparison, the time position of the three peaks were slightly
-    adjusted"; no analogous statement exists for Fig. 7/8, confirmed by
-    checking the paper text directly)."""
+    NOTE specific to this figure: Sec. 4.2.2 states that the peaks PRINTED
+    in Fig. 6 were "slightly adjusted" in time for display. A few tenths of
+    a percent of the NRMSE therefore reflect that known display artifact
+    rather than a genuine model/shape mismatch; no analogous statement
+    exists for Fig. 7/8. Delta mu_1 and Delta mu_2 are unaffected, since
+    they are taken against Table 1 rather than against the digitized curve.
+    """
     ref = TABLE1[config_key]
-    m = {}
-
-    valid = ~np.isnan(ref_c)
-    rt = ref_t[valid]
-    rc = ref_c[valid]
-
-    # 1) Peak position: sim (raw) vs. Table 1 (ground truth) AND vs. digitized curve
-    i_peak_sim = np.argmax(c_sim)
-    t_peak_sim = t_sim[i_peak_sim]
-    i_peak_ref = np.argmax(rc)
-    t_peak_ref_digitized = rt[i_peak_ref]
-    m['peak_time_sim'] = t_peak_sim
-    m['peak_time_table_ref'] = ref['tR']
-    m['peak_time_table_relerr_%'] = 100 * abs(t_peak_sim - ref['tR']) / ref['tR']
-    m['peak_time_digitized_ref'] = t_peak_ref_digitized
-    m['peak_time_digitized_relerr_%'] = 100 * abs(t_peak_sim - t_peak_ref_digitized) / t_peak_ref_digitized
-
-    # 2) Elution time (first moment): sim (raw) vs. Table 1 AND vs. digitized curve
-    m0_sim, m1_sim, m2_sim = moments(t_sim, c_sim)
-    _, m1_ref_digitized, _ = moments(rt, rc)
-    m['mu1_sim'] = m1_sim
-    m['mu1_table_ref'] = ref['mu1']
-    m['mu1_table_relerr_%'] = 100 * abs(m1_sim - ref['mu1']) / ref['mu1']
-    m['mu1_digitized_ref'] = m1_ref_digitized
-    m['mu1_digitized_relerr_%'] = 100 * abs(m1_sim - m1_ref_digitized) / m1_ref_digitized
-
-    # (extra, not in the standard 4-metric table, but directly checks the
-    # frustum/dispersion-dependence physics against the paper's own
-    # full, flow-dependent-H result)
-    m['mu2_sim'] = m2_sim
-    m['mu2_ref_measured'] = ref['mu2']
-    H_sim = L_BED * m2_sim / m1_sim ** 2
-    m['H_bar_sim_micron'] = H_sim / MICRON
-
-    # 3) Mass balance: injected mass (area under the rectangular inlet
-    # pulse, known analytically as C0*t_inj) vs. integral of the RAW
-    # (un-amplitude-calibrated) simulated outlet.
-    m_in = c_inj_area
-    m_out = m0_sim
-    m['mass_balance_relerr_%'] = 100 * abs(m_out - m_in) / m_in
-
-    # 4) Per-column least-squares Absorbance-[AU] scale factor (simulated ->
-    # digitized), fit independently for this column -- identical formula to
-    # Gritti2019_fig7.py's/fig8.py's amplitude calibration.
-    c_sim_i = np.interp(rt, t_sim, c_sim)
-    denom = np.sum(c_sim_i ** 2)
-    scale = np.sum(c_sim_i * rc) / denom if denom > 0 else 0.0
-    m['au_scale'] = scale
-    m['peak_height_sim'] = scale * c_sim[i_peak_sim]
-    m['peak_height_ref'] = rc[i_peak_ref]
-    m['peak_height_relerr_%'] = 100 * abs(m['peak_height_sim'] - m['peak_height_ref']) / m['peak_height_ref']
-
-    # 5) Chromatogram MSE/NRMSE, RAW time axis, NO peak-realignment -- see
-    # docstring/print_metrics() NOTE for the Fig.-6-specific caveat this
-    # implies (this figure's own digitized reference has a known,
-    # paper-documented cosmetic peak-position shift that Fig. 7/8 do not).
-    m['mse'] = float(np.mean((scale * c_sim_i - rc) ** 2))
-    m['nrmse_%'] = 100.0 * np.sqrt(m['mse']) / m['peak_height_ref']
-
+    m = vm.standard_metrics(
+        name=config_key,
+        t_sim=t_sim, c_sim=c_sim, t_ref=ref_t, c_ref=ref_c,
+        kind=vm.PULSE,
+        mu1_ref=ref['mu1'], mu2_ref=ref['mu2'], ref_label='Gritti Table 1',
+        amplitude='lsq',
+        mass_in=c_inj_area,
+        mass_label='simulated outlet integral vs. the analytically known '
+                   'injected mass C0*t_inj',
+    )
+    # Diagnostic (not one of the four metrics): the mean plate height implied
+    # by the simulated moments, directly comparable to the paper's own
+    # H_bar = 11.6 um for the full, flow-dependent-H case (p. 43).
+    m['H_bar_sim_micron'] = L_BED * m['mu2_sim_full'] / m['mu1_sim_full'] ** 2 / MICRON
     return m
-
-
-def print_metrics(config_key, m):
-    print(f"\n--- {config_key} ---")
-    print(f"  Peak position    : sim={m['peak_time_sim']:.4f} s  "
-          f"ref(tR, Table 1)={m['peak_time_table_ref']:.4f} s  rel.err={m['peak_time_table_relerr_%']:.3g}%  |  "
-          f"ref(digitized)={m['peak_time_digitized_ref']:.4f} s  rel.err={m['peak_time_digitized_relerr_%']:.3g}%")
-    print(f"  Peak height [AU] : sim={m['peak_height_sim']:.4g}  ref={m['peak_height_ref']:.4g}  "
-          f"rel.err={m['peak_height_relerr_%']:.3g}%")
-    print(f"  Elution time     : sim={m['mu1_sim']:.4f} s  "
-          f"ref(Table 1)={m['mu1_table_ref']:.4f} s  rel.err={m['mu1_table_relerr_%']:.3g}%  |  "
-          f"ref(digitized)={m['mu1_digitized_ref']:.4f} s  rel.err={m['mu1_digitized_relerr_%']:.3g}%")
-    print(f"  Mass balance     : rel.err={m['mass_balance_relerr_%']:.3g}% "
-          "(sim. outlet integral vs. analytically known injected mass)")
-    print(f"  Chromatogram MSE [AU^2] : {m['mse']:.4g}  (NRMSE={m['nrmse_%']:.2f}% of peak height)")
-    print(f"  Fitted AU scale  : {m['au_scale']:.4g} (independent least-squares fit for this column)")
-    print("  NOTE: unlike Fig. 7/8, the paper's own text (Sec. 4.2.2) states this specific "
-          "figure's printed peaks were 'slightly adjusted' (time-shifted) for display -- "
-          "so a few tenths of a percent of the NRMSE/peak-position-vs-digitized numbers above "
-          "may reflect that known display artifact rather than a genuine model/shape mismatch.")
-    print(f"  [extra] H_bar from sim moments: {m['H_bar_sim_micron']:.3f} micron"
-          f"   (mu2_sim={m['mu2_sim']:.6g} s^2 vs Table-1 measured mu2'={m['mu2_ref_measured']:.6g} s^2)")
 
 
 # ---------------------------------------------------------------------------
@@ -457,7 +394,6 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     ref_time = digitized['time_s']
     ref_cols = {'cylinder': 'cylinder_black', 'cone_s2': 'cone_s2_red', 'cone_s05': 'cone_s05_blue'}
 
-    fig, ax = plt.subplots(figsize=(7.5, 5.8))
     all_metrics = {}
     sim_results = {}
 
@@ -478,9 +414,8 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         sim_results[key] = (t_sim, c_sim)
 
         ref_c = digitized[ref_cols[key]]
-        m = compute_metrics(key, t_sim, c_sim, t_inj_duration, c_inj_area, ref_time, ref_c)
+        m = compute_metrics(key, t_sim, c_sim, c_inj_area, ref_time, ref_c)
         all_metrics[key] = m
-        print_metrics(key, m)
 
         # plot: CADET curve on its RAW time axis (no peak-realignment), scaled
         # by the same per-column least-squares AU factor used for the metrics
@@ -488,7 +423,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         valid = ~np.isnan(ref_c)
         rt = ref_time[valid]
         rc = ref_c[valid]
-        scale = m['au_scale']
+        scale = m['amplitude_scale']
 
         fig, ax = plt.subplots(figsize=(7.5, 5.8))
 
@@ -523,7 +458,26 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         print(f"\nSaved comparison plot to {outpath}")
 
 
-    print("Cone fwd vs bwd flow max difference: ", np.max(np.abs(chromatograms['cone_s2'] - chromatograms['cone_s05'])))
+    print("Cone fwd vs bwd flow max difference: ",
+          np.max(np.abs(chromatograms['cone_s2'] - chromatograms['cone_s05'])))
+
+    metrics = [all_metrics[key] for key in ['cylinder', 'cone_s2', 'cone_s05']]
+    print("\n" + "=" * 70)
+    print("Validation metrics -- Gritti et al. (2019), Fig. 6 "
+          "(valerophenone, isocratic)")
+    print("=" * 70)
+    vm.print_metrics_table(metrics, time_unit='s')
+    for m in metrics:
+        print(f"  [diagnostic] {m['name']:10s}: H_bar from the simulated moments = "
+              f"{m['H_bar_sim_micron']:.3f} micron "
+              f"(paper, full flow-dependent H: {H_BAR_PAPER_FULL / MICRON:.1f} micron)")
+    print("  NOTE: Sec. 4.2.2 states the peaks PRINTED in Fig. 6 were 'slightly "
+          "adjusted' in time for display, so part of the NRMSE above is that "
+          "known display artifact.")
+    vm.dump_metrics(output_path, 'Gritti2019_fig6',
+                    'Isocratic valerophenone', metrics, time_unit='s')
+    return metrics
+
 
 if __name__ == '__main__':
     main()

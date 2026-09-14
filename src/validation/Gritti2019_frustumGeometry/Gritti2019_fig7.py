@@ -12,12 +12,21 @@ provided under Gritti2019_fig7.md
 
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# The shared metric definitions live one directory up, so that all six
+# validation case studies report an identical set of numbers. Adding that
+# directory to sys.path keeps this script runnable both directly and as an
+# imported module (scripts/verify_geometries.py imports main()).
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+import validation_metrics as vm  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Physical parameters (SI units)
@@ -340,10 +349,10 @@ def run_column(cadet_path, output_path, column, **kwargs):
 
 
 def second_central_moment(t, c):
-    c = np.clip(np.asarray(c), 0.0, None)
-    m0 = np.trapezoid(c, t)
-    m1 = np.trapezoid(t * c, t) / m0
-    m2 = np.trapezoid((t - m1) ** 2 * c, t) / m0
+    """First and second central moment, using the shared pulse-moment
+    definition so that the dispersion calibration target below and the
+    reported Delta mu_2 are computed identically."""
+    _, m1, m2 = vm.pulse_moments(t, c)
     return m1, m2
 
 
@@ -395,85 +404,38 @@ def load_digitized(path=None):
 # ---------------------------------------------------------------------------
 # Validation metrics
 # ---------------------------------------------------------------------------
-def first_moment(t, c):
-    t = np.asarray(t)
-    c = np.clip(np.asarray(c), 0.0, None)
-    m0 = np.trapezoid(c, t)
-    m1 = np.trapezoid(t * c, t) / m0
-    return m1, m0
+def compute_metrics(column, t_sim, c_sim, t_ref, c_ref):
+    """The four unified validation metrics -- see src/validation/validation_metrics.py
+    for their definitions, which are shared verbatim by all six case studies.
 
+    ``c_sim`` is the RAW simulated outlet; the per-column least-squares
+    Absorbance-[AU] amplitude fit that the arbitrary-unit reference requires
+    is performed inside the metric routine (see "AU-scale amplitude" in the
+    module docstring for why it is fit per column and not shared).
 
-def mass_balance_check(t_sim, c_sim_raw, t_inj, c_inj=1.0):
-    """Compare integral of the RAW (un-amplitude-calibrated) simulated outlet
-    concentration against the analytically known injected mass (c_inj*t_inj,
-    a rectangular pulse of height c_inj and duration t_inj). This is a pure
-    numerical-conservation check on the simulation itself (the linear
-    MOBILE_PHASE_MODULATOR isotherm used here is exactly mass-conservative);
-    it is independent of the arbitrary-AU amplitude calibration used
-    elsewhere, and of the digitized reference (which has no inlet-mass
-    reference in absorbance units)."""
-    mass_out = np.trapezoid(np.clip(c_sim_raw, 0.0, None), t_sim)
-    mass_in = c_inj * t_inj
-    return 100.0 * abs(mass_out - mass_in) / mass_in
-
-
-def compute_metrics(t_sim, c_sim, t_ref, c_ref, tR_table2_min):
-    """c_sim must already be scaled to the digitized reference's Absorbance
-    [AU] units via a per-column least-squares fit (see the 'amplitude'
-    comment in __main__) -- c_ref is the raw digitized curve, already in AU.
-    Peak height and MSE are then a genuine, meaningful shape/amplitude
-    comparison in the paper's own native units."""
-    metrics = {}
-    i_peak_sim = np.argmax(c_sim)
-    t_peak_sim = t_sim[i_peak_sim]
-    i_peak_ref = np.argmax(c_ref)
-    t_peak_ref = t_ref[i_peak_ref]
-    tR_table2_s = tR_table2_min * 60.0
-    metrics['peak_time_sim'] = t_peak_sim
-    metrics['peak_time_table_ref'] = tR_table2_s
-    metrics['peak_time_table_relerr_%'] = 100 * abs(t_peak_sim - tR_table2_s) / tR_table2_s
-    metrics['peak_time_digitized_ref'] = t_peak_ref
-    metrics['peak_time_digitized_relerr_%'] = 100 * abs(t_peak_sim - t_peak_ref) / t_peak_ref
-    metrics['peak_height_sim'] = c_sim[i_peak_sim]
-    metrics['peak_height_ref'] = c_ref[i_peak_ref]
-    metrics['peak_height_relerr_%'] = 100 * abs(metrics['peak_height_sim'] - metrics['peak_height_ref']) / metrics['peak_height_ref']
-
-    m1_sim, mass_sim = first_moment(t_sim, c_sim)
-    m1_ref, mass_ref = first_moment(t_ref, c_ref)
-    metrics['mu1_sim'] = m1_sim / 60.0
-    metrics['mu1_table_ref'] = tR_table2_min
-    metrics['mu1_table_relerr_%'] = 100 * abs(m1_sim / 60.0 - tR_table2_min) / tR_table2_min
-    metrics['mu1_digitized_ref'] = m1_ref / 60.0
-    metrics['mu1_digitized_relerr_%'] = 100 * abs(m1_sim - m1_ref) / m1_ref
-
-    c_sim_i = np.interp(t_ref, t_sim, c_sim)
-    metrics['mse'] = float(np.mean((c_sim_i - c_ref) ** 2))
-    # Normalized RMSE (% of the reference peak height) -- MSE/RMSE in raw AU^2/AU
-    # are NOT comparable across case studies with different absolute AU scales
-    # (error scales as amplitude^2/amplitude), so this is the metric to use
-    # when comparing fit quality between e.g. this script and fig6's/fig8's.
-    # Identical formula (no peak-realignment) as Gritti2019_fig6.py's/
-    # fig8.py's compute_metrics().
-    metrics['nrmse_%'] = 100.0 * np.sqrt(metrics['mse']) / metrics['peak_height_ref']
-
-    return metrics
-
-
-def print_metrics(name, metrics):
-    print(f"\n--- {name} ---")
-    print(f"  Peak position    : sim={metrics['peak_time_sim']:.4f} s  "
-          f"ref(Table 2)={metrics['peak_time_table_ref']:.4f} s  rel.err={metrics['peak_time_table_relerr_%']:.3g}%  |  "
-          f"ref(digitized)={metrics['peak_time_digitized_ref']:.4f} s  rel.err={metrics['peak_time_digitized_relerr_%']:.3g}%")
-    print(f"  Peak height [AU] : sim={metrics['peak_height_sim']:.4g}  "
-          f"ref={metrics['peak_height_ref']:.4g}  rel.err={metrics['peak_height_relerr_%']:.3g}%")
-    print(f"  Elution time     : sim={metrics['mu1_sim']:.4f} min  "
-          f"ref(Table 2)={metrics['mu1_table_ref']:.4f} min  rel.err={metrics['mu1_table_relerr_%']:.3g}%  |  "
-          f"ref(digitized)={metrics['mu1_digitized_ref']:.4f} min  rel.err={metrics['mu1_digitized_relerr_%']:.3g}%")
-    print(f"  Mass balance     : rel.err={metrics['mass_balance_relerr_%']:.3g}% "
-          "(sim. outlet integral vs. analytically known injected mass)")
-    print(f"  Chromatogram MSE [AU^2] : {metrics['mse']:.4g}  "
-          f"(NRMSE={metrics['nrmse_%']:.3g}% of peak height)")
-    print(f"  Fitted AU scale  : {metrics['au_scale']:.4g} (independent least-squares fit for this column)")
+    Delta mu_1 is taken against Table 2's measured first moment. Delta mu_2
+    is deliberately left EMPTY for every column of this figure: the
+    dispersion scale factor was calibrated column by column so as to
+    reproduce exactly Table 2's mu_2 (see calibrate_dispersion()), so the
+    agreement is fitted rather than predicted and would be misleading in a
+    validation table. The calibrated-vs-target mu_2 values are still printed
+    below as a diagnostic.
+    """
+    cfg = COLUMNS[column]
+    t_inj = VINJ / cfg['Fv']
+    return vm.standard_metrics(
+        name=column,
+        t_sim=t_sim, c_sim=c_sim, t_ref=t_ref, c_ref=c_ref,
+        kind=vm.PULSE,
+        mu1_ref=cfg['tR_ref'] * 60.0,          # Table 2 [min] -> [s]
+        mu2_ref=cfg['mu2_ref'] * 3600.0,       # Table 2 [min^2] -> [s^2]
+        ref_label='Gritti Table 2',
+        mu2_calibrated=True,
+        amplitude='lsq',
+        mass_in=1.0 * t_inj,   # inlet valerophenone concentration is 1.0 (arbitrary units)
+        mass_label='simulated outlet integral vs. the analytically known '
+                   'injected mass C0*t_inj',
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -554,18 +516,12 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         t, c_mod, c_val = results[col]
         t_ref, c_ref = ref[col]
 
-        # Per-column least-squares Absorbance-[AU] scale: c_val (arbitrary
-        # CADET concentration units) -> AU, fit independently for this column.
-        c_val_i = np.interp(t_ref, t, c_val)
-        denom = np.sum(c_val_i ** 2)
-        scale = np.sum(c_val_i * c_ref) / denom if denom > 0 else 0.0
-
-        metrics = compute_metrics(t, scale * c_val, t_ref, c_ref, COLUMNS[col]['tR_ref'])
-        metrics['au_scale'] = scale
-        t_inj_col = VINJ / COLUMNS[col]['Fv']
-        metrics['mass_balance_relerr_%'] = mass_balance_check(t, c_val, t_inj_col)
+        # The per-column least-squares Absorbance-[AU] scale (c_val is in
+        # arbitrary CADET concentration units) is fit inside the shared
+        # metric routine and returned as 'amplitude_scale'.
+        metrics = compute_metrics(col, t, c_val, t_ref, c_ref)
         all_metrics[col] = metrics
-        print_metrics(col, metrics)
+        scale = metrics['amplitude_scale']
 
         # --- comparison plot ---
         fontsize = 15
@@ -599,6 +555,21 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         fig.savefig(outpath, dpi=150)
         plt.close(fig)
         print(f"\nSaved comparison plot to {outpath}")
+
+    metrics = [all_metrics[col] for col in ('cylinder', 'cone_s2', 'cone_s05')]
+    print("\n" + "=" * 70)
+    print("Validation metrics -- Gritti et al. (2019), Fig. 7 "
+          "(valerophenone, gradient)")
+    print("=" * 70)
+    vm.print_metrics_table(metrics, time_unit='s')
+    for m in metrics:
+        print(f"  [diagnostic] {m['name']:10s}: calibrated mu_2 = "
+              f"{m['mu2_sim_full']:.6g} s^2 vs. Table 2 target {m['mu2_ref']:.6g} s^2 "
+              f"(fitted by construction -- hence the empty Delta mu_2 above)")
+    vm.dump_metrics(output_path, 'Gritti2019_fig7',
+                    'Gradient valerophenone', metrics, time_unit='s')
+    return metrics
+
 
 if __name__ == '__main__':
     main()

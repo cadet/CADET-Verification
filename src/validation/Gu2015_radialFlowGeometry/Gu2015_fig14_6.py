@@ -11,6 +11,7 @@ validation metrics. Further explanation on model and parameter selection is
 provided under Gu2015_fig14_6.md.
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,6 +19,14 @@ from addict import Dict
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# The shared metric definitions live one directory up, so that all six
+# validation case studies report an identical set of numbers. Adding that
+# directory to sys.path keeps this script runnable both directly and as an
+# imported module (scripts/verify_geometries.py imports main()).
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+import validation_metrics as vm  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Paper's parameters, read off the Fig. 10.14 GUI screenshot (p. 138),
@@ -350,189 +359,84 @@ def load_digitized(path=None):
 
 
 # ---------------------------------------------------------------------------
-# Validation metrics
+# Validation metrics -- the four unified numbers shared by all six case
+# studies, see src/validation/validation_metrics.py.
+#
+# The three species of this figure need two of the module's curve kinds.
+# Protein and complex elute as pulses that come back to baseline, so their
+# moments are the classic int(t*c dt)/int(c dt) and its central second
+# counterpart. The soluble ligand is a displacer that is fed from tau_shift
+# onwards and never switched off, so its outlet rises to a plateau and never
+# returns: its moments are taken of the underlying residence time
+# distribution E = dF/dt of the normalised front (see the validation_metrics
+# module docstring), which makes mu_1 the stoichiometric breakthrough time
+# and mu_2 the variance of the front.
+#
+# Gu (2015) prints no moment table for this figure, so the reference for
+# both moments is the digitized chromatogram. Protein and complex fall back
+# to the peak-height error in the mu_2 column, per the documented rule for
+# cases without a tabulated mu_2; the soluble ligand uses its digitized
+# mu_2 instead, since a plateauing curve has no peak whose height could be
+# compared.
+#
+# Mass balance (solver verification) is reported on the PROTEIN row as a
+# protein-equivalent atom balance. P + I <-> PI is a 1:1 reaction and the
+# complex is normalised by the protein feed concentration, so the protein
+# fed must leave the column either as free protein or as complex:
+# int(c_protein dtau) + int(c_complex dtau) vs. the fed area 1*tau_imp. The
+# other two rows have no closed balance of their own -- the complex is never
+# fed, and the ligand feed is never switched off while part of it is
+# consumed by the ongoing reaction -- so their entries are left empty.
 # ---------------------------------------------------------------------------
-def first_moment(t, c, t_lo=None, t_hi=None):
-    t = np.asarray(t)
-    c = np.clip(np.asarray(c), 0.0, None)
-    if t_lo is not None or t_hi is not None:
-        lo = t_lo if t_lo is not None else t.min()
-        hi = t_hi if t_hi is not None else t.max()
-        mask = (t >= lo) & (t <= hi)
-        t, c = t[mask], c[mask]
-    area = np.trapezoid(c, t)
-    if area <= 0:
-        return np.nan, np.nan
-    moment = np.trapezoid(t * c, t) / area
-    return moment, area
-
-
-def t_at_level(t, c, level, direction='rising'):
-    t = np.asarray(t)
-    c = np.asarray(c)
-    d = np.diff(np.sign(c - level))
-    if direction == 'rising':
-        idx = np.where(d > 0)[0]
-    else:
-        idx = np.where(d < 0)[0]
-    if len(idx) == 0:
-        return np.nan
-    i = idx[0]
-    t0, t1 = t[i], t[i + 1]
-    c0, c1 = c[i], c[i + 1]
-    frac = (level - c0) / (c1 - c0)
-    return t0 + frac * (t1 - t0)
-
-
 def compute_metrics(tau_sim, sims, tau_refs, refs):
     """sims/refs: dicts {'protein': c_arr, 'soluble_ligand': c_arr, 'complex': c_arr}"""
-    metrics = {}
+    protein_out = vm.trapezoid(np.clip(sims['protein'], 0.0, None), tau_sim)
+    complex_out = vm.trapezoid(np.clip(sims['complex'], 0.0, None), tau_sim)
+
+    spec = {
+        'protein': dict(
+            kind=vm.PULSE, mu2_fallback=vm.MU2_PEAK_HEIGHT,
+            mass_in=1.0 * TIMP,
+            # standard_metrics() integrates this species' own outlet and adds
+            # mass_extra_out, giving int(c_protein) + int(c_complex).
+            mass_extra_out=complex_out,
+            mass_label='protein-equivalent atom balance: free protein + complex '
+                       'eluted vs. protein fed (1*tau_imp); P + I <-> PI is 1:1 '
+                       'and the complex is normalised by the protein feed. NOT a '
+                       'pure conservation check: a little protein is still bound '
+                       'on the column at tau_max, and that physical residual is '
+                       'included in the deviation',
+            mass_exact=False,
+        ),
+        'soluble_ligand': dict(
+            kind=vm.FRONTAL, mu2_fallback=vm.MU2_FROM_DIGITIZED,
+            mass_in=None,
+            mass_label='not closed: the ligand displacer feed is never switched off '
+                       'and part of it is consumed by complex formation',
+        ),
+        'complex': dict(
+            kind=vm.PULSE, mu2_fallback=vm.MU2_PEAK_HEIGHT,
+            mass_in=None,
+            mass_label='not closed: the complex is a reaction product and is never '
+                       'fed, so it has no injected mass of its own (it is instead '
+                       "accounted for in the protein row's atom balance)",
+        ),
+    }
+
+    metrics = []
     for name in ('protein', 'soluble_ligand', 'complex'):
-        c_sim = sims[name]
-        tau_ref, c_ref = tau_refs[name], refs[name]
-        c_sim_i = np.interp(tau_ref, tau_sim, c_sim)
-
-        m = {}
-
-        # 1) Peak position -- meaningful for protein and complex (both show
-        # a genuine interior maximum). Soluble ligand rises monotonically
-        # to a plateau (no interior peak), so this metric is reported N/A.
-        if name in ('protein', 'complex'):
-            i_sim = np.argmax(c_sim)
-            i_ref = np.argmax(c_ref)
-            t_peak_sim, t_peak_ref = tau_sim[i_sim], tau_ref[i_ref]
-            m['peak_time_sim'] = t_peak_sim
-            m['peak_time_ref'] = t_peak_ref
-            m['peak_time_relerr_%'] = 100 * abs(t_peak_sim - t_peak_ref) / t_peak_ref
-            m['peak_height_sim'] = c_sim[i_sim]
-            m['peak_height_ref'] = c_ref[i_ref]
-            m['peak_height_relerr_%'] = 100 * abs(c_sim[i_sim] - c_ref[i_ref]) / c_ref[i_ref]
-        else:
-            m['peak_time_sim'] = m['peak_time_ref'] = m['peak_time_relerr_%'] = np.nan
-            m['peak_height_sim'] = m['peak_height_ref'] = m['peak_height_relerr_%'] = np.nan
-
-        # 2) Elution time (first moment). For protein and complex, c(t)
-        # returns close to baseline within the simulated window
-        # [0, tau_max=60]. For soluble ligand, c(t) plateaus near 1 and
-        # never returns to baseline, so the first moment is dominated by
-        # (and diverges with) the upper integration limit; we instead
-        # report the breakthrough time t50 (time to cross 50% of the FINAL
-        # plateau value), the standard adapted metric for a non-eluting/
-        # plateauing curve.
-        if name == 'soluble_ligand':
-            plateau_val_sim = np.nanmean(c_sim[tau_sim >= tau_sim.max() - 2.0])
-            plateau_val_ref = np.nanmean(c_ref[tau_ref >= tau_ref.max() - 2.0])
-            t50_sim = t_at_level(tau_sim, c_sim, 0.5 * plateau_val_sim)
-            t50_ref = t_at_level(tau_ref, c_ref, 0.5 * plateau_val_ref)
-            m['elution_metric'] = 't50 (50% of final plateau), adapted for a non-eluting curve'
-            m['elution_time_sim'] = t50_sim
-            m['elution_time_ref'] = t50_ref
-            m['elution_time_relerr_%'] = 100 * abs(t50_sim - t50_ref) / t50_ref
-        else:
-            mu_sim, _ = first_moment(tau_sim, c_sim, t_lo=0.0, t_hi=tau_sim.max())
-            mu_ref, _ = first_moment(tau_ref, c_ref, t_lo=0.0, t_hi=tau_ref.max())
-            m['elution_metric'] = 'first moment int(t*c dt)/int(c dt) over [0, tau_max]'
-            m['elution_time_sim'] = mu_sim
-            m['elution_time_ref'] = mu_ref
-            m['elution_time_relerr_%'] = 100 * abs(mu_sim - mu_ref) / mu_ref
-
-        # 3) Mass balance. For protein: total fed (=C0_1 for 0<=tau<14,
-        # i.e. area=14 in dimensionless (C/C0)*tau units) vs.
-        # int(c1_out dtau) over the full run. Because protein reacts with
-        # the soluble ligand to form the complex, most of the loaded
-        # protein leaves the column AS COMPLEX, not as free protein -- so
-        # a component-1-only mass balance is expected to show a large
-        # "deficit" that reflects real chemistry (conversion + residual
-        # binding), not a modeling error (see the printed atom-balance
-        # check). For soluble ligand, the feed is a "displacer" that is
-        # never turned off (per Eq. 14.12's index=4 "displacer" clause), so
-        # its cumulative mass balance only makes sense over a bounded
-        # window; per the task's guidance we use the window
-        # [tau_shift, tau_max] = [15, 60] (a "suitably long integration
-        # window" starting when the ligand feed switches on) and compare
-        # int(c2_out dtau) there against the ligand fed over the same
-        # window (=1.0*(tau_max-tau_shift)=45 in (C/C0)*tau units); some
-        # ligand mass is expected to be "missing" here too since part of it
-        # reacts to form the complex rather than exiting as free ligand.
-        # For complex: it is not fed at all, so mass balance is simply
-        # int(c3_out dtau) over the full run compared between simulation
-        # and digitized reference.
-        if name == 'protein':
-            fed = 1.0 * TIMP
-            out_sim = np.trapezoid(c_sim, tau_sim)
-            out_ref = np.trapezoid(c_ref, tau_ref)
-            m['mass_balance_metric'] = 'int(c_out dtau) vs. protein fed (=1*tau_imp); ' \
-                                        'deficit reflects protein retained on-column + ' \
-                                        'converted to complex (see printed atom-balance check)'
-            m['mass_fed'] = fed
-            m['mass_out_sim'] = out_sim
-            m['mass_out_ref'] = out_ref
-            m['mass_relerr_sim_vs_fed_%'] = 100 * abs(out_sim - fed) / fed
-            m['mass_relerr_sim_vs_ref_%'] = 100 * abs(out_sim - out_ref) / out_ref if out_ref > 0 else np.nan
-        elif name == 'soluble_ligand':
-            window = (tau_sim >= TSHIFT)
-            out_sim = np.trapezoid(c_sim[window], tau_sim[window])
-            window_ref = (tau_ref >= TSHIFT)
-            out_ref = np.trapezoid(c_ref[window_ref], tau_ref[window_ref]) if window_ref.sum() > 1 else np.nan
-            fed = 1.0 * (TAU_MAX_SIM - TSHIFT)
-            m['mass_balance_metric'] = f'int(c_out dtau) over [tau_shift={TSHIFT}, tau_max={TAU_MAX_SIM}] ' \
-                                        'vs. ligand fed over same window; deficit reflects ligand ' \
-                                        'consumed by ongoing complex formation (see atom-balance check)'
-            m['mass_fed'] = fed
-            m['mass_out_sim'] = out_sim
-            m['mass_out_ref'] = out_ref
-            m['mass_relerr_sim_vs_fed_%'] = 100 * abs(out_sim - fed) / fed
-            m['mass_relerr_sim_vs_ref_%'] = 100 * abs(out_sim - out_ref) / out_ref if (out_ref and out_ref > 0) else np.nan
-        else:  # complex
-            out_sim = np.trapezoid(c_sim, tau_sim)
-            out_ref = np.trapezoid(c_ref, tau_ref)
-            m['mass_balance_metric'] = 'int(c_out dtau), sim vs. digitized reference (no independent ' \
-                                        'feed-side reference for a non-fed product species)'
-            m['mass_fed'] = np.nan
-            m['mass_out_sim'] = out_sim
-            m['mass_out_ref'] = out_ref
-            m['mass_relerr_sim_vs_fed_%'] = np.nan
-            m['mass_relerr_sim_vs_ref_%'] = 100 * abs(out_sim - out_ref) / out_ref if out_ref > 0 else np.nan
-
-        # 4) Chromatogram MSE over the full digitized time window
-        m['mse'] = np.nanmean((c_sim_i - c_ref) ** 2)
-        # Normalized RMSE (% of the reference curve's own peak amplitude) --
-        # raw MSE is NOT comparable across species with very different
-        # amplitude scales (protein/complex peak vs. soluble_ligand's
-        # plateau) or across scripts with different C/C0 ranges -- same
-        # convention as the Gritti case studies
-        # (Gritti2019_fig6/7/8.py). max|c_ref| (not peak_height_ref,
-        # which is NaN for soluble_ligand's monotonic plateau) is used as
-        # the reference amplitude so this works uniformly for both peaked
-        # and plateauing curves.
-        m['nrmse_%'] = 100 * np.sqrt(m['mse']) / np.nanmax(np.abs(c_ref))
-
-        metrics[name] = m
-
+        metrics.append(vm.standard_metrics(
+            name=name,
+            t_sim=tau_sim, c_sim=sims[name],
+            t_ref=tau_refs[name], c_ref=refs[name],
+            # Gu's curves are already C/C0-normalised, so no amplitude fit.
+            amplitude=1.0,
+            **spec[name],
+        ))
+    metrics_by_name = {m['name']: m for m in metrics}
+    metrics_by_name['protein']['protein_free_out'] = protein_out
+    metrics_by_name['protein']['protein_as_complex_out'] = complex_out
     return metrics
-
-
-def print_metrics(metrics):
-    for comp, m in metrics.items():
-        print(f"\n--- {comp} ---")
-        if not np.isnan(m['peak_time_sim']):
-            print(f"  Peak position   : sim tau={m['peak_time_sim']:.4g}  ref tau={m['peak_time_ref']:.4g}"
-                  f"  rel.err={m['peak_time_relerr_%']:.3g}%")
-            print(f"  Peak height     : sim={m['peak_height_sim']:.4g}  ref={m['peak_height_ref']:.4g}"
-                  f"  rel.err={m['peak_height_relerr_%']:.3g}%")
-        else:
-            print("  Peak position   : N/A (monotonic rise to plateau, no interior peak)")
-        print(f"  Elution metric  : {m['elution_metric']}")
-        print(f"  Elution time    : sim={m['elution_time_sim']:.4g}  ref={m['elution_time_ref']:.4g}"
-              f"  rel.err={m['elution_time_relerr_%']:.3g}%")
-        print(f"  Mass balance    : {m['mass_balance_metric']}")
-        fed_str = f"{m['mass_fed']:.4g}" if not np.isnan(m['mass_fed']) else "N/A"
-        print(f"    fed={fed_str}  out(sim)={m['mass_out_sim']:.4g}  out(ref)={m['mass_out_ref']:.4g}")
-        if not np.isnan(m['mass_relerr_sim_vs_fed_%']):
-            print(f"    sim vs. fed rel.err={m['mass_relerr_sim_vs_fed_%']:.3g}%")
-        if not np.isnan(m['mass_relerr_sim_vs_ref_%']):
-            print(f"    sim vs. ref rel.err={m['mass_relerr_sim_vs_ref_%']:.3g}%")
-        print(f"  Chromatogram MSE: {m['mse']:.4g}  (NRMSE={m['nrmse_%']:.2f}% of reference peak amplitude)")
 
 
 def print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim):
@@ -543,8 +447,8 @@ def print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim):
                                      + protein remaining bound on-column
     """
     fed = 1.0 * TIMP
-    out_protein = np.trapezoid(c1_sim, tau_sim)
-    out_complex = np.trapezoid(c3_sim, tau_sim)
+    out_protein = vm.trapezoid(c1_sim, tau_sim)
+    out_complex = vm.trapezoid(c3_sim, tau_sim)
     print("\n--- Diagnostic: protein-equivalent atom balance (not one of the 4 core metrics) ---")
     print(f"  Protein fed (1*tau_imp)              : {fed:.4g}")
     print(f"  int(c1_out dtau) [free protein out]  : {out_protein:.4g}")
@@ -600,7 +504,12 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     tau_refs = {'protein': t1_ref, 'soluble_ligand': t2_ref, 'complex': t3_ref}
     refs = {'protein': c1_ref, 'soluble_ligand': c2_ref, 'complex': c3_ref}
     metrics = compute_metrics(tau_sim, sims, tau_refs, refs)
-    print_metrics(metrics)
+    print("=" * 70)
+    print("Validation metrics -- Gu (2015), Fig. 14.6 (affinity RFC with "
+          "soluble-ligand displacement)")
+    print("=" * 70)
+    vm.print_metrics_table(metrics, time_unit='tau')
+    by_name = {m['name']: m for m in metrics}
     print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim)
 
     # --- comparison plot ---
@@ -624,9 +533,9 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     # ax.set_title('CADET native radial geometry; velocity-scaled dispersion and film\n',
     #               fontsize=fontsize)
     # add an NRMSE box, same convention as the other case-study scripts
-    nrmse_text = (f"NRMSE Protein: {metrics['protein']['nrmse_%']:.2f}%\n"
-                  f"NRMSE Soluble ligand: {metrics['soluble_ligand']['nrmse_%']:.2f}%\n"
-                  f"NRMSE Complex: {metrics['complex']['nrmse_%']:.2f}%")
+    nrmse_text = (f"NRMSE Protein: {by_name['protein']['nrmse_%']:.2f}%\n"
+                  f"NRMSE Soluble ligand: {by_name['soluble_ligand']['nrmse_%']:.2f}%\n"
+                  f"NRMSE Complex: {by_name['complex']['nrmse_%']:.2f}%")
     ax.text(0.98, 0.15, nrmse_text, transform=ax.transAxes, fontsize=fontsize,
             verticalalignment='bottom', horizontalalignment='right', multialignment='left',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
@@ -636,6 +545,11 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     outpath = os.path.join(output_path, f'Gu2015_fig14_6_comparison_{spatial_method}.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+    vm.dump_metrics(output_path, 'Gu2015_fig14_6',
+                    'Affinity RFC displacement', metrics, time_unit='tau')
+    return metrics
+
 
 if __name__ == '__main__':
     main()

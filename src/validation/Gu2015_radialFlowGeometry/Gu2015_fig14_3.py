@@ -12,6 +12,7 @@ validation metrics. Further explanation on model and parameter selection is
 provided under Gu2015_fig14_3.md.
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,6 +20,14 @@ from addict import Dict
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# The shared metric definitions live one directory up, so that all six
+# validation case studies report an identical set of numbers. Adding that
+# directory to sys.path keeps this script runnable both directly and as an
+# imported module (scripts/verify_geometries.py imports main()).
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+import validation_metrics as vm  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -274,127 +283,77 @@ def load_digitized(path=None):
 
 
 # ---------------------------------------------------------------------------
-# Step 5: validation metrics (adapted for a FRONTAL/breakthrough chromatogram
-# -- classic pulse peak/first-moment analysis does not directly apply since
-# both components approach a nonzero plateau (C/C0 -> 1) rather than
-# returning to baseline; see per-metric notes below)
+# Step 5: validation metrics -- the four unified numbers shared by all six
+# case studies, see src/validation/validation_metrics.py.
+#
+# Both components of this figure are FRONTAL (breakthrough) responses: they
+# approach a nonzero plateau at C/C0 = 1 instead of returning to baseline,
+# so int(t*c dt)/int(c dt) would simply grow with the upper integration
+# limit. Their moments are therefore taken of the underlying residence time
+# distribution E = dF/dt of the normalised front F = c/c_plateau, evaluated
+# by parts so that nothing has to be differentiated numerically; mu_1 is
+# then the stoichiometric breakthrough time and mu_2 the variance of the
+# front. See the validation_metrics module docstring for the derivation.
+#
+# Gu (2015) prints no moment table for this figure, so the reference for
+# both moments is the digitized chromatogram itself. The mu_2 column uses
+# the digitized second moment rather than the usual peak-height fallback:
+# these curves have no peak, only a plateau, whose height error is
+# degenerate (both curves are normalised to C/C0 = 1 by construction),
+# whereas the width of the front is digitized reliably.
 # ---------------------------------------------------------------------------
-def t_at_level(t, c, level, rising_after=None):
-    """First crossing time of c(t) through `level` (linear interpolation).
-    If rising_after is given, only search t >= rising_after."""
-    t = np.asarray(t)
-    c = np.asarray(c)
-    if rising_after is not None:
-        mask = t >= rising_after
-        t, c = t[mask], c[mask]
-    idx = np.where(np.diff(np.sign(c - level)) > 0)[0]
-    if len(idx) == 0:
-        return np.nan
-    i = idx[0]
-    t0, t1 = t[i], t[i + 1]
-    c0, c1 = c[i], c[i + 1]
-    frac = (level - c0) / (c1 - c0)
-    return t0 + frac * (t1 - t0)
+def saturated_inventory_dimensionless(component):
+    """On-column inventory of one component at full feed saturation, in the
+    same dimensionless units as int(c/C0 dtau).
+
+    A frontal run retains a full saturated column load at the end of the
+    simulation, so the outlet integral alone cannot close the mass balance;
+    that inventory has to be added back. At equilibrium with the feed the
+    column holds, per unit bed volume,
+
+        eps_b*c_f  +  (1-eps_b)*( eps_p*c_f + (1-eps_p)*q*(c_f) )
+
+    and, because the dimensionless time tau is scaled such that
+    Q_FLOW*(X1-X0)/V_CHAR = eps_b*V_col exactly, dividing by eps_b*V_col*C0
+    turns that into the dimensionless form used here -- no explicit column
+    volume or flow rate is needed.
+
+    q*(c_f) is the multi-component Langmuir loading at the feed composition,
+    q_i = qmax_i*K_i*c_i / (1 + sum_j K_j*c_j) with K_j = ka_j/kd_j, i.e.
+    exactly CADET's MULTI_COMPONENT_LANGMUIR at quasi-stationary equilibrium.
+    """
+    denom = 1.0 + sum(p['ka'] / p['kd'] * p['C0_phys'] for p in PAPER.values())
+    p = PAPER[component]
+    q_star = p['qmax'] * (p['ka'] / p['kd']) * p['C0_phys'] / denom
+    per_bed_volume = (EPS_B * p['C0_phys']
+                      + (1.0 - EPS_B) * (EPS_P * p['C0_phys']
+                                         + (1.0 - EPS_P) * q_star))
+    return per_bed_volume / (EPS_B * p['C0_phys'])
 
 
 def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
-    metrics = {}
-
-    # interpolate CADET solution onto the reference (digitized) time grid
-    # for MSE and plateau comparisons
-    c1_sim_i = np.interp(tau_ref, tau_sim, c1_sim)
-    c2_sim_i = np.interp(tau_ref, tau_sim, c2_sim)
-
-    for name, c_sim, c_sim_i, c_ref in (
-        ('component_1', c1_sim, c1_sim_i, c1_ref),
-        ('component_2', c2_sim, c2_sim_i, c2_ref),
+    """Return the four unified metrics for both components."""
+    metrics = []
+    for name, component, c_sim, c_ref in (
+        ('component_1', 1, c1_sim, c1_ref),
+        ('component_2', 2, c2_sim, c2_ref),
     ):
-        m = {}
-
-        # 1) Peak position (only meaningful for component 1, which shows
-        #    competitive-Langmuir roll-up / overshoot above C/C0=1; component
-        #    2 rises monotonically to its plateau and has no true interior
-        #    peak, so this metric is reported as N/A there).
-        if name == 'component_1':
-            i_sim = np.argmax(c_sim)
-            i_ref = np.argmax(c_ref)
-            t_peak_sim = tau_sim[i_sim]
-            t_peak_ref = tau_ref[i_ref]
-            m['peak_time_sim'] = t_peak_sim
-            m['peak_time_ref'] = t_peak_ref
-            m['peak_time_relerr_%'] = 100 * abs(t_peak_sim - t_peak_ref) / t_peak_ref
-            m['peak_height_sim'] = c_sim[i_sim]
-            m['peak_height_ref'] = c_ref[i_ref]
-            m['peak_height_relerr_%'] = 100 * abs(c_sim[i_sim] - c_ref[i_ref]) / c_ref[i_ref]
-        else:
-            m['peak_time_sim'] = np.nan
-            m['peak_time_ref'] = np.nan
-            m['peak_time_relerr_%'] = np.nan
-            m['peak_height_sim'] = np.nan
-            m['peak_height_ref'] = np.nan
-            m['peak_height_relerr_%'] = np.nan
-
-        # 2) "Elution time" analog: classic first-moment analysis
-        #    (int t*c dt / int c dt) diverges for a step/frontal input since
-        #    c(t) does not return to zero. We instead report the
-        #    breakthrough time at 50% of the feed concentration (t50), the
-        #    standard adapted metric for breakthrough curves.
-        t50_sim = t_at_level(tau_sim, c_sim, 0.5)
-        t50_ref = t_at_level(tau_ref, c_ref, 0.5)
-        m['t50_sim'] = t50_sim
-        m['t50_ref'] = t50_ref
-        m['t50_relerr_%'] = 100 * abs(t50_sim - t50_ref) / t50_ref
-
-        # 3) "Mass balance" analog: for a frontal input, overall mass
-        #    balance is trivially satisfied once the column has reached
-        #    saturation (all feed either passes through or is retained in
-        #    the stationary phase, and outlet concentration must return to
-        #    the feed value C/C0=1). We therefore check that both the
-        #    simulated and the digitized curves converge to the same
-        #    plateau value C/C0=1 at the end of the time window (deviation
-        #    indicates either a units/scaling error or an under-resolved
-        #    simulation).
-        plateau_window = tau_ref >= (tau_ref.max() - 0.5)
-        plateau_ref = np.nanmean(c_ref[plateau_window])
-        plateau_sim = np.nanmean(c_sim_i[plateau_window])
-        m['plateau_sim'] = plateau_sim
-        m['plateau_ref'] = plateau_ref
-        m['plateau_relerr_%'] = 100 * abs(plateau_sim - plateau_ref) / plateau_ref
-        m['plateau_vs_feed_relerr_%'] = 100 * abs(plateau_sim - 1.0)
-
-        # 4) Chromatogram MSE over the full digitized time window
-        m['mse'] = np.nanmean((c_sim_i - c_ref) ** 2)
-        # Normalized RMSE (% of the reference curve's own peak amplitude) --
-        # raw MSE is NOT comparable across components with different
-        # amplitude scales (component 1 overshoots to ~1.4, component 2
-        # plateaus at ~1.0) or across scripts with different C/C0 ranges --
-        # same convention as the Gritti case studies
-        # (Gritti2019_fig6/7/8.py). max|c_ref| (not peak_height_ref,
-        # which is NaN for component 2's monotonic breakthrough) is used as
-        # the reference amplitude so this works uniformly for both peaked
-        # and monotonic curves.
-        m['nrmse_%'] = 100 * np.sqrt(m['mse']) / np.nanmax(np.abs(c_ref))
-
-        metrics[name] = m
-
+        metrics.append(vm.standard_metrics(
+            name=name,
+            t_sim=tau_sim, c_sim=c_sim, t_ref=tau_ref, c_ref=c_ref,
+            kind=vm.FRONTAL,
+            mu2_fallback=vm.MU2_FROM_DIGITIZED,
+            # Gu's curves are already C/C0-normalised, so no amplitude fit.
+            amplitude=1.0,
+            # Both components are fed at C/C0 = 1 for the whole run, so the
+            # mass fed in dimensionless units is simply the run duration.
+            mass_in=float(tau_sim[-1]),
+            mass_retained=saturated_inventory_dimensionless(component),
+            mass_label='outlet integral + saturated on-column inventory vs. mass fed '
+                       '(a frontal run ends with the column loaded, so the retained '
+                       'equilibrium inventory has to be added back)',
+        ))
     return metrics
-
-
-def print_metrics(metrics):
-    for comp, m in metrics.items():
-        print(f"\n--- {comp} ---")
-        print(f"  Peak position   : sim={m['peak_time_sim']:.4g}  ref={m['peak_time_ref']:.4g}"
-              f"  rel.err={m['peak_time_relerr_%']:.3g}%" if not np.isnan(m['peak_time_sim'])
-              else "  Peak position   : N/A (monotonic breakthrough, no overshoot)")
-        if not np.isnan(m['peak_height_sim']):
-            print(f"  Peak height     : sim={m['peak_height_sim']:.4g}  ref={m['peak_height_ref']:.4g}"
-                  f"  rel.err={m['peak_height_relerr_%']:.3g}%")
-        print(f"  t50 (bt. time)  : sim={m['t50_sim']:.4g}  ref={m['t50_ref']:.4g}"
-              f"  rel.err={m['t50_relerr_%']:.3g}%   [adapted 'elution time' metric]")
-        print(f"  Plateau (C/C0)  : sim={m['plateau_sim']:.4g}  ref={m['plateau_ref']:.4g}"
-              f"  rel.err={m['plateau_relerr_%']:.3g}%  (vs. feed=1: {m['plateau_vs_feed_relerr_%']:.3g}%)"
-              "   [adapted 'mass balance' metric]")
-        print(f"  Chromatogram MSE: {m['mse']:.4g}  (NRMSE={m['nrmse_%']:.2f}% of reference peak amplitude)")
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +403,11 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     print("Computing validation metrics...")
     metrics = compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref)
-    print_metrics(metrics)
+    print("=" * 70)
+    print("Validation metrics -- Gu (2015), Fig. 14.3 (binary frontal adsorption)")
+    print("=" * 70)
+    vm.print_metrics_table(metrics, time_unit='tau')
+    by_name = {m['name']: m for m in metrics}
 
     # --- comparison plot ---
     fontsize = 15
@@ -462,11 +425,9 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     ax.tick_params(axis='both', labelsize=fontsize)
     # ax.set_title('Gu (2015), Fig. 14.3 -- binary frontal adsorption, inward-flow RFC\n', fontsize=fontsize)
 
-    # add a box with MSE, peak position and height deviation
-    peak_text = f"Peak comp. 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak comp. 2: {metrics['component_2']['peak_time_relerr_%']:.4g}"
-    height_text = f"Peak Deviation comp. 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak Deviation comp. 2: {metrics['component_2']['peak_time_relerr_%']:.4g}\nHeight Deviation comp. 1: {metrics['component_1']['peak_height_relerr_%']:.4g}\nHeight Deviation comp. 2: {metrics['component_2']['peak_height_relerr_%']:.4g}"
-    mse_text = f"NRMSE comp. 1: {metrics['component_1']['nrmse_%']:.2f}%\nNRMSE comp. 2: {metrics['component_2']['nrmse_%']:.2f}%"
-    box_text = mse_text # + "\n" + peak_text + "\n" + height_text
+    # add a box with the chromatogram NRMSE of both components
+    box_text = (f"NRMSE comp. 1: {by_name['component_1']['nrmse_%']:.2f}%\n"
+                f"NRMSE comp. 2: {by_name['component_2']['nrmse_%']:.2f}%")
     ax.text(0.975, 0.95, box_text, transform=ax.transAxes, fontsize=fontsize,
             verticalalignment='top', horizontalalignment='right', multialignment='left',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
@@ -476,6 +437,11 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     outpath = os.path.join(output_path, f'Gu2015_fig14_3_comparison_{spatial_method}.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+    vm.dump_metrics(output_path, 'Gu2015_fig14_3',
+                    'Binary frontal adsorption', metrics, time_unit='tau')
+    return metrics
+
 
 if __name__ == '__main__':
     main()

@@ -12,6 +12,7 @@ validation metrics. Further explanation on model and parameter selection is
 provided under Gu2015_fig14_5.md.
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,6 +21,14 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# The shared metric definitions live one directory up, so that all six
+# validation case studies report an identical set of numbers. Adding that
+# directory to sys.path keeps this script runnable both directly and as an
+# imported module (scripts/verify_geometries.py imports main()).
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+import validation_metrics as vm  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Paper's parameters, exactly as printed in the GUI screenshot (Fig. 14.5,
@@ -27,7 +36,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # ---------------------------------------------------------------------------
 V0 = 0.04
 TAU_IMP = 0.5     # dimensionless injection (pulse) duration
-TAU_MAX_SIM = 16.0  # paper's own printed x-axis range (tmax = 16)
+TAU_MAX_PLOT = 16.0  # paper's own printed x-axis range (tmax = 16); the
+                     # comparison against the digitized curve is confined to
+                     # this window, since that is all the figure shows.
+TAU_MAX_SIM = 40.0   # the simulation itself is carried well past the figure,
+                     # because component 2's peak still has a substantial
+                     # tail at tau=16. The mass balance integrates the outlet
+                     # over the FULL simulated window, so truncating it at
+                     # tau=16 would report a large physical tail truncation
+                     # as if it were a solver conservation error.
 
 PAPER = {
     1: dict(PeL=100.0, eta=10.0, Bi_V1=10.0, C0=0.20, a=1.0, b=2.0),
@@ -287,93 +304,38 @@ def load_digitized(path=None):
 
 
 # ---------------------------------------------------------------------------
-# Validation metrics (classic pulse/elution chromatogram analysis -- both
-# components return to baseline, so peak position, first-moment elution
-# time, mass balance, and MSE are all directly applicable).
+# Validation metrics -- the four unified numbers shared by all six case
+# studies, see src/validation/validation_metrics.py.
+#
+# Both components elute as pulses that return to baseline, so the moments are
+# the classic int(t*c dt)/int(c dt) and int((t-mu_1)^2*c dt)/int(c dt).
+# Gu (2015) prints no moment table for this figure, so the reference is the
+# digitized chromatogram, and -- per the documented fallback for cases
+# without a tabulated mu_2 -- the mu_2 column reports the PEAK HEIGHT error
+# instead: a digitized mu_2 is dominated by the long, poorly resolved tails
+# of these two peaks.
 # ---------------------------------------------------------------------------
 def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
-    metrics = {}
-
-    for name, c_sim_native, c_ref, C0 in (
-        ('component_1', c1_sim, c1_ref, PAPER[1]['C0']),
-        ('component_2', c2_sim, c2_ref, PAPER[2]['C0']),
+    """Return the four unified metrics for both components."""
+    metrics = []
+    for name, c_sim, c_ref in (
+        ('component_1', c1_sim, c1_ref),
+        ('component_2', c2_sim, c2_ref),
     ):
-        m = {}
-
-        # interpolate CADET solution onto the reference (digitized) tau grid
-        c_sim_i = np.interp(tau_ref, tau_sim, c_sim_native)
-
-        # 1) Peak position (time of maximum concentration)
-        i_sim = np.argmax(c_sim_native)
-        i_ref = np.nanargmax(c_ref)
-        t_peak_sim = tau_sim[i_sim]
-        t_peak_ref = tau_ref[i_ref]
-        m['peak_time_sim'] = t_peak_sim
-        m['peak_time_ref'] = t_peak_ref
-        m['peak_time_relerr_%'] = 100 * abs(t_peak_sim - t_peak_ref) / t_peak_ref
-        m['peak_height_sim'] = c_sim_native[i_sim]
-        m['peak_height_ref'] = c_ref[i_ref]
-        m['peak_height_relerr_%'] = 100 * abs(c_sim_native[i_sim] - c_ref[i_ref]) / c_ref[i_ref]
-
-        # 2) Elution time (first moment): int(t*c dt) / int(c dt), over the
-        #    full simulated time window (CADET's own dense time grid, not
-        #    the sparser digitized grid, for accuracy).
-        def first_moment(t, c):
-            c = np.clip(c, 0.0, None)
-            return np.trapezoid(t * c, t) / np.trapezoid(c, t)
-
-        tm_sim = first_moment(tau_sim, c_sim_native)
-        tm_ref = first_moment(tau_ref, np.nan_to_num(c_ref))
-        m['moment_time_sim'] = tm_sim
-        m['moment_time_ref'] = tm_ref
-        m['moment_time_relerr_%'] = 100 * abs(tm_sim - tm_ref) / tm_ref
-
-        # 3) Mass balance: injected mass vs. eluted mass, both expressed in
-        #    C/C0-normalized dimensionless units (c1_sim, c2_sim, c1_ref,
-        #    c2_ref are all already C0-normalized). The injected pulse has
-        #    normalized concentration 1 for duration tau_imp, so its
-        #    normalized "mass" (area) is exactly tau_imp. comp. 2's
-        #    long tail is not fully captured within tau_max=16
-        #    (matching the paper's own truncated plot window),
-        #    so a residual undershoot here is expected and consistent
-        #    with the reference curve, not necessarily a bug.
-        injected = TAU_IMP
-        eluted_sim = np.trapezoid(np.clip(c_sim_native, 0.0, None), tau_sim)
-        eluted_ref = np.trapezoid(np.nan_to_num(np.clip(c_ref, 0.0, None)), tau_ref)
-        m['mass_injected_dimless'] = injected
-        m['mass_eluted_sim_dimless'] = eluted_sim
-        m['mass_eluted_ref_dimless'] = eluted_ref
-        m['mass_balance_relerr_%'] = 100 * abs(eluted_sim - injected) / injected
-        m['mass_sim_vs_ref_relerr_%'] = 100 * abs(eluted_sim - eluted_ref) / eluted_ref
-
-        # 4) Chromatogram MSE over the full digitized time window
-        m['mse'] = np.nanmean((c_sim_i - c_ref) ** 2)
-        # Normalized RMSE (% of the reference peak height) -- raw MSE is NOT
-        # comparable across components with different amplitude scales
-        # (comp. 1 peaks ~0.58, comp. 2 ~0.16 -- almost 4x apart) or
-        # across scripts with different C/C0 ranges -- same convention as
-        # the Gritti case studies (Gritti2019_fig6/7/8.py).
-        m['nrmse_%'] = 100 * np.sqrt(m['mse']) / m['peak_height_ref']
-
-        metrics[name] = m
-
+        metrics.append(vm.standard_metrics(
+            name=name,
+            t_sim=tau_sim, c_sim=c_sim, t_ref=tau_ref, c_ref=c_ref,
+            kind=vm.PULSE,
+            mu2_fallback=vm.MU2_PEAK_HEIGHT,
+            # Gu's curves are already C/C0-normalised, so no amplitude fit.
+            amplitude=1.0,
+            # The injected pulse has normalised concentration 1 for a
+            # duration tau_imp, so its dimensionless mass is exactly tau_imp.
+            mass_in=TAU_IMP,
+            mass_label='outlet integral over the full simulated window vs. the '
+                       'injected pulse area tau_imp',
+        ))
     return metrics
-
-
-def print_metrics(metrics):
-    for comp, m in metrics.items():
-        print(f"\n--- {comp} ---")
-        print(f"  Peak position   : sim={m['peak_time_sim']:.4g}  ref={m['peak_time_ref']:.4g}"
-              f"  rel.err={m['peak_time_relerr_%']:.3g}%")
-        print(f"  Peak height     : sim={m['peak_height_sim']:.4g}  ref={m['peak_height_ref']:.4g}"
-              f"  rel.err={m['peak_height_relerr_%']:.3g}%")
-        print(f"  Elution time    : sim={m['moment_time_sim']:.4g}  ref={m['moment_time_ref']:.4g}"
-              f"  rel.err={m['moment_time_relerr_%']:.3g}%   [first moment int(t c dt)/int(c dt)]")
-        print(f"  Mass balance    : injected={m['mass_injected_dimless']:.4g}  "
-              f"eluted(sim)={m['mass_eluted_sim_dimless']:.4g}  "
-              f"rel.err(sim vs inj)={m['mass_balance_relerr_%']:.3g}%   "
-              f"rel.err(sim vs ref)={m['mass_sim_vs_ref_relerr_%']:.3g}%")
-        print(f"  Chromatogram MSE: {m['mse']:.4g}  (NRMSE={m['nrmse_%']:.2f}% of peak height)")
 
 
 # ---------------------------------------------------------------------------
@@ -409,10 +371,10 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     if spatial_method == 'DG':
         t_phys, outlet = run_model(cadet_path, output_path, ncol=64, par_ncells=2, dg_polydeg=4, bulk_discretization=spatial_method,
-                                   n_points=400, fname=f'Gu2015_fig14_5_{spatial_method}.h5', **model_kwargs)
+                                   n_points=1000, fname=f'Gu2015_fig14_5_{spatial_method}.h5', **model_kwargs)
     elif spatial_method == 'FV':
         t_phys, outlet = run_model(cadet_path, output_path, ncol=256, par_ncells=8, dg_polydeg=None, bulk_discretization=spatial_method,
-                                   n_points=400, fname=f'Gu2015_fig14_5_{spatial_method}.h5', **model_kwargs)
+                                   n_points=1000, fname=f'Gu2015_fig14_5_{spatial_method}.h5', **model_kwargs)
 
     tau_sim = dimless_time(t_phys)
     c1_sim = outlet[:, 0] / PAPER[1]['C0_phys']
@@ -423,7 +385,11 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     print("Computing validation metrics...")
     metrics = compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref)
-    print_metrics(metrics)
+    print("=" * 70)
+    print("Validation metrics -- Gu (2015), Fig. 14.5 (binary elution)")
+    print("=" * 70)
+    vm.print_metrics_table(metrics, time_unit='tau')
+    by_name = {m['name']: m for m in metrics}
 
     # --- comparison plot ---
     fontsize = 15
@@ -436,16 +402,14 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
             label='comp. 2 (Gu 2015)')
     ax.set_xlabel('Dimensionless time', fontsize=fontsize)#, ' + r'$\tau = vt/(X_1-X_0)$')
     ax.set_ylabel('Dimensionless concentration', fontsize=fontsize)#, ' + r'$C/C_0$')
-    ax.set_xlim(0, 16)
+    ax.set_xlim(0, TAU_MAX_PLOT)
     ax.set_ylim(0, 0.65)
     ax.tick_params(axis='both', labelsize=fontsize)
     # ax.set_title('Gu (2015), Fig. 14.5 -- binary elution with inert mobile phase, inward-flow RFC', fontsize=fontsize)
 
-    # add a box with MSE, peak position and height deviation
-    peak_text = f"Peak comp. 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak comp. 2: {metrics['component_2']['peak_time_relerr_%']:.4g}"
-    height_text = f"Peak Deviation comp. 1: {metrics['component_1']['peak_time_relerr_%']:.4g}\nPeak Deviation comp. 2: {metrics['component_2']['peak_time_relerr_%']:.4g}\nHeight Deviation comp. 1: {metrics['component_1']['peak_height_relerr_%']:.4g}\nHeight Deviation comp. 2: {metrics['component_2']['peak_height_relerr_%']:.4g}"
-    mse_text = f"NRMSE comp. 1: {metrics['component_1']['nrmse_%']:.2f}%\n"+f"NRMSE comp. 2: {metrics['component_2']['nrmse_%']:.2f}%"
-    box_text = mse_text # + "\n" + peak_text + "\n" + height_text
+    # add a box with the chromatogram NRMSE of both components
+    box_text = (f"NRMSE comp. 1: {by_name['component_1']['nrmse_%']:.2f}%\n"
+                f"NRMSE comp. 2: {by_name['component_2']['nrmse_%']:.2f}%")
     ax.text(0.975, 0.6, box_text, transform=ax.transAxes, fontsize=fontsize,
             verticalalignment='top', horizontalalignment='right', multialignment='left',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
@@ -455,6 +419,11 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     outpath = os.path.join(output_path, f'Gu2015_fig14_5_comparison_{spatial_method}.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+    vm.dump_metrics(output_path, 'Gu2015_fig14_5',
+                    'Binary elution', metrics, time_unit='tau')
+    return metrics
+
 
 if __name__ == '__main__':
     main()

@@ -11,12 +11,21 @@ validation metrics. Further explanation on model and parameter selection is
 provided under Gritti2019_fig8.md.
 """
 import os
+import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# The shared metric definitions live one directory up, so that all six
+# validation case studies report an identical set of numbers. Adding that
+# directory to sys.path keeps this script runnable both directly and as an
+# imported module (scripts/verify_geometries.py imports main()).
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+import validation_metrics as vm  # noqa: E402
 
 # ===========================================================================
 # Digitized reference data (Fig. 8): loaded from Gritti2019_fig8_digitized.csv,
@@ -326,9 +335,9 @@ def run_model(cadet_path, output_path, config, col_dispersion_base, fname=None,
 # ===========================================================================
 def _trapezoid(y, x):
     """Trapezoidal integration without relying on a specific numpy version's
-    trapz/trapezoid naming (both exist across supported numpy releases)."""
-    fn = getattr(np, 'trapezoid', None) or np.trapezoid
-    return fn(y, x)
+    trapz/trapezoid naming (the two spellings differ across supported numpy
+    releases)."""
+    return vm.trapezoid(y, x)
 
 
 def moments(t, c):
@@ -345,88 +354,36 @@ def peak_time(t, c):
 
 
 def compute_metrics(config, t_sim, c_sim, t_ref, c_ref):
-    """Identical metric set/formulas as Gritti2019_fig6.py's/fig7.py's
-    compute_metrics(): peak position and elution time are each checked
-    against BOTH the tabulated (Table 3) ground truth AND the digitized
-    curve; amplitude is a per-column least-squares AU-scale fit (not area
-    normalization); chromatogram NRMSE is computed on the raw (unshifted)
-    time axis with no peak-realignment step -- same convention as fig7.py
-    (Fig. 8's own printed peaks are not documented by the paper as
-    cosmetically shifted, unlike Fig. 6's -- see fig6.py's compute_metrics()
-    docstring)."""
+    """The four unified validation metrics -- see src/validation/validation_metrics.py
+    for their definitions, which are shared verbatim by all six case studies.
+
+    ``c_sim`` is the RAW simulated outlet; the per-column least-squares
+    Absorbance-[AU] amplitude fit that the arbitrary-unit reference requires
+    is performed inside the metric routine.
+
+    Delta mu_1 is taken against Table 3's measured first moment. Delta mu_2
+    is taken against Table 3's measured second central moment for the two
+    CONES, where it is a genuine prediction: the VAN_DEEMTER dispersion
+    scale factor was calibrated once, on the cylinder alone, and reused
+    unchanged for both cones (see calibrate_dispersion()). For the CYLINDER
+    itself the entry is left empty, since there mu_2 is exactly what was
+    fitted.
+    """
     ref = TABLE3[config]
-    m = {}
-
-    # 1) Peak position: sim (raw) vs. Table 3 (ground truth) AND vs. digitized curve
-    i_peak_sim = np.argmax(c_sim)
-    t_peak_sim = t_sim[i_peak_sim]
-    i_peak_ref = np.argmax(c_ref)
-    t_peak_ref = t_ref[i_peak_ref]
-    tR_table_s = ref['tR'] * 60.0
-    m['peak_time_sim'] = t_peak_sim
-    m['peak_time_table_ref'] = tR_table_s
-    m['peak_time_table_relerr_%'] = 100 * abs(t_peak_sim - tR_table_s) / tR_table_s
-    m['peak_time_digitized_ref'] = t_peak_ref
-    m['peak_time_digitized_relerr_%'] = 100 * abs(t_peak_sim - t_peak_ref) / t_peak_ref
-
-    # 2) Elution time (first moment), computed over the FULL raw simulated
-    # curve (not masked to the digitized window) vs. Table 3 AND vs. digitized curve
-    _, m1_sim, m2_sim = moments(t_sim, c_sim)
-    _, m1_ref, _ = moments(t_ref, c_ref)
-    mu1_table_s = ref['mu1'] * 60.0
-    m['mu1_sim'] = m1_sim
-    m['mu1_table_ref'] = mu1_table_s
-    m['mu1_table_relerr_%'] = 100 * abs(m1_sim - mu1_table_s) / mu1_table_s
-    m['mu1_digitized_ref'] = m1_ref
-    m['mu1_digitized_relerr_%'] = 100 * abs(m1_sim - m1_ref) / m1_ref
-
-    # (extra, not in the standard 4-metric set, but directly checks the
-    # dispersion-calibration physics against Table 3's own measured value --
-    # same spirit as fig6.py's H_bar cross-check)
-    m['mu2_sim'] = m2_sim
-    m['mu2_table_ref'] = ref['mu2'] * 3600.0
-
-    # 3) Mass balance: injected mass (analytic C0*t_inj) vs. integral of the
-    # RAW (un-amplitude-calibrated) simulated outlet.
     t_inj = V_INJ / (Q_CYL if config == 'cylinder' else Q_CONE)
-    area_in = C_INJ * t_inj
-    area_out, _, _ = moments(t_sim, c_sim)
-    m['mass_balance_relerr_%'] = 100 * abs(area_out - area_in) / area_in
-
-    # 4) Per-column least-squares Absorbance-[AU] scale factor (simulated ->
-    # digitized), fit independently for this column -- identical formula to
-    # Gritti2019_fig6.py's/fig7.py's amplitude calibration.
-    c_sim_i = np.interp(t_ref, t_sim, c_sim)
-    denom = np.sum(c_sim_i ** 2)
-    scale = np.sum(c_sim_i * c_ref) / denom if denom > 0 else 0.0
-    m['au_scale'] = scale
-    m['peak_height_sim'] = scale * c_sim[i_peak_sim]
-    m['peak_height_ref'] = c_ref[i_peak_ref]
-    m['peak_height_relerr_%'] = 100 * abs(m['peak_height_sim'] - m['peak_height_ref']) / m['peak_height_ref']
-
-    # 5) Chromatogram MSE/NRMSE -- identical formula (no peak-realignment) as
-    # Gritti2019_fig6.py's/fig7.py's compute_metrics().
-    m['mse'] = float(np.mean((scale * c_sim_i - c_ref) ** 2))
-    m['nrmse_%'] = 100.0 * np.sqrt(m['mse']) / m['peak_height_ref']
-
-    return m
-
-
-def print_metrics(name, m):
-    print(f"\n--- {name} ---")
-    print(f"  Peak position    : sim={m['peak_time_sim']:.4f} s  "
-          f"ref(Table 3)={m['peak_time_table_ref']:.4f} s  rel.err={m['peak_time_table_relerr_%']:.3g}%  |  "
-          f"ref(digitized)={m['peak_time_digitized_ref']:.4f} s  rel.err={m['peak_time_digitized_relerr_%']:.3g}%")
-    print(f"  Peak height [AU] : sim={m['peak_height_sim']:.4g}  ref={m['peak_height_ref']:.4g}  "
-          f"rel.err={m['peak_height_relerr_%']:.3g}%")
-    print(f"  Elution time     : sim={m['mu1_sim']:.4f} s  "
-          f"ref(Table 3)={m['mu1_table_ref']:.4f} s  rel.err={m['mu1_table_relerr_%']:.3g}%  |  "
-          f"ref(digitized)={m['mu1_digitized_ref']:.4f} s  rel.err={m['mu1_digitized_relerr_%']:.3g}%")
-    print(f"  Mass balance     : rel.err={m['mass_balance_relerr_%']:.3g}% "
-          "(sim. outlet integral vs. analytically known injected mass)")
-    print(f"  Chromatogram MSE [AU^2] : {m['mse']:.4g}  (NRMSE={m['nrmse_%']:.2f}% of peak height)")
-    print(f"  Fitted AU scale  : {m['au_scale']:.4g} (independent least-squares fit for this column)")
-    print(f"  [extra] mu2_sim={m['mu2_sim']:.6g} s^2 vs Table-3 mu2={m['mu2_table_ref']:.6g} s^2")
+    return vm.standard_metrics(
+        name=config,
+        t_sim=t_sim, c_sim=c_sim, t_ref=t_ref, c_ref=c_ref,
+        kind=vm.PULSE,
+        mu1_ref=ref['mu1'] * 60.0,        # Table 3 [min] -> [s]
+        mu2_ref=ref['mu2'] * 3600.0,      # Table 3 [min^2] -> [s^2]
+        ref_label='Gritti Table 3',
+        mu2_calibrated=(config == 'cylinder'),
+        amplitude='lsq',
+        mass_in=C_INJ * t_inj,
+        mass_label='simulated outlet integral vs. the analytically known '
+                   'injected mass C0*t_inj',
+    )
 
 
 # ===========================================================================
@@ -526,17 +483,17 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         print(f"  {config:10s}: peak_t={tp:7.3f} s   mu1={mu1:7.3f} s   "
               f"sigma^2={mu2:.5f} s^2   area={area:.5f}")
 
-    # ---- validation: identical metric set/formulas as
-    # Gritti2019_fig6.py/fig7.py's compute_metrics()/print_metrics() ----
+    # ---- validation: the four unified metrics shared by all six case
+    # studies, see src/validation/validation_metrics.py ----
     print("\n" + "=" * 70)
-    print("Validation metrics")
+    print("Validation metrics -- Gritti et al. (2019), Fig. 8 "
+          "(Bombesin, gradient)")
     print("=" * 70)
     metrics = {}
     for config in ('cylinder', 'cone_s2', 'cone_s05'):
         t_sim, c_sim = results[config]
         t_ref, c_ref = REFERENCE[config]
         metrics[config] = compute_metrics(config, t_sim, c_sim, t_ref, c_ref)
-        print_metrics(config, metrics[config])
 
     # ---- comparison plots: one figure per column, matching the style/layout
     # of Gritti2019_fig7.py's per-column plots ----
@@ -545,7 +502,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     for config in ('cylinder', 'cone_s2', 'cone_s05'):
         t_sim, c_sim = results[config]
         t_ref, c_ref = REFERENCE[config]
-        scale = metrics[config]['au_scale']
+        scale = metrics[config]['amplitude_scale']
         color = colors[config]
         label = labels[config]
 
@@ -573,6 +530,17 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         fig.savefig(outpath, dpi=150)
         plt.close(fig)
         print(f"\nSaved comparison plot to {outpath}")
+
+    ordered = [metrics[config] for config in ('cylinder', 'cone_s2', 'cone_s05')]
+    vm.print_metrics_table(ordered, time_unit='s')
+    print(f"  [diagnostic] cylinder  : calibrated mu_2 = "
+          f"{ordered[0]['mu2_sim_full']:.6g} s^2 vs. Table 3 target "
+          f"{ordered[0]['mu2_ref']:.6g} s^2 "
+          f"(fitted by construction -- hence the empty Delta mu_2 above; the "
+          f"cone entries reuse this factor unchanged and are predictions)")
+    vm.dump_metrics(output_path, 'Gritti2019_fig8',
+                    'Gradient Bombesin', ordered, time_unit='s')
+    return ordered
 
 
 if __name__ == '__main__':
