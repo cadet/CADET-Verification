@@ -630,9 +630,15 @@ def paper_geometry_LRMPdynLin_benchmark(setting_name,
     return benchmark_config
 
 
-def geometry_performance_benchmark(spatial_method, ax_disc, par_disc, small_test=False):
+def geometry_performance_benchmark(spatial_method, ax_disc, par_disc,
+                                   ref_files=None, small_test=False):
 
     n_settings = 4
+
+    # Without explicit reference files, run_convergence_analysis consumes the
+    # finest specified refinement level of every method as its own reference.
+    if ref_files is None:
+        ref_files = [[None] for _ in range(n_settings)]
 
     benchmark_config = {
         'cadet_config_jsons': [
@@ -663,9 +669,7 @@ def geometry_performance_benchmark(spatial_method, ax_disc, par_disc, small_test
 
         ],
         'include_sens': [False] * n_settings,
-        'ref_files': [
-            [None], [None], [None], [None]
-        ],
+        'ref_files': copy.deepcopy(ref_files),
         'unit_IDs': [
             '000','001', '000','001'
         ],

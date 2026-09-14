@@ -100,7 +100,8 @@ def test_selected_model_groups(
 
         if run_performance_tests:
 
-            os.makedirs(output_path, exist_ok=True)
+            chromatography_path = str(output_path) + "/chromatography"
+            os.makedirs(chromatography_path, exist_ok=True)
 
             # Define settings and benchmarks
 
@@ -126,7 +127,10 @@ def test_selected_model_groups(
                 ]
             par_disc = [[bench_func.disc_list(1, 6 if not small_test else 3)], [None], [bench_func.disc_list(1, 6 if not small_test else 3)], [None]]
 
-            addition = geometry_performance_benchmark(spatial_method=0, ax_disc=ax_disc, par_disc=par_disc, small_test=small_test)
+            addition = geometry_performance_benchmark(
+                spatial_method=0, ax_disc=ax_disc, par_disc=par_disc,
+                ref_files=ref_files, small_test=small_test
+                )
 
             add_benchmark(
                 cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -137,19 +141,23 @@ def test_selected_model_groups(
 
             # DG elements
             ax_disc = [
-                [bench_func.disc_list(4, 5 if not small_test else 3)],
-                [bench_func.disc_list(8, 7 if not small_test else 3)],
-                [bench_func.disc_list(4, 5 if not small_test else 3)],
-                [bench_func.disc_list(8, 7 if not small_test else 3)]
+                [bench_func.disc_list(4, 7 if not small_test else 3)],
+                [bench_func.disc_list(8, 9 if not small_test else 3)],
+                [bench_func.disc_list(4, 7 if not small_test else 3)],
+                [bench_func.disc_list(8, 9 if not small_test else 3)]
             ]
             par_disc = [
-                [bench_func.disc_list(1, 5 if not small_test else 3)],
+                [bench_func.disc_list(1, 7 if not small_test else 3)],
                 [None],
-                [bench_func.disc_list(1, 5 if not small_test else 3)],
+                [bench_func.disc_list(1, 7 if not small_test else 3)],
                 [None]
             ]
 
-            addition = geometry_performance_benchmark(spatial_method=3, ax_disc=copy.deepcopy(ax_disc), par_disc=copy.deepcopy(par_disc), small_test=small_test)
+            addition = geometry_performance_benchmark(
+                spatial_method=3, ax_disc=copy.deepcopy(ax_disc),
+                par_disc=copy.deepcopy(par_disc),
+                ref_files=ref_files, small_test=small_test
+                )
 
             add_benchmark(
                 cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -158,7 +166,11 @@ def test_selected_model_groups(
                 disc_refinement_functions=disc_refinement_functions
                 )
 
-            addition = geometry_performance_benchmark(spatial_method=4, ax_disc=copy.deepcopy(ax_disc), par_disc=copy.deepcopy(par_disc), small_test=small_test)
+            addition = geometry_performance_benchmark(
+                spatial_method=4, ax_disc=copy.deepcopy(ax_disc),
+                par_disc=copy.deepcopy(par_disc),
+                ref_files=ref_files, small_test=small_test
+                )
 
             add_benchmark(
                 cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -168,7 +180,7 @@ def test_selected_model_groups(
                 )
 
             run_convergence_analysis(
-                output_path=output_path+ "/chromatography",
+                output_path=chromatography_path,
                 cadet_path=cadet_path,
                 cadet_configs=cadet_configs,
                 cadet_config_names=cadet_config_names,
@@ -199,7 +211,7 @@ def test_selected_model_groups(
             )
             
             if delete_h5_files:
-                convergence.delete_h5_files(str(output_path) + "/chromatography")
+                convergence.delete_h5_files(chromatography_path)
 
         if run_validation_tests:
 
