@@ -324,19 +324,19 @@ def run_model(cadet_path, output_path, config, col_dispersion_base, fname=None,
 # ===========================================================================
 # Moment / mass-balance helpers
 # ===========================================================================
-def _trapz(y, x):
+def _trapezoid(y, x):
     """Trapezoidal integration without relying on a specific numpy version's
     trapz/trapezoid naming (both exist across supported numpy releases)."""
-    fn = getattr(np, 'trapezoid', None) or np.trapz
+    fn = getattr(np, 'trapezoid', None) or np.trapezoid
     return fn(y, x)
 
 
 def moments(t, c):
-    area = _trapz(c, t)
+    area = _trapezoid(c, t)
     if area <= 0:
         return 0.0, 0.0, 0.0
-    mu1 = _trapz(t * c, t) / area
-    mu2 = _trapz((t - mu1) ** 2 * c, t) / area
+    mu1 = _trapezoid(t * c, t) / area
+    mu2 = _trapezoid((t - mu1) ** 2 * c, t) / area
     return area, mu1, mu2
 
 

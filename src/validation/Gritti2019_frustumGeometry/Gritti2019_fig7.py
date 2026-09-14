@@ -341,9 +341,9 @@ def run_column(cadet_path, output_path, column, **kwargs):
 
 def second_central_moment(t, c):
     c = np.clip(np.asarray(c), 0.0, None)
-    m0 = np.trapz(c, t)
-    m1 = np.trapz(t * c, t) / m0
-    m2 = np.trapz((t - m1) ** 2 * c, t) / m0
+    m0 = np.trapezoid(c, t)
+    m1 = np.trapezoid(t * c, t) / m0
+    m2 = np.trapezoid((t - m1) ** 2 * c, t) / m0
     return m1, m2
 
 
@@ -398,8 +398,8 @@ def load_digitized(path=None):
 def first_moment(t, c):
     t = np.asarray(t)
     c = np.clip(np.asarray(c), 0.0, None)
-    m0 = np.trapz(c, t)
-    m1 = np.trapz(t * c, t) / m0
+    m0 = np.trapezoid(c, t)
+    m1 = np.trapezoid(t * c, t) / m0
     return m1, m0
 
 
@@ -412,7 +412,7 @@ def mass_balance_check(t_sim, c_sim_raw, t_inj, c_inj=1.0):
     it is independent of the arbitrary-AU amplitude calibration used
     elsewhere, and of the digitized reference (which has no inlet-mass
     reference in absorbance units)."""
-    mass_out = np.trapz(np.clip(c_sim_raw, 0.0, None), t_sim)
+    mass_out = np.trapezoid(np.clip(c_sim_raw, 0.0, None), t_sim)
     mass_in = c_inj * t_inj
     return 100.0 * abs(mass_out - mass_in) / mass_in
 

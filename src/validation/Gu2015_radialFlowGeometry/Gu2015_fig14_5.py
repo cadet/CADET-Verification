@@ -320,7 +320,7 @@ def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
         #    the sparser digitized grid, for accuracy).
         def first_moment(t, c):
             c = np.clip(c, 0.0, None)
-            return np.trapz(t * c, t) / np.trapz(c, t)
+            return np.trapezoid(t * c, t) / np.trapezoid(c, t)
 
         tm_sim = first_moment(tau_sim, c_sim_native)
         tm_ref = first_moment(tau_ref, np.nan_to_num(c_ref))
@@ -338,8 +338,8 @@ def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
         #    so a residual undershoot here is expected and consistent
         #    with the reference curve, not necessarily a bug.
         injected = TAU_IMP
-        eluted_sim = np.trapz(np.clip(c_sim_native, 0.0, None), tau_sim)
-        eluted_ref = np.trapz(np.nan_to_num(np.clip(c_ref, 0.0, None)), tau_ref)
+        eluted_sim = np.trapezoid(np.clip(c_sim_native, 0.0, None), tau_sim)
+        eluted_ref = np.trapezoid(np.nan_to_num(np.clip(c_ref, 0.0, None)), tau_ref)
         m['mass_injected_dimless'] = injected
         m['mass_eluted_sim_dimless'] = eluted_sim
         m['mass_eluted_ref_dimless'] = eluted_ref

@@ -326,9 +326,9 @@ def moments(t, c):
     before integrating -- same convention as Gritti2019_fig7.py's and
     Gritti2019_fig8.py's moments()."""
     c = np.clip(np.asarray(c), 0.0, None)
-    m0 = np.trapz(c, t)
-    m1 = np.trapz(t * c, t) / m0
-    m2 = np.trapz((t - m1) ** 2 * c, t) / m0
+    m0 = np.trapezoid(c, t)
+    m1 = np.trapezoid(t * c, t) / m0
+    m2 = np.trapezoid((t - m1) ** 2 * c, t) / m0
     return m0, m1, m2
 
 

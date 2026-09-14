@@ -360,10 +360,10 @@ def first_moment(t, c, t_lo=None, t_hi=None):
         hi = t_hi if t_hi is not None else t.max()
         mask = (t >= lo) & (t <= hi)
         t, c = t[mask], c[mask]
-    area = np.trapz(c, t)
+    area = np.trapezoid(c, t)
     if area <= 0:
         return np.nan, np.nan
-    moment = np.trapz(t * c, t) / area
+    moment = np.trapezoid(t * c, t) / area
     return moment, area
 
 
@@ -459,8 +459,8 @@ def compute_metrics(tau_sim, sims, tau_refs, refs):
         # and digitized reference.
         if name == 'protein':
             fed = 1.0 * TIMP
-            out_sim = np.trapz(c_sim, tau_sim)
-            out_ref = np.trapz(c_ref, tau_ref)
+            out_sim = np.trapezoid(c_sim, tau_sim)
+            out_ref = np.trapezoid(c_ref, tau_ref)
             m['mass_balance_metric'] = 'int(c_out dtau) vs. protein fed (=1*tau_imp); ' \
                                         'deficit reflects protein retained on-column + ' \
                                         'converted to complex (see printed atom-balance check)'
@@ -471,9 +471,9 @@ def compute_metrics(tau_sim, sims, tau_refs, refs):
             m['mass_relerr_sim_vs_ref_%'] = 100 * abs(out_sim - out_ref) / out_ref if out_ref > 0 else np.nan
         elif name == 'soluble_ligand':
             window = (tau_sim >= TSHIFT)
-            out_sim = np.trapz(c_sim[window], tau_sim[window])
+            out_sim = np.trapezoid(c_sim[window], tau_sim[window])
             window_ref = (tau_ref >= TSHIFT)
-            out_ref = np.trapz(c_ref[window_ref], tau_ref[window_ref]) if window_ref.sum() > 1 else np.nan
+            out_ref = np.trapezoid(c_ref[window_ref], tau_ref[window_ref]) if window_ref.sum() > 1 else np.nan
             fed = 1.0 * (TAU_MAX_SIM - TSHIFT)
             m['mass_balance_metric'] = f'int(c_out dtau) over [tau_shift={TSHIFT}, tau_max={TAU_MAX_SIM}] ' \
                                         'vs. ligand fed over same window; deficit reflects ligand ' \
@@ -484,8 +484,8 @@ def compute_metrics(tau_sim, sims, tau_refs, refs):
             m['mass_relerr_sim_vs_fed_%'] = 100 * abs(out_sim - fed) / fed
             m['mass_relerr_sim_vs_ref_%'] = 100 * abs(out_sim - out_ref) / out_ref if (out_ref and out_ref > 0) else np.nan
         else:  # complex
-            out_sim = np.trapz(c_sim, tau_sim)
-            out_ref = np.trapz(c_ref, tau_ref)
+            out_sim = np.trapezoid(c_sim, tau_sim)
+            out_ref = np.trapezoid(c_ref, tau_ref)
             m['mass_balance_metric'] = 'int(c_out dtau), sim vs. digitized reference (no independent ' \
                                         'feed-side reference for a non-fed product species)'
             m['mass_fed'] = np.nan
@@ -543,8 +543,8 @@ def print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim):
                                      + protein remaining bound on-column
     """
     fed = 1.0 * TIMP
-    out_protein = np.trapz(c1_sim, tau_sim)
-    out_complex = np.trapz(c3_sim, tau_sim)
+    out_protein = np.trapezoid(c1_sim, tau_sim)
+    out_complex = np.trapezoid(c3_sim, tau_sim)
     print("\n--- Diagnostic: protein-equivalent atom balance (not one of the 4 core metrics) ---")
     print(f"  Protein fed (1*tau_imp)              : {fed:.4g}")
     print(f"  int(c1_out dtau) [free protein out]  : {out_protein:.4g}")
