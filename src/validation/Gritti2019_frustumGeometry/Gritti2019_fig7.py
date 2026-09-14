@@ -53,7 +53,8 @@ K_ISO = 1.08                     # isocratic k(phi=0.75), valerophenone (text, p
 PHI_ISO = 0.75
 
 H_VALEROPHENONE = 9.5e-6         # m, isocratic plate height, cylinder, 0.35 mL/min (text, p.43)
-                                 # -- reference/context value only (see COL_DISP_PROBE below).
+                                 # -- reference/context value only (see
+                                 # COL_DISP_VALEROPHENONE below).
 
 # Van Deemter fit to Gritti et al. Fig. 5 (H(v) = A + B/v + C*v), identical values
 # to Gritti2019_fig6.py's VD_A/VD_B/VD_C (re-derived there from the digitized
@@ -71,8 +72,8 @@ TR_GRAD_S2_MIN = 4.659           # Table 2, cone rho_s=2
 TR_GRAD_S05_MIN = 4.674          # Table 2, cone rho_s=0.5
 
 # Table 2, valerophenone, SECOND CENTRAL MOMENT [min^2] under gradient
-# conditions -- the calibration target for the per-column dispersion fix
-# (see root-cause docstring section above).
+# conditions -- the reference against which Delta mu_2 is reported. Nothing
+# is fitted to it; see COL_DISP_VALEROPHENONE below.
 MU2_GRAD_CYL = 0.00096
 MU2_GRAD_S2 = 0.00080
 MU2_GRAD_S05 = 0.00072
@@ -147,8 +148,13 @@ A_PREFACTOR = K0_LSSM * np.exp(S_LSSM * PHI0)   # = k(phi=0)-equivalent prefacto
 KA1 = A_PREFACTOR * EPS_T / (1.0 - EPS_T) / QMAX1
 KD1 = 1.0
 
-COL_DISP_PROBE = 1.0        # dimensionless scale factor probe value for calibrate_dispersion()
-                            # (1.0 = Fig. 5 VAN_DEEMTER curve exactly as measured/fitted, unscaled).
+COL_DISP_VALEROPHENONE = 1.0  # dimensionless scale factor on the Fig. 5 VAN_DEEMTER H(v)
+                            # curve. Held at 1.0, i.e. the plate height exactly as Gritti
+                            # et al. measured it: since they report H(v) for valerophenone,
+                            # this study fits nothing, and its second central moment is a
+                            # prediction. (Contrast Gritti2019_fig8.py, where no plate
+                            # height is reported for bombesin and a scale factor is
+                            # therefore unavoidable.)
 COL_DISP_MODIFIER = 1.0e-6  # dimensionless scale factor for the ACN modifier: a tiny fraction
                             # of valerophenone's own H(v) curve, giving near-plug-flow transport.
 
@@ -167,14 +173,6 @@ COLUMNS = {
                       color='tab:blue', label=r'$\rho_s=0.5$'),
 }
 
-# Populated by calibrate_dispersion() in __main__ before the production runs;
-# maps column key -> calibrated COL_DISPERSION length-scale [m] for
-# valerophenone (component 1). Falls back to the COL_DISP_PROBE value if a
-# column has not (yet) been calibrated, e.g. when get_model() is imported
-# and used standalone/interactively.
-H_EFF = {}
-
-
 def get_model(cadet_path, column, spatial_method='DG', nelem=128, polydeg=4, ncol=800,
               n_points=3000, t_end_min=7.5, col_disp_valerophenone=None):
     """Build the CADET model for one of the three column configurations
@@ -191,15 +189,13 @@ def get_model(cadet_path, column, spatial_method='DG', nelem=128, polydeg=4, nco
         component 1 (valerophenone), multiplying the Fig. 5 VAN_DEEMTER
         H(v) curve (VD_A, VD_B, VD_C -- same fit as Gritti2019_fig6.py):
         Dax(z) = col_disp_valerophenone * H(v(z))*v(z)/2 via
-        COL_DISPERSION_DEP='VAN_DEEMTER'. Defaults to the per-column
-        calibrated value in H_EFF (see calibrate_dispersion() and the
-        "Dispersion calibration" docstring section); falls back to the uncalibrated probe
-        value (COL_DISP_PROBE=1.0, i.e. the Fig. 5 curve exactly as
-        measured/fitted) if that column has not been calibrated yet.
+        COL_DISPERSION_DEP='VAN_DEEMTER'. Defaults to COL_DISP_VALEROPHENONE
+        = 1.0, i.e. the measured Fig. 5 curve used exactly as it stands;
+        nothing about the dispersion is fitted in this study.
     """
     cfg = COLUMNS[column]
     if col_disp_valerophenone is None:
-        col_disp_valerophenone = H_EFF.get(column, COL_DISP_PROBE)
+        col_disp_valerophenone = COL_DISP_VALEROPHENONE
     Fv = cfg['Fv']
     t_inj = VINJ / Fv                       # s, injection pulse duration
     tg_s = TG_MIN * 60.0                    # s, gradient duration
@@ -348,38 +344,6 @@ def run_column(cadet_path, output_path, column, **kwargs):
     return t, c_modifier, c_valerophenone
 
 
-def second_central_moment(t, c):
-    """First and second central moment, using the shared pulse-moment
-    definition so that the dispersion calibration target below and the
-    reported Delta mu_2 are computed identically."""
-    _, m1, m2 = vm.pulse_moments(t, c)
-    return m1, m2
-
-
-def calibrate_dispersion(cadet_path, output_path, column, nelem=64,
-                         probe_value=COL_DISP_PROBE):
-    """Calibrate the dimensionless COL_DISPERSION scale factor for
-    valerophenone on this column (multiplying the Fig. 5 VAN_DEEMTER H(v)
-    curve, see get_model()) so that the full gradient-elution PDE simulation
-    reproduces THIS COLUMN'S OWN measured second central moment (Table 2,
-    mu2_ref) -- see the "Dispersion calibration" docstring section for why
-    a per-column scale factor is needed at all (in short: the cylinder's real
-    peak is genuinely tailed -- a packing/wall effect no symmetric-dispersion
-    model, VAN_DEEMTER or otherwise, can capture -- while the cones are
-    genuinely Gaussian and expected to need only a small, ~unity, correction
-    on top of the real measured H(v) curve). Variance scales essentially
-    exactly linearly with the configured dispersion scale factor for this
-    problem (verified separately to <0.1% by direct probing at 1x/2x/3x the
-    baseline value), so a single probe run plus closed-form rescaling is used
-    instead of an iterative optimizer."""
-    t, _, c_val = run_column(cadet_path, output_path, column, spatial_method='DG',
-                             nelem=nelem, polydeg=4,
-                             col_disp_valerophenone=probe_value)
-    _, var_probe = second_central_moment(t, c_val)
-    target_var_s2 = COLUMNS[column]['mu2_ref'] * 3600.0   # min^2 -> s^2
-    return probe_value * (target_var_s2 / var_probe), var_probe / 3600.0
-
-
 # ---------------------------------------------------------------------------
 # Digitized reference data
 # ---------------------------------------------------------------------------
@@ -413,13 +377,10 @@ def compute_metrics(column, t_sim, c_sim, t_ref, c_ref):
     is performed inside the metric routine (see "AU-scale amplitude" in the
     module docstring for why it is fit per column and not shared).
 
-    Delta mu_1 is taken against Table 2's measured first moment. Delta mu_2
-    is deliberately left EMPTY for every column of this figure: the
-    dispersion scale factor was calibrated column by column so as to
-    reproduce exactly Table 2's mu_2 (see calibrate_dispersion()), so the
-    agreement is fitted rather than predicted and would be misleading in a
-    validation table. The calibrated-vs-target mu_2 values are still printed
-    below as a diagnostic.
+    Delta mu_1 and Delta mu_2 are both taken against Table 2's measured
+    moments, and both are genuine predictions: the dispersion comes from the
+    plate height Gritti et al. measured in their Fig. 5, used exactly as it
+    stands, and nothing in this study is fitted to Table 2.
     """
     cfg = COLUMNS[column]
     t_inj = VINJ / cfg['Fv']
@@ -430,7 +391,6 @@ def compute_metrics(column, t_sim, c_sim, t_ref, c_ref):
         mu1_ref=cfg['tR_ref'] * 60.0,          # Table 2 [min] -> [s]
         mu2_ref=cfg['mu2_ref'] * 3600.0,       # Table 2 [min^2] -> [s^2]
         ref_label='Gritti Table 2',
-        mu2_calibrated=True,
         amplitude='lsq',
         mass_in=1.0 * t_inj,   # inlet valerophenone concentration is 1.0 (arbitrary units)
         mass_label='simulated outlet integral vs. the analytically known '
@@ -451,31 +411,12 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     print("Derived LSSM parameters (valerophenone): "
           f"S={S_LSSM:.4f}, k0={K0_LSSM:.4f}, gamma={GAMMA1:.4f}, KA={KA1:.4e}")
-    print(f"COL_DISPERSION probe scale factor on the Fig. 5 VAN_DEEMTER H(v) curve: "
-          f"{COL_DISP_PROBE:.4g} (1.0 = curve exactly as measured/fitted; "
+    print(f"COL_DISPERSION scale factor on the Fig. 5 VAN_DEEMTER H(v) curve: "
+          f"{COL_DISP_VALEROPHENONE:.4g} (1.0 = curve exactly as measured/fitted, "
+          f"nothing fitted in this study; "
           f"VD_A={VD_A:.4e} m, VD_B={VD_B:.4e} m^2/s, VD_C={VD_C:.4e} s)")
     print(f"t0 [min]: cylinder={T0_CYL_MIN:.4f}  cone_s2={T0_S2_MIN:.4f}  "
           f"cone_s05={T0_S05_MIN:.4f}")
-
-    print("\nCalibrating per-column dispersion SCALE FACTOR (on top of the real, "
-          "measured Fig. 5 VAN_DEEMTER H(v) curve) against each column's own "
-          "measured gradient second moment (Table 2) -- see 'Dispersion "
-          "calibration' in the module docstring: this scale factor is expected "
-          "to come out close to 1.0 for the (genuinely Gaussian) cones, and "
-          "substantially larger for the (genuinely tailed) cylinder:")
-    for col in ('cylinder', 'cone_s2', 'cone_s05'):
-        # NELEM=128 (matching production resolution) is required for the
-        # calibration probe itself: cone_rho_s=2's second central moment is
-        # under-converged at NELEM=64 (see "Numerical resolution" in the
-        # module docstring), which would otherwise bake a resolution error
-        # into the calibrated scale factor.
-        disp_scale, var_probe_min2 = calibrate_dispersion(
-            cadet_path, output_path, col, nelem=128)
-        H_EFF[col] = disp_scale
-        print(f"  {col:10s}: probe (VAN_DEEMTER, scale=1.0) variance={var_probe_min2:.6f} min^2  "
-              f"Table 2 target={COLUMNS[col]['mu2_ref']:.6f} min^2  "
-              f"-> calibrated dispersion scale factor={disp_scale:.4f} "
-              f"(x{disp_scale/COL_DISP_PROBE:.3f} of the probe value)")
 
     print("\nAnalytic (paper Eq. 34) cross-check, using ONLY parameters "
           "derived from the cylindrical column:")
@@ -563,9 +504,9 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     print("=" * 70)
     vm.print_metrics_table(metrics, time_unit='s')
     for m in metrics:
-        print(f"  [diagnostic] {m['name']:10s}: calibrated mu_2 = "
-              f"{m['mu2_sim_full']:.6g} s^2 vs. Table 2 target {m['mu2_ref']:.6g} s^2 "
-              f"(fitted by construction -- hence the empty Delta mu_2 above)")
+        print(f"  [diagnostic] {m['name']:10s}: simulated mu_2 = "
+              f"{m['mu2_sim_full']:.6g} s^2 vs. Table 2 {m['mu2_ref']:.6g} s^2 "
+              f"(predicted, with the plate height exactly as measured)")
     vm.dump_metrics(output_path, 'Gritti2019_fig7',
                     'Gradient valerophenone', metrics, time_unit='s')
     return metrics

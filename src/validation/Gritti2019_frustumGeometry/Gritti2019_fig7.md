@@ -30,7 +30,7 @@ text, p. 43) are stationary-phase/particle-batch properties, so both apply
 to all three column configurations. Table 2 gives the experimental gradient
 first moment (retention time): tR = 4.656 min (cylinder), 4.659 min (cone
 rho_s=2), 4.674 min (cone rho_s=0.5), together with second central moments
-(used below for dispersion calibration).
+(the reference for Delta mu_2; nothing is fitted to them).
 
 Governing equations (paper-provided): Giddings' plate-height/band-broadening
 framework for isocratic elution (Sec. 2.3), and the Blumberg/Poppe spatial-
@@ -39,9 +39,10 @@ variance ODE for gradient elution in non-uniform (conical) columns (Sec.
 retention law k(phi) = k0*exp(-S*(phi-phi0)) (Eq. 28). The paper does not
 tabulate the LSSM parameters (k0, S) for valerophenone directly; they are
 DERIVED below from the paper's own equations and tabulated numbers (Table 1
-isocratic k, Table 2 gradient retention time) -- fitting is reserved for the
-AU-scale amplitude calibration and the per-column dispersion-variance
-calibration described further below.
+isocratic k, Table 2 gradient retention time). The only quantity fitted
+anywhere in this study is the per-chromatogram AU-scale amplitude described
+further below, which is a display convention: the dispersion itself is the
+paper's own measured H(v), used unscaled.
 
 ===========================================================================
 Model selection and justification
@@ -77,7 +78,20 @@ replacing COL_POROSITY per axial_flow_column_1D_config.rst), consistent with
 the paper's own model, which reports no separate particle-scale transport
 resistances.
 
-Dispersion calibration (per column): the paper's Table 1 reports both a
+Dispersion (nothing is calibrated): the bulk dispersion is
+D_ax(z) = H(v(z))*v(z)/2, with H(v) the van Deemter curve the paper itself
+measured (Fig. 5, digitized into VD_A/VD_B/VD_C, shared with
+Gritti2019_fig6.py) evaluated at the local interstitial velocity. The
+dimensionless COL_DISPERSION scale factor on that curve is held at 1.0
+(COL_DISP_VALEROPHENONE, COL_DISPERSION_DEP='VAN_DEEMTER'), i.e. the plate
+height enters exactly as measured. Because the paper reports H(v) for
+valerophenone, this study fits nothing at all, and both reported moments are
+genuine predictions. (Contrast Gritti2019_fig8.py: the paper reports no
+plate height for the peptide bombesin, so one scale factor is unavoidable
+there; it is calibrated once on the cylindrical column and reused unchanged
+for both cones.)
+
+Expected accuracy per column: the paper's Table 1 reports both a
 tailing-blind half-height efficiency N_1/2 (Eq. 68) and a moment-based
 efficiency N_moments (Eq. 69, sensitive to tailing) for valerophenone on all
 three configurations:
@@ -93,26 +107,22 @@ cylinder itself (p. 43: peaks on the cylinder "systematically tail more
 than those observed for the conical column, irrespective of flow
 direction", ruling out a shared instrument/extra-column effect) -- while the
 conical column's real peak is essentially Gaussian in both flow directions.
-Since CADET's axial-dispersion model is symmetric, it can only reproduce a
-column's true (moment-based) variance, not a tailed peak shape; calibrating
-H against the half-height-derived "H=9.5 um" alone would therefore
-reproduce a peak that is too narrow specifically for the tailed cylinder.
-Each column's dispersion is therefore calibrated with a per-column,
-dimensionless scale factor on the real, measured Fig. 5 H(v) curve
-(COL_DISPERSION[1], COL_DISPERSION_DEP='VAN_DEEMTER'), chosen (via
-calibrate_dispersion()) so the full gradient-elution PDE reproduces that
-column's own measured second central moment (Table 2). This is a closed-
-form rescaling rather than a free fit: variance scales linearly with the
-dispersion scale factor (verified numerically -- doubling/tripling it
-reproduces the same factor in simulated variance to <0.1%), and the
-expected outcome is a scale factor near 1.0 for the (Gaussian) cones -- the
-unscaled Fig. 5 curve already matches, as the paper's own Sec. 4.2.1
-comparison implies -- and substantially above 1.0 for the (tailed)
-cylinder, since no symmetric-dispersion model can capture tailing; only the
-total (variance-matched) spread can be reproduced. The retention-time/LSSM
-parameters (below), derived solely from the cylinder's isocratic k and
-Table 2's cylinder retention time, are unaffected by this calibration and
-remain a genuine, unfitted prediction for both conical configurations.
+CADET's axial-dispersion model is symmetric and can reproduce a column's
+true (moment-based) variance but never a tailed peak shape. The cylinder is
+therefore expected to deviate strongly with the measured H(v) used as it
+stands, and it does; the two conical configurations -- the geometries this
+study actually validates -- agree closely:
+
+    column        Delta mu_2   NRMSE
+    cylinder      32.99 %      17.46 %   (tailed; not reported in the paper)
+    cone rho=2     4.12 %       1.17 %
+    cone rho=0.5   0.14 %       0.90 %
+
+This is the paper's own Sec. 4.2.1 expectation borne out: the unscaled
+Fig. 5 curve already describes the conical columns. The retention-time/LSSM
+parameters (below) are derived solely from the cylinder's isocratic k and
+Table 2's cylinder retention time, so they too remain a genuine, unfitted
+prediction for both conical configurations.
 
 Binding law: CADET's MOBILE_PHASE_MODULATOR_LANGMUIR model
 (ADSORPTION_MODEL='MOBILE_PHASE_MODULATOR') implements, per component i and
@@ -153,7 +163,7 @@ rho_s=2": FORWARD_FLOW=0, small->large; "cone rho_s=0.5": FORWARD_FLOW=1,
 large->small); gradient phi0=0.60->phi_final=0.95, tg=5 min (beta=
 (phi_final-phi0)/tg=0.07/min, matching Fig. 2's caption); k(phi=0.75)=1.08
 and H=9.5 um as above (applied to all three columns via COL_DISPERSION_DEP,
-subject to the per-column calibration above).
+with the scale factor on the measured H(v) curve held at 1.0).
 
 LSSM parameters (k0, S) for valerophenone are derived (not fitted) from two
 of the paper's own equations evaluated at the cylindrical column only
@@ -211,10 +221,9 @@ therefore used uniformly for all three columns. A DG-vs-FV cross-check at
 this resolution shows a small (~2.5% of peak height), resolution-sensitive
 pre-peak ripple specific to the DG solution for cone_rho_s=2 (absent in FV
 at NCOL=800); it does not measurably affect any reported validation metric.
-(These grid-convergence figures were obtained at the COL_DISP_PROBE
-dispersion value -- a purely numerical/discretization check, independent of
-the per-column dispersion calibration above, which simply rescales the
-COL_DISPERSION input on the same, already-converged discretization.)
+(These grid-convergence figures were obtained at the same unscaled
+COL_DISPERSION value used for the production runs -- a purely numerical/
+discretization check.)
 
 AU-scale amplitude: CADET's simulated valerophenone concentration is in
 arbitrary units (C0=1), unrelated to the digitized reference's real,
@@ -228,6 +237,6 @@ Fitting the scale independently per column (rather than one shared/averaged
 scale) is deliberate: the three columns' individually implied scales differ
 by ~7%, specifically because the tailed cylinder's Gaussian-equivalent
 model variance-matches a shorter apparent peak height than its real one
-(see "Dispersion calibration" above); a shared scale would let this
+(see "Dispersion" above); a shared scale would let this
 cylinder-specific effect leak into the (mutually consistent to <1%) conical
 columns' apparent fit quality.
