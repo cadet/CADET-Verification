@@ -168,7 +168,7 @@ def test_selected_model_groups(
                 )
 
             run_convergence_analysis(
-                output_path=output_path,
+                output_path=output_path+ "/chromatography",
                 cadet_path=cadet_path,
                 cadet_configs=cadet_configs,
                 cadet_config_names=cadet_config_names,
