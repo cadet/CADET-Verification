@@ -2,7 +2,8 @@
 
 This script defines Langmuir adsorption case studies
 used for numerical benchmarks in
-https://doi.org/10.1016/j.compchemeng.2023.108340
+https://doi.org/10.1016/j.compchemeng.2023.108340,
+case-study originally published in https://doi.org/10.1016/j.chroma.2008.07.069
 
 """
 
