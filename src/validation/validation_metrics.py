@@ -1,70 +1,66 @@
 # -*- coding: utf-8 -*-
-"""Unified validation metrics for the CADET column-geometry validation studies.
+"""Validation metrics shared by the CADET column-geometry validation studies.
 
-Every case study under ``src/validation`` reports the SAME four numbers, so
-that the results of all six figures can be collected into a single LaTeX
-table without any per-case reinterpretation:
+Every case study under ``src/validation`` reports the same four numbers, so
+that the results of all six figures go into one LaTeX table without any
+per-case reinterpretation:
 
     Delta mu_1 [%]     relative error of the first moment,
                        mu_1 = int(t*c dt) / int(c dt)
-    Delta mu_2 [%]     relative error of the second CENTRAL moment,
-                       mu_2 = int((t-mu_1)^2*c dt) / int(c dt)
-                       Fallback rules, see ``mu2_fallback`` below: where the
-                       paper reports no mu_2 the peak-height error is
-                       reported instead, and where the simulation's
-                       dispersion coefficient was CALIBRATED against the
-                       paper's own mu_2 the entry is left empty (a fitted
-                       quantity is not a validation result).
+    Delta mu_2 [%]     relative error of the second central moment,
+                       mu_2 = int((t-mu_1)^2*c dt) / int(c dt).
+                       Two fallbacks apply, see ``mu2_fallback`` below: where
+                       the paper reports no mu_2 the peak-height error takes
+                       its place, and where the dispersion coefficient was
+                       calibrated against the paper's own mu_2 the entry is
+                       left empty, since a fitted quantity is not a
+                       validation result.
     NRMSE [%]          root mean square deviation from the digitized
-                       chromatogram, normalised by the reference peak height
-                       (i.e. by max|c_ref|, which coincides with the peak
-                       height for a pulse and with the plateau level for a
-                       breakthrough curve).
-    Mass balance [%]   outlet integral vs. injected mass. This is SOLVER
-                       VERIFICATION, not validation: it involves no
-                       reference data at all and is reported separately
-                       from the three comparison metrics above.
+                       chromatogram, normalised by max|c_ref| -- the peak
+                       height for a pulse, the plateau level for a
+                       breakthrough curve.
+    Mass balance [%]   outlet integral against injected mass. This verifies
+                       the solver rather than validating the model: it uses
+                       no reference data, so it is reported apart from the
+                       three comparison metrics above.
 
 Reference source
 ----------------
-Where the paper tabulates moments (Gritti et al. 2019, Tables 1-3) those
-tabulated, experimentally measured values are the reference for Delta mu_1
-and Delta mu_2. Where it does not (Gu 2015, Ch. 14, which prints no moment
-table), the moments of the digitized chromatogram are used instead. Each
-metric records which of the two it used in ``mu1_ref_source`` /
-``mu2_ref_source``.
+Where the paper tabulates moments (Gritti et al. 2019, Tables 1-3), those
+measured values are the reference for Delta mu_1 and Delta mu_2. Where it
+does not (Gu 2015, Ch. 14, which prints no moment table), the moments of the
+digitized chromatogram are used instead. Each metric records which of the two
+it used in ``mu1_ref_source`` and ``mu2_ref_source``.
 
-Moments of non-eluting (frontal / breakthrough) curves
-------------------------------------------------------
-Several curves in Gu (2015) are frontal responses that approach a nonzero
-plateau instead of returning to baseline. For those, int(t*c dt)/int(c dt)
-does not converge -- it grows without bound with the upper integration
-limit. The moments of such a curve are therefore taken of its underlying
-residence time distribution E(t) = dF/dt, where F = c/c_plateau is the
-normalised breakthrough curve. Integrating by parts removes the derivative
-entirely, so nothing has to be differentiated numerically (which digitized
-data would not survive):
+Moments of breakthrough curves
+------------------------------
+Several curves in Gu (2015) approach a nonzero plateau instead of returning
+to baseline. For those, int(t*c dt)/int(c dt) does not converge; it grows
+with the upper integration limit. Their moments are therefore taken of the
+residence time distribution E(t) = dF/dt underlying the normalised front
+F = c/c_plateau. Integrating by parts removes the derivative, so nothing has
+to be differentiated numerically, which digitized data would not survive:
 
     int_a^b t   E dt = b*F(b)   - a*F(a)   -  int_a^b F dt
     int_a^b t^2 E dt = b^2*F(b) - a^2*F(a) - 2 int_a^b t*F dt
 
 mu_1 is then the stoichiometric breakthrough time and mu_2 the variance of
-the front -- genuine moments of the same definition as in the pulse case,
-computed from integrals of F alone. Where the front overshoots its own
-plateau and comes back down (competitive-Langmuir roll-up, Gu Fig. 14.3
-component 1), E = dF/dt changes sign and mu_2 may come out negative; that is
-the correct signed second moment of a signed distribution, and since the
-simulated and the digitized curve are treated identically, their relative
-difference -- which is what the table reports -- remains meaningful.
+the front, both by the same definition as in the pulse case and computed
+from integrals of F alone. Where the front overshoots its plateau and comes
+back down, as the competitive-Langmuir roll-up of component 1 in Gu
+Fig. 14.3 does, E changes sign and mu_2 can come out negative. That is the
+signed second moment of a signed distribution; the simulated and the
+digitized curve are treated identically, so the relative difference the
+table reports stays meaningful.
 
 Windowing
 ---------
 When the reference is the digitized curve, the simulated and the digitized
-moments are both evaluated over the same, common time window (the overlap
-of the two time axes, with exactly interpolated end points), since a
-truncated tail biases mu_1 and mu_2. When the reference is a tabulated paper
-value, the simulated moments are evaluated over the full simulated window,
-which is what the paper's own measured moments represent.
+moments are evaluated over the same time window -- the overlap of the two
+time axes, with interpolated end points -- because a truncated tail biases
+mu_1 and mu_2. When the reference is a tabulated value, the simulated
+moments are evaluated over the full simulated window, which is what a
+measured moment represents.
 """
 
 import json
@@ -136,8 +132,8 @@ def plateau_level(t, c, tail_frac=0.1):
 def pulse_moments(t, c):
     """(area, mu_1, mu_2) of a curve that returns to baseline.
 
-    Negative values (small DG undershoot / ringing near the baseline, and
-    digitization noise) are clipped before integrating.
+    Negative values are clipped first: they come from digitization noise and
+    from small undershoots near the baseline.
     """
     t = np.asarray(t, dtype=float)
     c = np.clip(np.asarray(c, dtype=float), 0.0, None)
@@ -188,9 +184,9 @@ def lsq_amplitude_scale(c_sim_on_ref_grid, c_ref):
     """Least-squares scale factor mapping the simulation onto the reference.
 
     The Gritti chromatograms are recorded in arbitrary absorbance units, so
-    a single per-column amplitude factor has to be fitted before the shapes
-    can be compared at all. Data that is already concentration-normalised
-    (Gu's C/C0 curves) passes ``amplitude=1.0`` instead and skips this.
+    one amplitude factor per column has to be fitted before the shapes can be
+    compared. Already normalised data, such as Gu's C/C0 curves, passes
+    ``amplitude=1.0`` and skips this.
     """
     denom = float(np.sum(c_sim_on_ref_grid ** 2))
     if denom <= 0.0:
@@ -215,7 +211,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
                      amplitude='lsq', mass_in=None, mass_retained=0.0,
                      mass_extra_out=0.0, mass_label=None, mass_exact=True,
                      tail_frac=0.1):
-    """Compute the four unified metrics for one simulated/reference curve pair.
+    """Compute the four metrics for one simulated/reference curve pair.
 
     Parameters
     ----------
@@ -261,12 +257,12 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     mass_label : str, optional
         Description of what the balance closes, for the printout.
     mass_exact : bool
-        True when every term of the balance is known exactly, so that any
-        deviation IS the solver's conservation error. Set it False where a
-        physical residual is expected on top of it -- the reactive case
-        study, whose column still holds some bound protein at the end of the
-        run -- so that the table can flag the entry instead of presenting a
-        physical remainder as a numerical defect.
+        True when every term of the balance is known exactly, so that the
+        deviation is the solver's conservation error. Set it False where a
+        physical residual is expected on top, as in the reactive case study,
+        whose column still holds some bound protein at the end of the run, so
+        that the table can flag the entry rather than present a physical
+        remainder as a numerical defect.
     """
     t_sim = np.asarray(t_sim, dtype=float)
     c_sim = np.asarray(c_sim, dtype=float)
@@ -279,7 +275,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     t_ref_w, c_ref_w = restrict(t_ref, c_ref, lo, hi)
     m['window'] = (lo, hi)
 
-    # --- amplitude calibration (over the comparison window) ---------------
+    # --- amplitude fit, over the comparison window ------------------------
     c_sim_on_ref = np.interp(t_ref_w, t_sim, c_sim)
     if amplitude == 'lsq':
         scale = lsq_amplitude_scale(c_sim_on_ref, c_ref_w)
@@ -288,9 +284,10 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     m['amplitude_scale'] = scale
 
     # --- moments -----------------------------------------------------------
-    # Against a tabulated reference: over the full simulated window, which is
-    # what a measured moment represents. Against the digitized curve: over
-    # the shared window, so that both sides see the same tail truncation.
+    # Against a tabulated reference, the moments are taken over the full
+    # simulated window, which is what a measured moment represents. Against
+    # the digitized curve, both sides use the shared window so that they see
+    # the same tail truncation.
     _, mu1_sim_full, mu2_sim_full = curve_moments(t_sim, c_sim, kind, tail_frac=tail_frac)
     _, mu1_sim_win, mu2_sim_win = curve_moments(t_sim_w, c_sim_w, kind, tail_frac=tail_frac)
     _, mu1_ref_win, mu2_ref_win = curve_moments(t_ref_w, c_ref_w, kind, tail_frac=tail_frac)
@@ -322,7 +319,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     m['delta_peak_height_%'] = _relerr(m['peak_height_sim'], m['peak_height_ref'])
     m['delta_peak_time_%'] = _relerr(m['peak_time_sim'], m['peak_time_ref'])
 
-    # 2) Delta mu_2, with the two documented fallbacks
+    # 2) Delta mu_2, with the two fallbacks described above
     if mu2_calibrated:
         m['mu2_mode'] = MU2_CALIBRATED
         m['mu2_sim'] = mu2_sim_full
@@ -354,7 +351,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     m['mse'] = float(np.nanmean((scale * c_sim_on_ref - c_ref_w) ** 2))
     m['nrmse_%'] = 100.0 * np.sqrt(m['mse']) / ref_amplitude if ref_amplitude > 0 else np.nan
 
-    # 4) Mass balance -- solver verification, no reference data involved
+    # 4) Mass balance: solver verification, with no reference data involved
     mass_out = trapezoid(np.clip(c_sim, 0.0, None), t_sim) + float(mass_extra_out)
     m['mass_out'] = mass_out
     m['mass_retained'] = float(mass_retained)
@@ -389,7 +386,7 @@ def _fmt(value, spec='.4g', dash='--'):
 
 
 def format_metrics(m, time_unit='s'):
-    """Render the four unified metrics of one curve as a fixed text block."""
+    """Render the metrics of one curve as a fixed text block."""
     note = _MU2_NOTE[m['mu2_mode']].format(src=m.get('mu2_ref_source', ''))
     lines = [f"\n--- {m['name']} ---"]
     lines.append(

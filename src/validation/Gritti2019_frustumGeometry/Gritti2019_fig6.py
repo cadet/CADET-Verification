@@ -6,12 +6,12 @@ Reproduction of Fig. 6 from:
     conically shaped columns: Theory and practice", J. Chromatogr. A 1593
     (2019) 34-46. https://doi.org/10.1016/j.chroma.2019.01.055
 
-Self-contained script: model definition, run, comparison plot, and
-validation metrics. Further explanation on model and parameter selection is
-provided under Gritti2019_fig6.md.
+The model, the source of the parameters and the van Deemter fit to the
+paper's Fig. 5 are explained in detail in Gritti2019_fig6.md.
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,10 +19,9 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The shared metric definitions live one directory up, so that all six
-# validation case studies report an identical set of numbers. Adding that
-# directory to sys.path keeps this script runnable both directly and as an
-# imported module (scripts/verify_geometries.py imports main()).
+# The metric definitions shared by all validation case studies live one
+# directory up. Adding it to sys.path keeps this script runnable both
+# directly and as an import (scripts/verify_geometries.py calls main()).
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
@@ -31,7 +30,7 @@ DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_digitized.csv')
 FIG5_DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_fig5H_digitized.csv')
 
 # ---------------------------------------------------------------------------
-# Step 3 parameters (SI units; conversions shown explicitly)
+# Parameters from the paper, converted to SI here
 # ---------------------------------------------------------------------------
 MM = 1e-3
 MICRON = 1e-6
@@ -45,14 +44,13 @@ R_LARGE = 2.10 * MM               # m, conical column large-end radius (4.2 mm i
 DP = 5.0 * MICRON                 # m, particle diameter (XBridge-C18)
 
 K_RET = 1.08                      # valerophenone retention factor (p. 43)
-H_BAR_PAPER_UNIFORM = 10.8 * MICRON   # m, paper's own "H uniform" cross-check (p. 43;
-                                       # superseded here by the real H(v), kept for reference)
-H_BAR_PAPER_FULL = 11.6 * MICRON      # m, paper's full (flow-dependent H) value (p. 43),
-                                       # this script's primary target
+H_BAR_PAPER_UNIFORM = 10.8 * MICRON   # m, the paper's uniform-H cross-check (p. 43)
+H_BAR_PAPER_FULL = 11.6 * MICRON      # m, the paper's flow-dependent-H value (p. 43),
+                                      # which is what this script targets
 
 V_INJ = 0.5e-9                    # m^3 (0.5 microL), Sec. 3.4.2
 
-# Table 1 (p. 44), valerophenone, isocratic -- ground-truth validation data
+# Table 1 (p. 44), valerophenone, isocratic
 TABLE1 = {
     'cylinder': dict(s=1.0, Fv=0.35 * ML_MIN, tR=3.865 * MIN, mu1=3.869 * MIN,
                       mu2=0.00156 * MIN ** 2, w50=0.0718 * MIN, N12=16090, Nmom=9596),
@@ -63,8 +61,8 @@ TABLE1 = {
 }
 
 # ---------------------------------------------------------------------------
-# Step 2 -- reparameterization: total porosity & equilibrium constant from
-# the cylindrical column's own reported bed volume/flow rate/moment/k
+# Total porosity and equilibrium constant, derived from the cylindrical
+# column's reported bed volume, flow rate, first moment and retention factor
 # ---------------------------------------------------------------------------
 V_BED_CYL = np.pi * R_CYL ** 2 * L_BED               # m^3; matches paper's "1.06 cm^3"
 T0_CYL = TABLE1['cylinder']['mu1'] / (1.0 + K_RET)    # s, void time of the cylinder column
@@ -73,8 +71,8 @@ KEQ = K_RET * ET / (1.0 - ET)                         # LINEAR isotherm ka/kd (k
 
 V_BED_CONE = np.pi / 3.0 * L_BED * (R_SMALL ** 2 + R_SMALL * R_LARGE + R_LARGE ** 2)  # matches "1.21 cm^3"
 
-# Van Deemter fit to Gritti et al. Fig. 5, H(v) = A + B/v + C*v (see Step 2 in the
-# module docstring for the digitization/fit procedure); raw digitized data in
+# Van Deemter fit to Fig. 5, H(v) = A + B/v + C*v. The digitization and the
+# fit are described in the markdown file; the digitized points are in
 # Gritti2019_fig6_fig5H_digitized.csv.
 VD_A = 3.15452704e-06   # m
 VD_B = 4.52688414e-09   # m^2/s
@@ -103,16 +101,15 @@ CONFIGS = {
 
 
 # ---------------------------------------------------------------------------
-# Step 4 -- CADET model definition
+# CADET model definition
 # ---------------------------------------------------------------------------
 def get_model(cadet_path, config_key, spatial_method='FV', ncol=16, dg_polydeg=4,
               n_points=3000, t_end=400.0, tracer=False):
     """Build the CADET model for one column configuration.
 
-    Dispersion: COL_DISPERSION_DEP='VAN_DEEMTER' (see Step 1 in the module
-    docstring), with COL_DISPERSION=[1.0] (dimensionless placeholder --
-    the dependence factor (VD_A*v + VD_B + VD_C*v^2)/2 already IS the full
-    physical D_ax(v) = H(v)*v/2 by construction).
+    Dispersion uses COL_DISPERSION_DEP='VAN_DEEMTER' with COL_DISPERSION=[1.0].
+    The value is a placeholder because the dependency factor
+    (VD_A*v + VD_B + VD_C*v^2)/2 is already the full D_ax(v) = H(v)*v/2.
     """
     cfg = CONFIGS[config_key]
     Fv = cfg['Fv']
@@ -153,9 +150,6 @@ def get_model(cadet_path, config_key, spatial_method='FV', ncol=16, dg_polydeg=4
 
     col.npartype = 1
     col.total_porosity = ET
-    col.col_porosity = ET   # unused (TOTAL_POROSITY governs velocity/capacity
-                            # whenever HAS_FILM_DIFFUSION=0, per
-                            # axial_flow_column_1D_config.rst), set for completeness
     col.col_dispersion = [1.0]
     col.col_dispersion_dep = 'VAN_DEEMTER'
     col.col_dispersion_dep_a = VD_A
@@ -184,7 +178,7 @@ def get_model(cadet_path, config_key, spatial_method='FV', ncol=16, dg_polydeg=4
     else:
         raise ValueError(f"Unsupported spatial method: {spatial_method}")
 
-    # --- Particle type 000: LRM (no film/pore diffusion -- see Step 1) ---
+    # --- Particle type: lumped rate model, i.e. no film or pore diffusion ---
     par = col.particle_type_000
     par.par_radius = DP / 2.0
     par.par_porosity = 0.5  # unused (LRM does not require explicit particle porosity)
@@ -270,23 +264,17 @@ def load_digitized():
 
 
 def plot_fig5_verification(output_path):
-    """Verification plot for the digitized Gritti et al. (2019) Fig. 5 plate-height
-    data (Gritti2019_fig6_fig5H_digitized.csv) and the VAN_DEEMTER fit
-    (VD_A, VD_B, VD_C) derived from it and used throughout this script.
+    """Plot the digitized Fig. 5 plate-height data against the van Deemter fit.
 
-    Reproduces Fig. 5's own axes (H [um] vs. xi=z/L) for a direct visual
-    side-by-side comparison against the paper figure: overlaying the
-    digitized points on a pixel-registered re-render of Fig. 5 confirms the
-    digitized curve matches the paper's solid valerophenone curve throughout
-    xi in [0, 1].
+    Drawn on Fig. 5's own axes, H [um] over xi = z/L, so that it can be held
+    next to the paper figure to check the digitization.
     """
     fig5 = np.genfromtxt(FIG5_DIGITIZED_CSV, delimiter=',', names=True)
     xi = fig5['xi']
     H_digitized = fig5['H_um']
 
-    # Local interstitial velocity along the SPECIFIC column Fig. 5 was measured
-    # on: r_e=2.1 mm, s=0.5 (wide r_e to narrow r_s=s*r_e), Fv=0.40 mL/min,
-    # divided by the total porosity ET derived in Step 2 (see module docstring).
+    # Local interstitial velocity along the column Fig. 5 was measured on:
+    # r_e=2.1 mm, s=0.5 (wide to narrow), Fv=0.40 mL/min, divided by ET.
     r_e_fig5 = 2.10 * MM
     s_fig5 = 0.5
     Fv_fig5 = 0.40 * ML_MIN
@@ -331,23 +319,18 @@ def plot_fig5_verification(output_path):
 # Validation metrics
 # ---------------------------------------------------------------------------
 def compute_metrics(config_key, t_sim, c_sim, c_inj_area, ref_t, ref_c):
-    """The four unified validation metrics -- see src/validation/validation_metrics.py
-    for their definitions, which are shared verbatim by all six case studies.
+    """The validation metrics, see src/validation/validation_metrics.py.
 
-    The reference for Delta mu_1 and Delta mu_2 is the paper's own Table 1,
-    i.e. moments measured on the real columns. The dispersion coefficient
-    used here is the paper's Fig. 5 H(v) curve and was NOT fitted to Table
-    1's mu_2, so Delta mu_2 is a genuine prediction in this figure (unlike
-    in Gritti2019_fig7.py, and unlike the cylinder of Gritti2019_fig8.py,
-    where the dispersion was calibrated against the tabulated mu_2 and the
-    Delta mu_2 entry is consequently left empty).
+    Delta mu_1 and Delta mu_2 are taken against the moments measured on the
+    real columns in Table 1. The dispersion coefficient comes from the Fig. 5
+    H(v) curve and was not fitted to Table 1, so Delta mu_2 is a prediction
+    here, unlike in Gritti2019_fig8.py's cylinder, where the dispersion was
+    calibrated against the tabulated mu_2 and the entry is left empty.
 
-    NOTE specific to this figure: Sec. 4.2.2 states that the peaks PRINTED
-    in Fig. 6 were "slightly adjusted" in time for display. A few tenths of
-    a percent of the NRMSE therefore reflect that known display artifact
-    rather than a genuine model/shape mismatch; no analogous statement
-    exists for Fig. 7/8. Delta mu_1 and Delta mu_2 are unaffected, since
-    they are taken against Table 1 rather than against the digitized curve.
+    Sec. 4.2.2 notes that the peaks printed in Fig. 6 were slightly adjusted
+    in time for display, so a few tenths of a percent of the NRMSE are that
+    display artifact rather than a shape mismatch. The moments are taken
+    against Table 1 and are unaffected.
     """
     ref = TABLE1[config_key]
     m = vm.standard_metrics(
@@ -360,9 +343,8 @@ def compute_metrics(config_key, t_sim, c_sim, c_inj_area, ref_t, ref_c):
         mass_label='simulated outlet integral vs. the analytically known '
                    'injected mass C0*t_inj',
     )
-    # Diagnostic (not one of the four metrics): the mean plate height implied
-    # by the simulated moments, directly comparable to the paper's own
-    # H_bar = 11.6 um for the full, flow-dependent-H case (p. 43).
+    # Diagnostic: the mean plate height implied by the simulated moments,
+    # comparable to the paper's H_bar = 11.6 um on p. 43.
     m['H_bar_sim_micron'] = L_BED * m['mu2_sim_full'] / m['mu1_sim_full'] ** 2 / MICRON
     return m
 
@@ -371,7 +353,6 @@ def compute_metrics(config_key, t_sim, c_sim, c_inj_area, ref_t, ref_c):
 # Main
 # ---------------------------------------------------------------------------
 
-from pathlib import Path
 CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
 
@@ -379,7 +360,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     os.makedirs(output_path, exist_ok=True)
 
-    print("Derived parameters (Step 2):")
+    print("Derived parameters:")
     print(f"  V_bed (cylinder) = {V_BED_CYL*1e6:.4f} cm^3  (paper: 1.06 cm^3)")
     print(f"  V_bed (cone)     = {V_BED_CONE*1e6:.4f} cm^3  (paper: 1.21 cm^3)")
     print(f"  t0 (cylinder)    = {T0_CYL:.4f} s = {T0_CYL/MIN:.4f} min")
@@ -417,9 +398,9 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         m = compute_metrics(key, t_sim, c_sim, c_inj_area, ref_time, ref_c)
         all_metrics[key] = m
 
-        # plot: CADET curve on its RAW time axis (no peak-realignment), scaled
-        # by the same per-column least-squares AU factor used for the metrics
-        # -- identical convention to Gritti2019_fig7.py's/fig8.py's plots.
+        # The CADET curve is drawn on its own time axis, without any peak
+        # realignment, and scaled by the same least-squares absorbance factor
+        # that the metrics use. Gritti2019_fig7.py and fig8.py do the same.
         valid = ~np.isnan(ref_c)
         rt = ref_time[valid]
         rc = ref_c[valid]
@@ -435,14 +416,11 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         fontsize = 15
         ax.set_xlabel('Time [s]', fontsize=fontsize)
         ax.set_ylabel('Absorbance [AU]', fontsize=fontsize)
-        # ax.set_title("Gritti et al. (2019), Fig. 6 -- valerophenone, isocratic elution\n"
-        #               "cylindrical vs. conical (frustum) column, both flow directions\n",
-        #               fontsize=fontsize)
         ax.legend(fontsize=fontsize, ncol=1)
         ax.grid(alpha=0.3)
         ax.set_xlim(215.0, 250.0)
-        # ax.set_ylim(None, 0.2)
-        # add NRMSE metric box to plot for all three configurations
+
+        # NRMSE of this configuration, as a box inside the axes
         nrmse = all_metrics[key]['nrmse_%']
         ax.text(
             0.98, 0.75, f"NRMSE: {nrmse:.2f}%", transform=ax.transAxes,
@@ -468,12 +446,12 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     print("=" * 70)
     vm.print_metrics_table(metrics, time_unit='s')
     for m in metrics:
-        print(f"  [diagnostic] {m['name']:10s}: H_bar from the simulated moments = "
+        print(f"  {m['name']:10s}: H_bar from the simulated moments = "
               f"{m['H_bar_sim_micron']:.3f} micron "
               f"(paper, full flow-dependent H: {H_BAR_PAPER_FULL / MICRON:.1f} micron)")
-    print("  NOTE: Sec. 4.2.2 states the peaks PRINTED in Fig. 6 were 'slightly "
-          "adjusted' in time for display, so part of the NRMSE above is that "
-          "known display artifact.")
+    print("  Note: Sec. 4.2.2 states that the peaks printed in Fig. 6 were "
+          "slightly adjusted in time for display, so part of the NRMSE above "
+          "is that display artifact.")
     vm.dump_metrics(output_path, 'Gritti2019_fig6',
                     'Isocratic valerophenone', metrics, time_unit='s')
     return metrics

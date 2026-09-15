@@ -1,242 +1,167 @@
-Reproduction of Fig. 7 from:
+# Gritti et al. (2019), Fig. 7 — gradient elution of valerophenone
+
+Reference:
 
     F. Gritti, J. Belanger, G. Izzo, W. Leveille, "On the performance of
     conically shaped columns: Theory and practice", J. Chromatogr. A 1593
     (2019) 34-46. https://doi.org/10.1016/j.chroma.2019.01.055
 
-Self-contained script: model definition, run, comparison plot, and
-validation metrics.
+`Gritti2019_fig7.py` holds the model definition, the simulation run, the
+comparison plot and the validation metrics.
 
-===========================================================================
-Case identification
-===========================================================================
-Fig. 7 (p. 43), "Valerophenone (gradient)": experimental gradient-elution
-chromatograms of n-valerophenone on three physical column configurations,
-all L=15 cm, packed with the same batch of 5 um XBridge-C18 fully-porous
-particles:
+## The case
 
-  1) Cylinder (rho_s=1): conventional column, i.d.=3.0 mm (re=1.5 mm),
-     0.35 mL/min.
-  2) Cone rho_s=2:  truncated-cone (frustum) column, i.d. 2.1->4.2 mm, flow
-     entering the NARROW (2.1 mm) end, 0.40 mL/min.
-  3) Cone rho_s=0.5: the same physical frustum tube as (2), flow reversed --
-     entering the WIDE (4.2 mm) end.
+Fig. 7 (p. 43) shows measured gradient-elution chromatograms of
+n-valerophenone on the same three configurations as Fig. 6, all 15 cm long and
+packed with the same batch of 5 µm XBridge-C18 particles:
 
-Gradient: linear ACN/water gradient, phi: 0.60->0.95 over a gradient time of
-5 min (beta=0.07/min, matching Fig. 2's caption), Sec. 3.4.2. Injection
-volume 0.5 uL. Isocratic reference retention factor k(phi=0.75)=1.08 (text,
-p. 44) and isocratic plate height H=9.5 um (cylindrical column, 0.35 mL/min;
-text, p. 43) are stationary-phase/particle-batch properties, so both apply
-to all three column configurations. Table 2 gives the experimental gradient
-first moment (retention time): tR = 4.656 min (cylinder), 4.659 min (cone
-rho_s=2), 4.674 min (cone rho_s=0.5), together with second central moments
-(the reference for Delta mu_2; nothing is fitted to them).
+1. **Cylinder, rho_s = 1**: 3.0 mm i.d. (r_e = 1.5 mm), 0.35 mL/min.
+2. **Cone, rho_s = 2**: frustum from 2.1 to 4.2 mm i.d., flow entering the
+   narrow end, 0.40 mL/min.
+3. **Cone, rho_s = 0.5**: the same tube with the flow reversed, entering the
+   wide end.
 
-Governing equations (paper-provided): Giddings' plate-height/band-broadening
-framework for isocratic elution (Sec. 2.3), and the Blumberg/Poppe spatial-
-variance ODE for gradient elution in non-uniform (conical) columns (Sec.
-2.4, Eqs. (28)-(47)), built on the Linear Solvent Strength Model (LSSM)
-retention law k(phi) = k0*exp(-S*(phi-phi0)) (Eq. 28). The paper does not
-tabulate the LSSM parameters (k0, S) for valerophenone directly; they are
-DERIVED below from the paper's own equations and tabulated numbers (Table 1
-isocratic k, Table 2 gradient retention time). The only quantity fitted
-anywhere in this study is the per-chromatogram AU-scale amplitude described
-further below, which is a display convention: the dispersion itself is the
-paper's own measured H(v), used unscaled.
+The gradient is linear in the acetonitrile fraction, phi = 0.60 to 0.95 over
+5 min, i.e. beta = 0.07/min (Sec. 3.4.2, matching the caption of Fig. 2). The
+injection volume is 0.5 µL. The isocratic retention factor k(phi = 0.75) = 1.08
+(p. 44) and the isocratic plate height H = 9.5 µm (p. 43) are properties of the
+particle batch and stationary phase, so they apply to all three columns.
 
-===========================================================================
-Model selection and justification
-===========================================================================
-Bulk transport: CADET's native axial-flow geometries under COLUMN_MODEL_1D
-(GEOMETRY='AXIAL_FLOW_CYLINDER' for the cylindrical column,
-GEOMETRY='AXIAL_FLOW_FRUSTUM' for the conical column in both flow directions
--- CROSS_SECTION_AREA_SMALL_END/LARGE_END are identical for both cone
-directions since it is the same physical tube; only FORWARD_FLOW differs).
-This discretizes the real, physically varying cross-section/velocity along z
-directly, with no cylindrical-column approximation for the conical geometry.
-Frustum FORWARD_FLOW convention (verified with a dedicated non-adsorbing-
-tracer control run: identical mean transit time in both directions, 1.972/
-1.976 min vs. the mass-conservation-implied eps_t*V_col/Fv=1.966 min, to
-<0.5%): FORWARD_FLOW=0 is flow from the small end (z=0) to the large end
-(z=L); FORWARD_FLOW=1 is the reverse.
+Table 2 gives the measured gradient retention times — 4.656 min for the
+cylinder, 4.659 min for rho_s = 2 and 4.674 min for rho_s = 0.5 — together with
+the second central moments used as the reference for Delta mu_2.
 
-Dispersion model: the paper's theoretical treatment has two parts (Sec. 1,
-Introduction). An illustrative part (Sec. 2.3/4.1.4, Figs. 2/3) assumes a
-spatially uniform plate height H to explore the generic theoretical
-potential of conical columns; the actual experimental comparison (Sec.
-4.2.1, the target of this script) instead explicitly accounts for the
-"change in plate height along the conical column (Fig. 5)". This script
-therefore uses the real, flow-rate-dependent H(v) measured in Fig. 5 -- the
-same digitized curve and VAN_DEEMTER fit (VD_A, VD_B, VD_C) as
-Gritti2019_fig6.py -- evaluated at the true local interstitial velocity via
-COL_DISPERSION_DEP='VAN_DEEMTER' (H(v)=VD_A+VD_B/v+VD_C*v), giving
-Dax(z)=H(v(z))*v(z)/2 self-consistently along the frustum's varying velocity
-field rather than a single column-averaged or uniform value. This maps to
-CADET's Lumped Rate Model without pores within the unified interface
-(NPARTYPE=1, particle_type_000.HAS_FILM_DIFFUSION=0, TOTAL_POROSITY
-replacing COL_POROSITY per axial_flow_column_1D_config.rst), consistent with
-the paper's own model, which reports no separate particle-scale transport
-resistances.
+The paper's theory is Giddings' plate-height framework for isocratic elution
+(Sec. 2.3) plus the Blumberg/Poppe spatial-variance ODE for gradient elution in
+non-uniform columns (Sec. 2.4, Eqs. 28–47), built on the linear solvent
+strength model (LSSM) k(phi) = k0*exp(-S*(phi-phi0)) of Eq. 28. The LSSM
+parameters k0 and S are not tabulated for valerophenone; they are derived below
+from the paper's own equations and numbers.
 
-Dispersion (nothing is calibrated): the bulk dispersion is
-D_ax(z) = H(v(z))*v(z)/2, with H(v) the van Deemter curve the paper itself
-measured (Fig. 5, digitized into VD_A/VD_B/VD_C, shared with
-Gritti2019_fig6.py) evaluated at the local interstitial velocity. The
-dimensionless COL_DISPERSION scale factor on that curve is held at 1.0
-(COL_DISP_VALEROPHENONE, COL_DISPERSION_DEP='VAN_DEEMTER'), i.e. the plate
-height enters exactly as measured. Because the paper reports H(v) for
-valerophenone, this study fits nothing at all, and both reported moments are
-genuine predictions. (Contrast Gritti2019_fig8.py: the paper reports no
-plate height for the peptide bombesin, so one scale factor is unavoidable
-there; it is calibrated once on the cylindrical column and reused unchanged
-for both cones.)
+## Model choice
 
-Expected accuracy per column: the paper's Table 1 reports both a
-tailing-blind half-height efficiency N_1/2 (Eq. 68) and a moment-based
-efficiency N_moments (Eq. 69, sensitive to tailing) for valerophenone on all
-three configurations:
+**Geometry.** `COLUMN_MODEL_1D` with `GEOMETRY='AXIAL_FLOW_CYLINDER'` for the
+cylindrical column and `GEOMETRY='AXIAL_FLOW_FRUSTUM'` for both cone
+directions. Since both cones are the same physical tube, they share
+`CROSS_SECTION_AREA_SMALL_END` and `_LARGE_END` and differ only in
+`FORWARD_FLOW`: 0 is flow from the small end at z = 0 to the large end at z = L,
+1 is the reverse. The varying cross-section and velocity are resolved directly,
+with no cylindrical approximation of the cone. A non-adsorbing tracer run
+confirms the convention: the mean transit time is the same in both directions
+(1.972 and 1.976 min) and agrees with eps_t*V_col/Fv = 1.966 min to under 0.5 %.
 
-    column        N_1/2   N_moments  N_1/2 / N_moments
-    cylinder      16090    9596       1.68  (substantially tailed)
-    cone rho=2    13181   13342       0.988 (essentially Gaussian)
-    cone rho=0.5  13563   13635       0.995 (essentially Gaussian)
+**Dispersion.** The paper has two separate treatments. The illustrative one
+(Secs. 2.3/4.1.4) assumes a uniform plate height to explore what conical columns
+can do in principle; the experimental comparison of Sec. 4.2.1, which is what
+this script reproduces, accounts for the change of plate height along the column
+shown in Fig. 5. This script therefore uses the measured H(v) — the same
+digitized curve and van Deemter coefficients VD_A, VD_B, VD_C as
+`Gritti2019_fig6.py` — through `COL_DISPERSION_DEP='VAN_DEEMTER'`, which gives
+D_ax(z) = H(v(z))*v(z)/2 along the frustum's own velocity field rather than one
+column-averaged value. Gritti2019_fig6.md derives that relation from the paper's
+plate-height definition and describes the fit.
 
-I.e. the cylindrical column's real peak is genuinely tailed -- a column-
-specific packing/wall effect the paper attributes explicitly to the
-cylinder itself (p. 43: peaks on the cylinder "systematically tail more
-than those observed for the conical column, irrespective of flow
-direction", ruling out a shared instrument/extra-column effect) -- while the
-conical column's real peak is essentially Gaussian in both flow directions.
-CADET's axial-dispersion model is symmetric and can reproduce a column's
-true (moment-based) variance but never a tailed peak shape. The cylinder is
-therefore expected to deviate strongly with the measured H(v) used as it
-stands, and it does; the two conical configurations -- the geometries this
-study actually validates -- agree closely:
+The `COL_DISPERSION` scale factor stays at 1.0, so the plate height enters as
+measured and nothing is fitted. `Gritti2019_fig8.py` cannot do this, since the
+paper reports no plate height for bombesin.
 
-    column        Delta mu_2   NRMSE
-    cylinder      32.99 %      17.46 %   (tailed; not reported in the paper)
-    cone rho=2     4.12 %       1.17 %
-    cone rho=0.5   0.14 %       0.90 %
+H(v) was measured under isocratic conditions and is reused unchanged here for
+gradient elution, which is what the paper does in its own predictions (p. 45).
 
-This is the paper's own Sec. 4.2.1 expectation borne out: the unscaled
-Fig. 5 curve already describes the conical columns. The retention-time/LSSM
-parameters (below) are derived solely from the cylinder's isocratic k and
-Table 2's cylinder retention time, so they too remain a genuine, unfitted
-prediction for both conical configurations.
+Since the paper resolves no separate particle-scale transport resistances, the
+particle side is the lumped rate model without pores: `NPARTYPE=1`,
+`HAS_FILM_DIFFUSION=0` and `TOTAL_POROSITY` in place of `COL_POROSITY`.
 
-Binding law: CADET's MOBILE_PHASE_MODULATOR_LANGMUIR model
-(ADSORPTION_MODEL='MOBILE_PHASE_MODULATOR') implements, per component i and
-modulator ("salt") component 0,
+One consequence is worth knowing when reading the results. Table 1 reports both
+a half-height efficiency N_1/2 and a moment-based efficiency N_moments for each
+column. They differ by a factor 1.68 on the cylinder but agree to within 1 % on
+both cones, i.e. the real cylindrical peak is tailed while the conical ones are
+essentially Gaussian. The paper attributes the tailing to the cylindrical
+column itself (p. 43), not to the instrument. An axial dispersion model is
+symmetric and can match a column's variance but not a tailed shape, so the
+cylinder deviates more than the two cones.
+
+**Retention.** The gradient is modelled with
+`ADSORPTION_MODEL='MOBILE_PHASE_MODULATOR'`, whose isotherm is
+
     dq_i/dt = ka_i*exp(gamma_i*cp_0)*cp_i*qmax_i*(1-sum_j q_j/qmax_j)
-              - kd_i*cp_0^beta_i*q_i .
-Setting beta_i=0 (no power-law/ion-exchange term; not applicable to an
-organic-modifier RPLC gradient) and taking qmax_i -> large (dilute, linear
-limit) gives, at quasi-equilibrium,
-    K_i(phi) := q_i/cp_i = (ka_i*qmax_i/kd_i)*exp(gamma_i*phi) ,
-an exact exponential-in-phi law: gamma_i=-S_i reproduces the LSSM law (28)
-exactly, without any polynomial/EXTFUN approximation of the exponential (as
-would be needed with the generic EXT_LINEAR route). The modulator component
-0 represents the local ACN volume fraction; since HAS_FILM_DIFFUSION=0, cp_0
-entering the isotherm is identically the local bulk concentration, so the
-gradient is genuinely transported (with its own near-negligible axial
-dispersion, so its profile stays essentially undistorted, matching the
-paper's own assumption in Sec. 2.4 that "the solvent gradient is linear and
-not distorted upon migration") through the actual frustum velocity field --
-more physically direct than CADET's generic EXTFUN/EXT_LINEAR mechanism,
-which would require a separately-configured propagation velocity, awkward
-for a geometry whose velocity is itself axially varying. Modulator: NBOUND=0
-(non-binding, per the model's documented salt convention). Valerophenone:
-NBOUND=1, qmax set to a large placeholder (1e4) so the Langmuir competition
-term (1-q/qmax) stays within ~1e-4 of 1 throughout, i.e. genuinely linear/
-dilute adsorption, matching the trace-level small-molecule mixture used
-experimentally.
+              - kd_i*cp_0^beta_i*q_i
 
-===========================================================================
-Reparameterization
-===========================================================================
-Physical parameters (SI units): L=0.15 m (both column types); EPS_T=0.65
-(total porosity, the paper's own value, Sec. 4.1.4, used to compute
-u0(0)=17.77 cm/min for Fv=0.40 mL/min, re=1.05 mm); cylinder re=1.5 mm,
-Fv=0.35 mL/min, V_col=1.06 cm^3; frustum small-end r=1.05 mm (2.1 mm i.d.),
-large-end r=2.10 mm (4.2 mm i.d.), Fv=0.40 mL/min, V_col=1.21 cm^3 ("cone
-rho_s=2": FORWARD_FLOW=0, small->large; "cone rho_s=0.5": FORWARD_FLOW=1,
-large->small); gradient phi0=0.60->phi_final=0.95, tg=5 min (beta=
-(phi_final-phi0)/tg=0.07/min, matching Fig. 2's caption); k(phi=0.75)=1.08
-and H=9.5 um as above (applied to all three columns via COL_DISPERSION_DEP,
-with the scale factor on the measured H(v) curve held at 1.0).
+Component 0 is the modulator, here the local acetonitrile volume fraction.
+Setting beta_i = 0 removes the power-law term, which belongs to ion exchange
+rather than an organic-modifier gradient, and taking qmax_i large puts the
+isotherm in its linear, dilute limit. At quasi-equilibrium this leaves
 
-LSSM parameters (k0, S) for valerophenone are derived (not fitted) from two
-of the paper's own equations evaluated at the cylindrical column only
-(rho_s=1):
-  (i)  Eq. (28) at phi=0.75: k0 = k(0.75)*exp(S*(0.75-0.60))
-  (ii) Eq. (34) at rho_s=1: tau_e(1) = 1 + (1/G)*ln(1+G*k0),
-       G = S*beta*tau0, tau0 = L/u0(0) = eps_t*V_col/Fv (cylinder's own
-       hold-up time, Eq. 18 at rho_s=1), tau_e(1) = tR_grad/tau0 with
-       tR_grad = 4.656 min (Table 2).
-Solving (i)+(ii) simultaneously (derive_lssm_parameters()) gives S=4.7756
-(volume fraction)^-1, k0=2.2107 -- both within the typical literature range
-for a small aromatic ketone in RPLC gradient elution (S~3-10). As an
-independent (not fitted) check, evaluating Eq. (34) for both conical
-orientations (rho_s=2, 0.5; each using its own u0(0)=Fv/(eps_t*pi*re^2) at
-its own inlet radius) reproduces the measured conical retention times to
-within 0.03%/0.35% -- the paper's own analytical theory, with zero
-additional free parameters, already predicts the conical retention times
-essentially exactly. The full CADET PDE simulation is a strictly harder,
-independent test: it must reproduce the full digitized peak SHAPES (not
-just these retention times) using the same H-derived, self-consistent axial
-dispersion field.
+    K_i(phi) = q_i/cp_i = (ka_i*qmax_i/kd_i)*exp(gamma_i*phi)
 
-===========================================================================
-Reference (digitized) data
-===========================================================================
-Fig. 7 (three overlaid experimental chromatograms sharing one time axis
-270-295 s and one absorbance axis 0-0.20+ AU) was digitized by pixel-colour
-thresholding (axis tick marks located from the rendered page image; each
-curve's colour -- black/red/blue -- isolated via RGB thresholds, with the
-title box and in-plot legend masked out first). See
-Gritti2019_fig7_digitized.csv (digitized points) and
-Gritti2019_fig7_digitized_preview.png (overlay used to confirm extraction
-quality; the red "cone rho_s=2" curve has fewer recovered points, 436 vs
-~845, purely from partial occlusion by the other two traces where curves
-cross, not extraction error). Digitized peak heights (0.201/0.180/0.189 AU)
-match the paper's plotted values essentially exactly.
+so gamma_i = -S_i reproduces the LSSM law of Eq. 28 exactly, with no polynomial
+approximation of the exponential. Because `HAS_FILM_DIFFUSION=0`, the cp_0 that
+enters the isotherm is the local bulk concentration, so the gradient is
+transported through the actual frustum velocity field. Its own axial dispersion
+is negligible, so the profile stays essentially undistorted, which is what the
+paper assumes in Sec. 2.4. The modulator has `NBOUND=0`; valerophenone has
+`NBOUND=1` and qmax = 1e4, large enough that the competition term stays within
+1e-4 of 1.
 
-===========================================================================
-Simulation, resolution, and validation
-===========================================================================
-get_model()/run_column() build and run the model for a given column; the
-__main__ block runs all three configurations, computes validation metrics
-(peak position, first-moment elution time, mass balance, chromatogram MSE)
-against the digitized curves, and produces the comparison plot.
+## Parameters
 
-Numerical resolution: DG with NELEM=128 (POLYDEG=4) is used throughout.
-Grid-convergence checks (NELEM=16..128, cross-validated against FV at
-NCOL=100..1600) show the elution time is already converged by NELEM=64
-(4.6561 min vs. 4.6562 min at NELEM=128, matching Table 2's 4.656 min to
-<0.01%), but the mass-balance error for cone_rho_s=2 -- whose inlet is the
-frustum's small (fastest) end, where the short (~0.075 s) injection pulse is
-hardest to resolve -- only drops below the SOP's 1% tolerance at NELEM=128
-(17.5% at NELEM=32, 2.4% at NELEM=64, 0.0015% at NELEM=128); NELEM=128 is
-therefore used uniformly for all three columns. A DG-vs-FV cross-check at
-this resolution shows a small (~2.5% of peak height), resolution-sensitive
-pre-peak ripple specific to the DG solution for cone_rho_s=2 (absent in FV
-at NCOL=800); it does not measurably affect any reported validation metric.
-(These grid-convergence figures were obtained at the same unscaled
-COL_DISPERSION value used for the production runs -- a purely numerical/
-discretization check.)
+Physical parameters in SI units: L = 0.15 m for all columns; total porosity
+eps_t = 0.65 (the paper's own value, Sec. 4.1.4); cylinder r_e = 1.5 mm,
+Fv = 0.35 mL/min, V_col = 1.06 cm^3; frustum small end r = 1.05 mm, large end
+r = 2.10 mm, Fv = 0.40 mL/min, V_col = 1.21 cm^3. rho_s = 2 is
+`FORWARD_FLOW=0` (small to large), rho_s = 0.5 is `FORWARD_FLOW=1`.
 
-AU-scale amplitude: CADET's simulated valerophenone concentration is in
-arbitrary units (C0=1), unrelated to the digitized reference's real,
-uncalibrated detector absorbance -- the paper gives no molar-absorptivity/
-detector calibration, so a per-column least-squares scale factor (scale =
-argmin_s |s*c_sim-c_ref|^2) is fit independently for each column and used
-only for plotting and peak-height/MSE reporting in the paper's native
-Absorbance [AU] units; it does not enter peak position, elution time, or
-mass balance, so this is a display convention, not a modeling choice.
-Fitting the scale independently per column (rather than one shared/averaged
-scale) is deliberate: the three columns' individually implied scales differ
-by ~7%, specifically because the tailed cylinder's Gaussian-equivalent
-model variance-matches a shorter apparent peak height than its real one
-(see "Dispersion" above); a shared scale would let this
-cylinder-specific effect leak into the (mutually consistent to <1%) conical
-columns' apparent fit quality.
+The LSSM parameters are derived, not fitted, from two of the paper's equations
+evaluated on the cylindrical column alone:
+
+    (i)  Eq. 28 at phi = 0.75:   k0 = k(0.75)*exp(S*(0.75-0.60))
+    (ii) Eq. 34 at rho_s = 1:    tau_e(1) = 1 + (1/G)*ln(1+G*k0)
+                                 G = S*beta*tau0
+                                 tau0 = L/u0(0) = eps_t*V_col/Fv
+                                 tau_e(1) = tR_grad/tau0, tR_grad = 4.656 min
+
+`derive_lssm_parameters()` solves the pair simultaneously and gives
+S = 4.7756 (volume fraction)^-1 and k0 = 2.2107, both in the usual range for a
+small aromatic ketone in reversed-phase gradient elution. As a check that adds
+no free parameters, evaluating Eq. 34 for the two conical orientations — each
+with its own u0(0) = Fv/(eps_t*pi*r_e^2) at its own inlet radius — reproduces
+the measured conical retention times to within 0.03 % and 0.35 %. The CADET
+simulation is the harder test, since it has to reproduce the full peak shapes
+with the same H-derived dispersion field.
+
+## Reference data
+
+Fig. 7 shows the three chromatograms overlaid on one time axis (270–295 s) and
+one absorbance axis. They were digitized by pixel colour thresholding: the axis
+tick marks locate the frame, each curve is isolated by its RGB range
+(black/red/blue), and the title box and in-plot legend are masked out first.
+The result is in `Gritti2019_fig7_digitized.csv`. The red rho_s = 2 curve
+recovers fewer points than the others (436 against roughly 845), because the
+other two traces occlude it where the curves cross. The digitized peak heights
+(0.201/0.180/0.189 AU) match the plotted values.
+
+## Numerical resolution
+
+All three columns are run with DG at `POLYDEG=4` and `NELEM=128`. The elution
+time is already converged at `NELEM=64`, but the mass balance for rho_s = 2 is
+not: its inlet is the frustum's small, fastest end, where the 0.075 s injection
+pulse is hardest to resolve, and the mass-balance error only falls below 1 % at
+`NELEM=128`. The same resolution is then used for all three columns. At that
+resolution the DG solution for rho_s = 2 shows a small pre-peak ripple of about
+2.5 % of the peak height, which is absent in FV and does not measurably affect
+any reported metric.
+
+## The absorbance scale factor
+
+CADET's simulated concentration is in arbitrary units (C0 = 1) and the
+digitized reference is an uncalibrated detector absorbance; the paper gives no
+detector calibration. A least-squares scale factor is therefore fitted per
+column and used only for plotting and for the peak-height and NRMSE numbers, so
+that they can be reported in the paper's own absorbance units. It does not
+enter the peak position, the elution time or the mass balance.
+
+The scale is fitted per column rather than shared because the three implied
+scales differ by about 7 %: a symmetric model matched to the tailed cylinder's
+variance comes out shorter than its real peak. A shared scale would carry that
+cylinder-specific effect into the two conical columns, whose own scales agree
+to within 1 %.

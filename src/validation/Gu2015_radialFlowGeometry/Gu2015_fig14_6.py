@@ -6,12 +6,13 @@ Reproduction of Fig. 14.6 from:
     2nd ed., Springer, 2015, Chapter 14 ("Multicomponent Radial Flow
     Chromatography"), p. 210: "Simulation of affinity RFC with inward flow".
 
-Self-contained script: model definition, run, comparison plot and
-validation metrics. Further explanation on model and parameter selection is
-provided under Gu2015_fig14_6.md.
+The model, the source of the parameters and the conversion of Gu's
+dimensionless groups into CADET parameters are explained in
+Gu2015_fig14_6.md.
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,17 +21,16 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The shared metric definitions live one directory up, so that all six
-# validation case studies report an identical set of numbers. Adding that
-# directory to sys.path keeps this script runnable both directly and as an
-# imported module (scripts/verify_geometries.py imports main()).
+# The metric definitions shared by all validation case studies live one
+# directory up. Adding it to sys.path keeps this script runnable both
+# directly and as an import (scripts/verify_geometries.py calls main()).
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# Paper's parameters, read off the Fig. 10.14 GUI screenshot (p. 138),
-# applied per p. 210 to RFC with V0=0.04.
+# Parameters read off the Fig. 10.14 GUI screenshot on p. 138, applied to
+# the RFC geometry with V0 = 0.04 as stated on p. 210
 # ---------------------------------------------------------------------------
 V0 = 0.04
 TIMP = 14.0     # protein frontal-loading duration (dimensionless tau)
@@ -53,8 +53,7 @@ DA2A, DA2D = PAPER[2]['Daa'], PAPER[2]['Dad']
 C1_INF = PAPER[1]['C_inf'] / PAPER[1]['C0']
 
 # ---------------------------------------------------------------------------
-# Reparameterization -- native radial geometry, physical (SI-like) scales.
-# See docstring Sec. 5 for the full derivation.
+# Dimensionless groups -> physical (SI-like) parameters, see the markdown file
 # ---------------------------------------------------------------------------
 X1 = 0.05                             # outer column radius [m] (inward-flow inlet)
 X0 = X1 * np.sqrt(V0 / (1.0 + V0))    # inner radius [m]; V0 = X0^2/(X1^2-X0^2)
@@ -71,18 +70,15 @@ for i, p in PAPER.items():
     p['k_V1'] = p['Bi_V1'] * p['eta'] * RP * V_CHAR / BED_LENGTH
     p['C0_phys'] = p['C0'] * CONC_UNIT
     p['C_inf_phys'] = p['C_inf'] * CONC_UNIT
-    # COL_DISPERSION config value for COL_DISPERSION_DEP='POWER_LAW',
-    # EXPONENT=1: Db_i(X) = COL_DISPERSION[i]*v(X), so supply Db_i|V=1/v(X1).
+    # CADET computes Db_i(X) = COL_DISPERSION[i] * v(X) and
+    # k_i(X) = FILM_DIFFUSION[i] * v(X)^(1/3) at the local velocity, so the
+    # configured values are the paper's coefficients divided by the reference
+    # velocity; that reproduces Db_i|V=1 and k_i|V=1 at X1.
     p['col_dispersion_value'] = p['Db_V1'] / V_REF
-    # FILM_DIFFUSION config value for FILM_DIFFUSION_DEP='POWER_LAW',
-    # EXPONENT=1/3 (per Eq. 14.16: k_i(V) ~ v^(1/3), expressed w.r.t. the
-    # local velocity CADET's POWER_LAW dependency multiplies by), so supply
-    # k_i|V=1/v(X1)^(1/3).
     p['film_diffusion_value'] = p['k_V1'] / V_REF ** (1.0 / 3.0)
 
-# "iave=2" constant-Bi fallback (paper's own alternative to true
-# position-dependent Bi_i(V), Eq. 14.16 at V=0.5) -- used when
-# film_diffusion_velocity_dep=False in get_model() (see there).
+# Gu's "iave=2" alternative to a position-dependent Bi_i(V): Eq. 14.16
+# evaluated once at V=0.5. Used when film_diffusion_velocity_dep=False.
 IAVE2_FACTOR = ((1.0 - V0) / (0.5 + V0)) ** (1.0 / 6.0)
 for i, p in PAPER.items():
     p['k_avg'] = p['k_V1'] * IAVE2_FACTOR
@@ -91,11 +87,10 @@ C0_1_PHYS = PAPER[1]['C0_phys']
 C0_2_PHYS = PAPER[2]['C0_phys']
 C0_3_PHYS = PAPER[3]['C0_phys']  # == C0_1_PHYS by construction (book convention)
 
-# Size exclusion (docstring Sec. 4): CADET's PORE_ACCESSIBILITY factor
-# F_acc = ExF reproduces the book's accessible-porosity formulation term by
-# term (eps_ap = F_acc*eps_p enters pore transport and the film boundary
-# condition, while the solid phase keeps the true (1-eps_p) weight) so
-# qmax1 is the paper's own C_inf,1.
+# Size exclusion: CADET's PORE_ACCESSIBILITY factor gives the same split as
+# the book, with eps_ap = F_acc*eps_p in pore transport and the film boundary
+# condition and the true (1-eps_p) in the solid phase. The saturation
+# capacity is therefore the paper's own C_inf,1, unchanged.
 QMAX1_PHYS = PAPER[1]['C_inf_phys']
 
 KA1 = DA1A * V_CHAR / (BED_LENGTH * C0_1_PHYS)
@@ -126,17 +121,15 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
         COL_DISPERSION_DEP='POWER_LAW'. If False, COL_DISPERSION is held
         constant at Db_i|V=1 everywhere.
     film_diffusion_velocity_dep: if True (default), k_i(X) ~ v(X)^(1/3) via
-        FILM_DIFFUSION_DEP='POWER_LAW'. If False, falls back to the paper's
-        own "iave=2" constant-Bi approximation (k_i evaluated once at
-        V=0.5)."""
+        FILM_DIFFUSION_DEP='POWER_LAW'. If False, Gu's own "iave=2"
+        approximation is used, i.e. k_i evaluated once at V=0.5."""
     m = Dict()
     m.input.model.nunits = 3
 
-    # 3 sections: 0 = frontal protein loading (0 <= tau < 14); 1 = wash with
-    # inert mobile phase (14 <= tau < 15); 2 = elution with soluble ligand
-    # feed held constant (tau >= 15). Genuine inward flow throughout
-    # (FORWARD_FLOW=[0,0,0], single unchanging direction across all 3
-    # sections): V=1 (Gu's inward-flow RFC inlet) is CADET's z=0 inlet.
+    # Three sections: 0 = frontal protein loading (0 <= tau < 14),
+    # 1 = wash with inert mobile phase (14 <= tau < 15), 2 = elution with a
+    # constant soluble-ligand feed (tau >= 15). The flow direction is inward
+    # throughout and never switches.
     sec_times = [0.0, T_IMP, T_SHIFT, T_END]
     n_sections = 3
 
@@ -172,8 +165,7 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
         m.input.model.unit_000[key].quad_coeff = [0.0, 0.0, 0.0]
         m.input.model.unit_000[key].cube_coeff = [0.0, 0.0, 0.0]
 
-    # --- Column: CADET's native radial-flow geometry (docstring Sec. 3 for
-    # the COL_DISPERSION_DEP/FILM_DIFFUSION_DEP velocity-dependence mechanism) ---
+    # --- Column ---
     col = Dict()
     col.unit_type = 'COLUMN_MODEL_1D'
     col.geometry = 'RADIAL_FLOW_CYLINDER_SHELL'
@@ -223,8 +215,8 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
     col.liquid_reaction_000.mal_kfwd = [KA2]
     col.liquid_reaction_000.mal_kbwd = [KD2]
 
-    # --- Particles: GENERAL_RATE_PARTICLE (film + pore diffusion,
-    # spherical), identical transport parameters for all 3 components ---
+    # --- Particles: spherical, with film and pore diffusion; the paper
+    # lists the same transport parameters for all three components ---
     col.particle_type_000.nbound = [1, 0, 0]  # only component 1 (protein) binds
     col.particle_type_000.init_cp = [0.0, 0.0, 0.0]
     col.particle_type_000.init_cs = [0.0]
@@ -242,16 +234,15 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
     col.particle_type_000.par_coreradius = 0.0
     col.particle_type_000.par_porosity = EPS_P_TOTAL
     # Size exclusion: eps_ap = PORE_ACCESSIBILITY*PAR_POROSITY replaces the
-    # porosity in pore transport and the film BC only, while the solid phase
-    # retains (1-eps_p); exactly the book's split (docstring Sec. 4). ExF
-    # is identical for all three components here.
+    # porosity in pore transport and the film boundary condition, while the
+    # solid phase retains (1-eps_p). ExF is the same for all components here.
     col.particle_type_000.pore_accessibility = [EXF, EXF, EXF]
     col.particle_type_000.par_radius = RP
     col.particle_type_000.pore_diffusion = [PAPER[1]['Dp'], PAPER[2]['Dp'], PAPER[3]['Dp']]
     col.particle_type_000.surface_diffusion = [0.0, 0.0, 0.0]
 
-    # Pore-liquid-phase reaction (same reaction, same rate constants -- see
-    # docstring Sec. 3 for why eps_ap cancels between bulk and pore liquid).
+    # Pore-liquid reaction: same reaction and same rate constants as in the
+    # bulk, because eps_ap cancels out of Eq. 10.11 (see the markdown file).
     col.particle_type_000.nreac_liquid = 1
     col.particle_type_000.liquid_reaction_000.type = 'MASS_ACTION_LAW'
     col.particle_type_000.liquid_reaction_000.mal_stoichiometry = [-1.0, -1.0, 1.0]
@@ -327,18 +318,11 @@ def run_model(cadet_path, output_path, ncol=256, par_ncells=4, n_points=900,
 
 
 # ---------------------------------------------------------------------------
-# Reference (digitized) data
-#
-# Digitized from the rendered p. 210 figure using pixel colour-thresholding.
-# Curves: protein = teal/green solid, soluble ligand = black dashed,
-# complex = navy solid. Extraction quality was checked visually by
-# overlaying the digitized points against a matplotlib reproduction next to
-# a crop of the original page (Gu2015_fig14_6_digitized_reference_check.png,
-# alongside this script) -- the digitized curves reproduce the original
-# figure's shape, timing, and peak heights closely; the only expected
-# artifact is a sparse/gapped sampling of the dashed "soluble ligand" curve
-# (dash gaps => missing x-samples there), which is immaterial since the
-# curve is smooth and slowly varying in that region.
+# Reference data, digitized from the figure on p. 210 by pixel colour
+# thresholding. The protein is the teal solid curve, the soluble ligand the
+# black dashed one and the complex the navy solid one. The dashed ligand
+# curve is sampled with gaps where the dashes are, which does not matter
+# because it is smooth and slowly varying there.
 # ---------------------------------------------------------------------------
 def load_digitized(path=None):
     if path is None:
@@ -359,34 +343,28 @@ def load_digitized(path=None):
 
 
 # ---------------------------------------------------------------------------
-# Validation metrics -- the four unified numbers shared by all six case
-# studies, see src/validation/validation_metrics.py.
+# Validation metrics, see src/validation/validation_metrics.py
 #
-# The three species of this figure need two of the module's curve kinds.
-# Protein and complex elute as pulses that come back to baseline, so their
-# moments are the classic int(t*c dt)/int(c dt) and its central second
-# counterpart. The soluble ligand is a displacer that is fed from tau_shift
-# onwards and never switched off, so its outlet rises to a plateau and never
-# returns: its moments are taken of the underlying residence time
-# distribution E = dF/dt of the normalised front (see the validation_metrics
-# module docstring), which makes mu_1 the stoichiometric breakthrough time
-# and mu_2 the variance of the front.
+# The three species need two different curve kinds. Protein and complex
+# elute as pulses that return to baseline, so their moments are the usual
+# int(t*c dt)/int(c dt) and its central second counterpart. The soluble
+# ligand is fed from tau_shift onwards and never switched off, so its outlet
+# rises to a plateau instead; its moments are taken of the residence time
+# distribution of the normalised front, which makes mu_1 the stoichiometric
+# breakthrough time and mu_2 the variance of the front.
 #
-# Gu (2015) prints no moment table for this figure, so the reference for
-# both moments is the digitized chromatogram. Protein and complex fall back
-# to the peak-height error in the mu_2 column, per the documented rule for
-# cases without a tabulated mu_2; the soluble ligand uses its digitized
-# mu_2 instead, since a plateauing curve has no peak whose height could be
-# compared.
+# Gu prints no moment table for this figure, so both moments are compared
+# against the digitized chromatogram. Protein and complex fall back to the
+# peak-height error in the mu_2 column; the soluble ligand uses its
+# digitized mu_2, since a plateauing curve has no peak height to compare.
 #
-# Mass balance (solver verification) is reported on the PROTEIN row as a
-# protein-equivalent atom balance. P + I <-> PI is a 1:1 reaction and the
-# complex is normalised by the protein feed concentration, so the protein
-# fed must leave the column either as free protein or as complex:
-# int(c_protein dtau) + int(c_complex dtau) vs. the fed area 1*tau_imp. The
-# other two rows have no closed balance of their own -- the complex is never
-# fed, and the ligand feed is never switched off while part of it is
-# consumed by the ongoing reaction -- so their entries are left empty.
+# The mass balance is reported on the protein row as an atom balance.
+# P + I <-> PI is a 1:1 reaction and the complex is normalised by the
+# protein feed concentration, so the protein fed has to leave the column
+# either free or as complex: int(c_protein dtau) + int(c_complex dtau)
+# against the fed area 1*tau_imp. The other two rows have no closed balance
+# of their own -- the complex is never fed, and the ligand feed is never
+# switched off while part of it reacts -- so they are left empty.
 # ---------------------------------------------------------------------------
 def compute_metrics(tau_sim, sims, tau_refs, refs):
     """sims/refs: dicts {'protein': c_arr, 'soluble_ligand': c_arr, 'complex': c_arr}"""
@@ -440,16 +418,16 @@ def compute_metrics(tau_sim, sims, tau_refs, refs):
 
 
 def print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim):
-    """Diagnostic (not one of the 4 core metrics): since P + I -> PI is a
-    1:1 reaction and c3 is normalized by C0_1 (book convention), a
-    "protein-equivalent" balance should approximately hold:
+    """Diagnostic printout: since P + I -> PI is a 1:1 reaction and c3 is
+    normalized by C0_1 (the book's convention), a protein-equivalent balance
+    should hold up to the protein still bound at the end of the run:
         protein fed (=1*tau_imp) ~= int(c1_out dtau) + int(c3_out dtau)
                                      + protein remaining bound on-column
     """
     fed = 1.0 * TIMP
     out_protein = vm.trapezoid(c1_sim, tau_sim)
     out_complex = vm.trapezoid(c3_sim, tau_sim)
-    print("\n--- Diagnostic: protein-equivalent atom balance (not one of the 4 core metrics) ---")
+    print("\n--- Diagnostic: protein-equivalent atom balance ---")
     print(f"  Protein fed (1*tau_imp)              : {fed:.4g}")
     print(f"  int(c1_out dtau) [free protein out]  : {out_protein:.4g}")
     print(f"  int(c3_out dtau) [as complex out]    : {out_complex:.4g}")
@@ -462,7 +440,6 @@ def print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-from pathlib import Path
 CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
 
@@ -483,7 +460,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     print(f"  eps_b={EPS_B}, eps_p(total)={EPS_P_TOTAL} (PAR_POROSITY), ExF={EXF} (PORE_ACCESSIBILITY), "
           f"eps_ap=ExF*eps_p={EPS_AP:.4g}")
 
-    print("\nRunning CADET simulation (native radial geometry, genuine inward flow -- see script docstring)...")
+    print("\nRunning CADET simulation...")
 
     spatial_method = 'DG'
     if spatial_method == 'DG':
@@ -529,10 +506,8 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     ax.set_xlim(0, 60)
     ax.set_ylim(0, 1.2)
     ax.tick_params(axis='both', labelsize=fontsize)
-    # fig.suptitle('Gu (2015), Fig. 14.6 -- affinity RFC with inward flow', y=0.985, fontsize=fontsize)
-    # ax.set_title('CADET native radial geometry; velocity-scaled dispersion and film\n',
-    #               fontsize=fontsize)
-    # add an NRMSE box, same convention as the other case-study scripts
+
+    # NRMSE of all three species, as a box inside the axes
     nrmse_text = (f"NRMSE Protein: {by_name['protein']['nrmse_%']:.2f}%\n"
                   f"NRMSE Soluble ligand: {by_name['soluble_ligand']['nrmse_%']:.2f}%\n"
                   f"NRMSE Complex: {by_name['complex']['nrmse_%']:.2f}%")

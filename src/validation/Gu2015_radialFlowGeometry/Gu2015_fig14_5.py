@@ -7,12 +7,12 @@ Reproduction of Fig. 14.5 from:
     Chromatography"), p. 201, Fig. 14.5: "Binary elution with an inert
     mobile phase in inward flow RFC".
 
-Self-contained script: model definition, run, comparison plot, and
-validation metrics. Further explanation on model and parameter selection is
-provided under Gu2015_fig14_5.md.
+The model and the conversion of Gu's dimensionless groups into CADET
+parameters are explained in Gu2015_fig14_5.md.
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,44 +21,41 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The shared metric definitions live one directory up, so that all six
-# validation case studies report an identical set of numbers. Adding that
-# directory to sys.path keeps this script runnable both directly and as an
-# imported module (scripts/verify_geometries.py imports main()).
+# The metric definitions shared by all validation case studies live one
+# directory up. Adding it to sys.path keeps this script runnable both
+# directly and as an import (scripts/verify_geometries.py calls main()).
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Paper's parameters, exactly as printed in the GUI screenshot (Fig. 14.5,
-# PDF p. 209 / printed p. 201).
+# Parameters as printed in the GUI screenshot of Fig. 14.5
 # ---------------------------------------------------------------------------
 V0 = 0.04
 TAU_IMP = 0.5     # dimensionless injection (pulse) duration
 TAU_MAX_PLOT = 16.0  # paper's own printed x-axis range (tmax = 16); the
                      # comparison against the digitized curve is confined to
                      # this window, since that is all the figure shows.
-TAU_MAX_SIM = 40.0   # the simulation itself is carried well past the figure,
-                     # because component 2's peak still has a substantial
-                     # tail at tau=16. The mass balance integrates the outlet
-                     # over the FULL simulated window, so truncating it at
-                     # tau=16 would report a large physical tail truncation
-                     # as if it were a solver conservation error.
+TAU_MAX_SIM = 40.0   # the simulation runs well past the figure, because
+                     # component 2 still has a substantial tail at tau=16.
+                     # The mass balance integrates the outlet over the whole
+                     # simulated window, so stopping at tau=16 would report
+                     # the cut-off tail as a conservation error.
 
 PAPER = {
     1: dict(PeL=100.0, eta=10.0, Bi_V1=10.0, C0=0.20, a=1.0, b=2.0),
     2: dict(PeL=120.0, eta=12.0, Bi_V1=12.0, C0=0.20, a=10.0, b=20.0),
 }
 
-# thermodynamic consistency check (a_i/b_i must be identical for all comps)
+# A thermodynamically consistent Langmuir isotherm needs the same saturation
+# capacity a_i/b_i for every component.
 _qmax_dimless = [PAPER[i]['a'] / PAPER[i]['b'] for i in PAPER]
 assert np.allclose(_qmax_dimless, _qmax_dimless[0]), \
-    "Langmuir saturation capacities a_i/b_i are not thermodynamically consistent!"
+    "Langmuir saturation capacities a_i/b_i differ between components"
 
 # ---------------------------------------------------------------------------
-# Reparameterization -- native radial geometry, physical (SI) scales.
-# See "Reparameterization" in the module docstring above for the derivation.
+# Dimensionless groups -> physical (SI) parameters, see the markdown file
 # ---------------------------------------------------------------------------
 X1 = 0.05                             # outer column radius [m] (inward-flow inlet)
 X0 = X1 * np.sqrt(V0 / (1.0 + V0))    # inner radius [m]; V0 = X0^2/(X1^2-X0^2)
@@ -79,18 +76,15 @@ for i, p in PAPER.items():
     p['ka'] = p['b'] / CONC_UNIT
     p['kd'] = 1.0
     p['qmax'] = (p['a'] / p['b']) * CONC_UNIT
-    # COL_DISPERSION config value for COL_DISPERSION_DEP='POWER_LAW',
-    # EXPONENT=1 (see "CADET-specific bookkeeping" in the module docstring):
-    # Db_i(X) = COL_DISPERSION[i]*v(X), so supply Db_i|V=1/v(X1).
+    # CADET computes Db_i(X) = COL_DISPERSION[i] * v(X) and
+    # k_i(X) = FILM_DIFFUSION[i] * v(X)^(1/3) at the local velocity, so the
+    # configured values are the paper's coefficients divided by the reference
+    # velocity; that reproduces Db_i|V=1 and k_i|V=1 at X1.
     p['col_dispersion_value'] = p['Db_V1'] / V_REF
-    # FILM_DIFFUSION config value for FILM_DIFFUSION_DEP='POWER_LAW',
-    # EXPONENT=1/3 (Eq. 14.16: k_i(V) ~ v^(1/3); see "CADET-specific
-    # bookkeeping" above), so supply k_i|V=1/v(X1)^(1/3).
     p['film_diffusion_value'] = p['k_V1'] / V_REF ** (1.0 / 3.0)
 
-# "iave=2" constant-Bi fallback (paper's own alternative to true
-# position-dependent Bi_i(V), Eq. 14.16 at V=0.5) -- used when
-# film_diffusion_velocity_dep=False in get_model() (see there).
+# Gu's "iave=2" alternative to a position-dependent Bi_i(V): Eq. 14.16
+# evaluated once at V=0.5. Used when film_diffusion_velocity_dep=False.
 IAVE2_FACTOR = ((1.0 - V0) / (0.5 + V0)) ** (1.0 / 6.0)
 for i, p in PAPER.items():
     p['k_avg'] = p['k_V1'] * IAVE2_FACTOR
@@ -117,18 +111,15 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
         COL_DISPERSION_DEP='POWER_LAW'. If False, COL_DISPERSION is held
         constant at Db_i|V=1 everywhere.
     film_diffusion_velocity_dep: if True (default), k_i(X) ~ v(X)^(1/3) via
-        FILM_DIFFUSION_DEP='POWER_LAW'. If False, falls back to the paper's
-        own "iave=2" constant-Bi approximation (k_i evaluated once at
-        V=0.5)."""
+        FILM_DIFFUSION_DEP='POWER_LAW'. If False, Gu's own "iave=2"
+        approximation is used, i.e. k_i evaluated once at V=0.5."""
     
     m = Dict()
     m.input.model.nunits = 3
 
-    # Two sections: 0 = injection pulse (0 < tau < tau_imp), feed = C0_i;
-    # 1 = elution/wash (tau > tau_imp), feed = 0 (pure inert mobile phase),
-    # per Eq. (14.12), index = 2. No "priming" section is needed here: V=1
-    # is always the inlet by construction (see Step 1 discussion), so a
-    # plain forward-flow axial column already represents inward-flow RFC.
+    # Two sections, following Eq. 14.12 with index = 2: section 0 is the
+    # injection pulse (0 < tau < tau_imp) at feed concentration C0_i,
+    # section 1 the elution with pure inert mobile phase.
     m.input.model.connections.nswitches = 1
     m.input.model.connections.switch_000.connections = [
         0.0, 1.0, -1.0, -1.0, Q_FLOW,
@@ -194,8 +185,8 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
         col.discretization.MAX_RESTARTS = 10
         col.discretization.SCHUR_SAFETY = 1e-8
 
-    # --- Particles: GENERAL_RATE_PARTICLE (film + pore diffusion, spherical),
-    # instantaneous local equilibrium multicomponent Langmuir ---
+    # --- Particles: spherical, with film and pore diffusion and a
+    # multi-component Langmuir isotherm at local equilibrium ---
     col.particle_type_000.nbound = [1, 1]
     col.particle_type_000.init_cp = [0.0, 0.0]
     col.particle_type_000.init_cs = [0.0, 0.0]
@@ -304,19 +295,17 @@ def load_digitized(path=None):
 
 
 # ---------------------------------------------------------------------------
-# Validation metrics -- the four unified numbers shared by all six case
-# studies, see src/validation/validation_metrics.py.
+# Validation metrics, see src/validation/validation_metrics.py
 #
-# Both components elute as pulses that return to baseline, so the moments are
-# the classic int(t*c dt)/int(c dt) and int((t-mu_1)^2*c dt)/int(c dt).
-# Gu (2015) prints no moment table for this figure, so the reference is the
-# digitized chromatogram, and -- per the documented fallback for cases
-# without a tabulated mu_2 -- the mu_2 column reports the PEAK HEIGHT error
-# instead: a digitized mu_2 is dominated by the long, poorly resolved tails
-# of these two peaks.
+# Both components elute as pulses that return to baseline, so the moments
+# are the usual int(t*c dt)/int(c dt) and int((t-mu_1)^2*c dt)/int(c dt).
+# Gu prints no moment table for this figure, so the reference is the
+# digitized chromatogram. The mu_2 column falls back to the peak-height
+# error, because a digitized mu_2 would be dominated by the long and poorly
+# resolved tails of these two peaks.
 # ---------------------------------------------------------------------------
 def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
-    """Return the four unified metrics for both components."""
+    """Return the validation metrics for both components."""
     metrics = []
     for name, c_sim, c_ref in (
         ('component_1', c1_sim, c1_ref),
@@ -341,7 +330,6 @@ def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-from pathlib import Path
 CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
 
@@ -363,8 +351,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     model_kwargs = {
         'film_diffusion_velocity_dep': True,
-        'col_dispersion_velocity_dep': True
-
+        'col_dispersion_velocity_dep': True,
     }
 
     spatial_method = 'DG'
@@ -400,14 +387,13 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
             label='comp. 1 (Gu 2015)')
     ax.plot(tau_ref, c2_ref, 's', color='black', ms=3, mfc='none',
             label='comp. 2 (Gu 2015)')
-    ax.set_xlabel('Dimensionless time', fontsize=fontsize)#, ' + r'$\tau = vt/(X_1-X_0)$')
-    ax.set_ylabel('Dimensionless concentration', fontsize=fontsize)#, ' + r'$C/C_0$')
+    ax.set_xlabel('Dimensionless time', fontsize=fontsize)
+    ax.set_ylabel('Dimensionless concentration', fontsize=fontsize)
     ax.set_xlim(0, TAU_MAX_PLOT)
     ax.set_ylim(0, 0.65)
     ax.tick_params(axis='both', labelsize=fontsize)
-    # ax.set_title('Gu (2015), Fig. 14.5 -- binary elution with inert mobile phase, inward-flow RFC', fontsize=fontsize)
 
-    # add a box with the chromatogram NRMSE of both components
+    # NRMSE of both components, as a box inside the axes
     box_text = (f"NRMSE comp. 1: {by_name['component_1']['nrmse_%']:.2f}%\n"
                 f"NRMSE comp. 2: {by_name['component_2']['nrmse_%']:.2f}%")
     ax.text(0.975, 0.6, box_text, transform=ax.transAxes, fontsize=fontsize,

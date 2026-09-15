@@ -7,12 +7,12 @@ Reproduction of Fig. 14.3 from:
     Chromatography"), p. 199: "Simulation of binary frontal adsorption in
     inward flow RFC".
 
-Self-contained script: model definition, run, comparison plot and
-validation metrics. Further explanation on model and parameter selection is
-provided under Gu2015_fig14_3.md.
+The model and the conversion of Gu's dimensionless groups into CADET
+parameters are explained in Gu2015_fig14_3.md.
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,18 +21,16 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The shared metric definitions live one directory up, so that all six
-# validation case studies report an identical set of numbers. Adding that
-# directory to sys.path keeps this script runnable both directly and as an
-# imported module (scripts/verify_geometries.py imports main()).
+# The metric definitions shared by all validation case studies live one
+# directory up. Adding it to sys.path keeps this script runnable both
+# directly and as an import (scripts/verify_geometries.py calls main()).
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Step 1: paper's parameters, exactly as printed in the Fortran data dump
-# on p. 199.
+# Parameters as printed in the Fortran data dump on p. 199
 # ---------------------------------------------------------------------------
 V0 = 0.04
 TAU_MAX_SIM = 6.0  # simulate out to the figure's full x-axis range (paper's
@@ -44,14 +42,14 @@ PAPER = {
     2: dict(PeL=80.0, eta=8.0, Bi_V1=8.0, C0=0.20, a=10.0, b=20.0),
 }
 
-# thermodynamic consistency check (a_i/b_i must be identical for all comps)
+# A thermodynamically consistent Langmuir isotherm needs the same saturation
+# capacity a_i/b_i for every component.
 _qmax_dimless = [PAPER[i]['a'] / PAPER[i]['b'] for i in PAPER]
 assert np.allclose(_qmax_dimless, _qmax_dimless[0]), \
-    "Langmuir saturation capacities a_i/b_i are not thermodynamically consistent!"
+    "Langmuir saturation capacities a_i/b_i differ between components"
 
 # ---------------------------------------------------------------------------
-# Step 2: reparameterization -- native radial geometry, physical (SI) scales.
-# See the module docstring, Sec. 3, for the full derivation.
+# Dimensionless groups -> physical (SI) parameters, see the markdown file
 # ---------------------------------------------------------------------------
 X1 = 0.05                             # outer column radius [m] (inward-flow inlet)
 X0 = X1 * np.sqrt(V0 / (1.0 + V0))    # inner radius [m]; V0 = X0^2/(X1^2-X0^2)
@@ -72,18 +70,15 @@ for i, p in PAPER.items():
     p['ka'] = p['b'] / CONC_UNIT
     p['kd'] = 1.0
     p['qmax'] = (p['a'] / p['b']) * CONC_UNIT
-    # COL_DISPERSION config value (Eq. 14.15 bookkeeping, docstring Sec. 3):
-    # CADET computes Db_i(X) = COL_DISPERSION[i] * v(X), so we supply
-    # Db_i|V=1 / v(X1) here to get Db_i(X1) = Db_i|V=1 exactly.
+    # CADET computes Db_i(X) = COL_DISPERSION[i] * v(X) and
+    # k_i(X) = FILM_DIFFUSION[i] * v(X)^(1/3) at the local velocity, so the
+    # configured values are the paper's coefficients divided by the reference
+    # velocity; that reproduces Db_i|V=1 and k_i|V=1 at X1.
     p['col_dispersion_value'] = p['Db_V1'] / V_REF
-    # FILM_DIFFUSION config value (Eq. 14.16 bookkeeping, docstring Sec. 3):
-    # CADET computes k_i(X) = FILM_DIFFUSION[i] * v(X)^(1/3), so we supply
-    # k_i|V=1 / v(X1)^(1/3) here to get k_i(X1) = k_i|V=1 exactly.
     p['film_diffusion_value'] = p['k_V1'] / V_REF ** (1.0 / 3.0)
 
-# "iave=2" constant-Bi fallback (paper's own alternative to true
-# position-dependent Bi_i(V), Eq. 14.16 at V=0.5) -- used when
-# film_diffusion_velocity_dep=False in get_model() (see there).
+# Gu's "iave=2" alternative to a position-dependent Bi_i(V): Eq. 14.16
+# evaluated once at V=0.5. Used when film_diffusion_velocity_dep=False.
 IAVE2_FACTOR = ((1.0 - V0) / (0.5 + V0)) ** (1.0 / 6.0)
 for i, p in PAPER.items():
     p['k_avg'] = p['k_V1'] * IAVE2_FACTOR
@@ -99,7 +94,7 @@ def dimless_time(t_phys):
 
 
 # ---------------------------------------------------------------------------
-# Step 3: CADET model definition
+# CADET model definition
 # ---------------------------------------------------------------------------
 def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
               dg_polydeg=4, col_dispersion_velocity_dep=True,
@@ -107,13 +102,11 @@ def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
     """
     col_dispersion_velocity_dep: if True (default), Db_i(X) ~ v(X) via
         COL_DISPERSION_DEP='POWER_LAW' (Eq. 14.15). If False, COL_DISPERSION
-        is held constant at Db_i|V=1 everywhere (an ablation of the paper's
-        own model, since the paper does not offer a non-dependent variant of
-        the dispersion relationship).
+        is held at Db_i|V=1 everywhere. The paper gives no constant-dispersion
+        variant, so this only shows what the dependency contributes.
     film_diffusion_velocity_dep: if True (default), k_i(X) ~ v(X)^(1/3) via
-        FILM_DIFFUSION_DEP='POWER_LAW' (Eq. 14.16). If False, falls back to
-        the paper's own "iave=2" constant-Bi approximation (k_i evaluated
-        once at V=0.5, see docstring Sec. 3)."""
+        FILM_DIFFUSION_DEP='POWER_LAW' (Eq. 14.16). If False, Gu's own
+        "iave=2" approximation is used, i.e. k_i evaluated once at V=0.5."""
     
     m = Dict()
     m.input.model.nunits = 3
@@ -130,8 +123,8 @@ def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
     m.input.model.solver.max_restarts = 10
     m.input.model.solver.schur_safety = 1e-8
 
-    # --- Inlet: frontal / breakthrough feed, both components held at C0_i
-    # from time zero (index=1 in the paper's Fortran code) ---
+    # --- Inlet: breakthrough feed, both components held at C0_i from time
+    # zero (index=1 in the paper's Fortran code) ---
     m.input.model.unit_000.unit_type = 'INLET'
     m.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
     m.input.model.unit_000.ncomp = 2
@@ -169,9 +162,8 @@ def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
         col.discretization.POLYDEG = dg_polydeg
         col.discretization.NELEM = ncol
         col.discretization.USE_COLLOCATION_DG = 0
-        # Quadrature degree DG uses to integrate the (now spatially varying)
-        # dispersion coefficient; required whenever COL_DISPERSION_DEP is
-        # active with DG bulk discretization.
+        # Quadrature degree for the spatially varying dispersion
+        # coefficient; needed whenever COL_DISPERSION_DEP is used with DG.
         col.dispersion_spatial_dependence_polydeg = 2
     elif spatial_method == 'FV':
         col.discretization.SPATIAL_METHOD = 'FV'
@@ -185,8 +177,8 @@ def get_model(ncol=120, par_ncells=4, n_points=400, spatial_method='FV',
         col.discretization.MAX_RESTARTS = 10
         col.discretization.SCHUR_SAFETY = 1e-8
 
-    # --- Particles: GENERAL_RATE_PARTICLE (film + pore diffusion, spherical),
-    # instantaneous local equilibrium multicomponent Langmuir ---
+    # --- Particles: spherical, with film and pore diffusion and a
+    # multi-component Langmuir isotherm at local equilibrium ---
     col.particle_type_000.nbound = [1, 1]
     col.particle_type_000.init_cp = [0.0, 0.0]
     col.particle_type_000.init_cs = [0.0, 0.0]
@@ -273,7 +265,7 @@ def run_model(cadet_path, output_path, ncol=240, par_ncells=8, dg_polydeg=None,
 
 
 # ---------------------------------------------------------------------------
-# Step 4: reference (digitized) data
+# Reference data, digitized from the figure
 # ---------------------------------------------------------------------------
 def load_digitized(path=None):
     if path is None:
@@ -283,33 +275,29 @@ def load_digitized(path=None):
 
 
 # ---------------------------------------------------------------------------
-# Step 5: validation metrics -- the four unified numbers shared by all six
-# case studies, see src/validation/validation_metrics.py.
+# Validation metrics, see src/validation/validation_metrics.py
 #
-# Both components of this figure are FRONTAL (breakthrough) responses: they
-# approach a nonzero plateau at C/C0 = 1 instead of returning to baseline,
-# so int(t*c dt)/int(c dt) would simply grow with the upper integration
-# limit. Their moments are therefore taken of the underlying residence time
-# distribution E = dF/dt of the normalised front F = c/c_plateau, evaluated
-# by parts so that nothing has to be differentiated numerically; mu_1 is
-# then the stoichiometric breakthrough time and mu_2 the variance of the
-# front. See the validation_metrics module docstring for the derivation.
+# Both curves are breakthrough responses: they approach a plateau at
+# C/C0 = 1 instead of returning to baseline, so int(t*c dt)/int(c dt) would
+# grow with the upper integration limit. Their moments are taken of the
+# residence time distribution E = dF/dt of the normalised front
+# F = c/c_plateau instead, which makes mu_1 the stoichiometric breakthrough
+# time and mu_2 the variance of the front.
 #
-# Gu (2015) prints no moment table for this figure, so the reference for
-# both moments is the digitized chromatogram itself. The mu_2 column uses
-# the digitized second moment rather than the usual peak-height fallback:
-# these curves have no peak, only a plateau, whose height error is
-# degenerate (both curves are normalised to C/C0 = 1 by construction),
-# whereas the width of the front is digitized reliably.
+# Gu prints no moment table for this figure, so both moments are compared
+# against the digitized chromatogram. mu_2 uses the digitized second moment
+# rather than the peak-height fallback, because a breakthrough curve has no
+# peak: its plateau height is 1 by construction, whereas the width of the
+# front is digitized reliably.
 # ---------------------------------------------------------------------------
 def saturated_inventory_dimensionless(component):
     """On-column inventory of one component at full feed saturation, in the
     same dimensionless units as int(c/C0 dtau).
 
-    A frontal run retains a full saturated column load at the end of the
-    simulation, so the outlet integral alone cannot close the mass balance;
-    that inventory has to be added back. At equilibrium with the feed the
-    column holds, per unit bed volume,
+    A breakthrough run ends with the column fully loaded, so the outlet
+    integral alone cannot close the mass balance and that inventory has to be
+    added back. At equilibrium with the feed the column holds, per unit bed
+    volume,
 
         eps_b*c_f  +  (1-eps_b)*( eps_p*c_f + (1-eps_p)*q*(c_f) )
 
@@ -319,8 +307,8 @@ def saturated_inventory_dimensionless(component):
     volume or flow rate is needed.
 
     q*(c_f) is the multi-component Langmuir loading at the feed composition,
-    q_i = qmax_i*K_i*c_i / (1 + sum_j K_j*c_j) with K_j = ka_j/kd_j, i.e.
-    exactly CADET's MULTI_COMPONENT_LANGMUIR at quasi-stationary equilibrium.
+    q_i = qmax_i*K_i*c_i / (1 + sum_j K_j*c_j) with K_j = ka_j/kd_j, which is
+    CADET's MULTI_COMPONENT_LANGMUIR at equilibrium.
     """
     denom = 1.0 + sum(p['ka'] / p['kd'] * p['C0_phys'] for p in PAPER.values())
     p = PAPER[component]
@@ -332,7 +320,7 @@ def saturated_inventory_dimensionless(component):
 
 
 def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
-    """Return the four unified metrics for both components."""
+    """Return the validation metrics for both components."""
     metrics = []
     for name, component, c_sim, c_ref in (
         ('component_1', 1, c1_sim, c1_ref),
@@ -359,7 +347,6 @@ def compute_metrics(tau_sim, c1_sim, c2_sim, tau_ref, c1_ref, c2_ref):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-from pathlib import Path
 CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
 
@@ -381,8 +368,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     model_kwargs = {
         'film_diffusion_velocity_dep': False,
-        'col_dispersion_velocity_dep': True
-
+        'col_dispersion_velocity_dep': True,
     }
 
     spatial_method = 'DG'
@@ -418,14 +404,13 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
             label='comp. 1 (Gu 2015)')
     ax.plot(tau_ref, c2_ref, 's', color='tab:orange', ms=3, mfc='none',
             label='comp. 2 (Gu 2015)')
-    ax.set_xlabel('Dimensionless time', fontsize=fontsize)#, ' + r'$\tau = v_{char}t/(X_1-X_0)$')
-    ax.set_ylabel('Dimensionless concentration', fontsize=fontsize)#, ' + r'$C/C_0$')
+    ax.set_xlabel('Dimensionless time', fontsize=fontsize)
+    ax.set_ylabel('Dimensionless concentration', fontsize=fontsize)
     ax.set_xlim(0, 6)
     ax.set_ylim(0, 1.4)
     ax.tick_params(axis='both', labelsize=fontsize)
-    # ax.set_title('Gu (2015), Fig. 14.3 -- binary frontal adsorption, inward-flow RFC\n', fontsize=fontsize)
 
-    # add a box with the chromatogram NRMSE of both components
+    # NRMSE of both components, as a box inside the axes
     box_text = (f"NRMSE comp. 1: {by_name['component_1']['nrmse_%']:.2f}%\n"
                 f"NRMSE comp. 2: {by_name['component_2']['nrmse_%']:.2f}%")
     ax.text(0.975, 0.95, box_text, transform=ax.transAxes, fontsize=fontsize,

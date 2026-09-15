@@ -6,12 +6,12 @@ Reproduction of Fig. 8 from:
     conically shaped columns: Theory and practice", J. Chromatogr. A 1593
     (2019) 34-46. https://doi.org/10.1016/j.chroma.2019.01.055
 
-Self-contained script: model definition, run, comparison plot, and
-validation metrics. Further explanation on model and parameter selection is
-provided under Gritti2019_fig8.md.
+The model, the source of the parameters and the dispersion calibration are
+explained in Gritti2019_fig8.md.
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,18 +19,15 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The shared metric definitions live one directory up, so that all six
-# validation case studies report an identical set of numbers. Adding that
-# directory to sys.path keeps this script runnable both directly and as an
-# imported module (scripts/verify_geometries.py imports main()).
+# The metric definitions shared by all validation case studies live one
+# directory up. Adding it to sys.path keeps this script runnable both
+# directly and as an import (scripts/verify_geometries.py calls main()).
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
 # ===========================================================================
-# Digitized reference data (Fig. 8): loaded from Gritti2019_fig8_digitized.csv,
-# produced by the pixel-color-classification digitization described in the
-# module docstring's "Reference data" section.
+# Reference data, digitized from Fig. 8; see the markdown file
 # ===========================================================================
 def load_digitized(path=None):
     if path is None:
@@ -46,11 +43,10 @@ def load_digitized(path=None):
 
 REFERENCE = load_digitized()
 
-# Table 3 experimental summary (independent of the figure digitization). Field
-# names match Gritti2019_fig6.py's TABLE1/fig7.py's COLUMNS convention
-# (tR = retention time, mu1 = first moment -- distinct quantities, though
-# numerically close for these near-Gaussian peaks; mu2 = second central
-# moment; w50 = half-height width), all in minutes/minutes^2.
+# Table 3, measured independently of the figure digitization. tR is the
+# retention time and mu1 the first moment; they are distinct quantities but
+# nearly equal for these near-Gaussian peaks. mu2 is the second central
+# moment and w50 the half-height width, in minutes and minutes^2.
 TABLE3 = {
     'cylinder': dict(tR=4.798, mu1=4.798, mu2=0.000288, w50=0.0386),
     'cone_s2': dict(tR=4.786, mu1=4.786, mu2=0.000363, w50=0.0450),
@@ -58,8 +54,7 @@ TABLE3 = {
 }
 
 # ===========================================================================
-# Physical parameters (SI units throughout) -- see docstring's "Parameter
-# derivation" section
+# Physical parameters in SI units, see the markdown file
 # ===========================================================================
 L_COL = 0.15                      # column length [m], both geometries
 R_CYL = 1.5e-3                     # cylinder radius [m] (3.0 mm i.d.)
@@ -79,23 +74,23 @@ PHI_FINAL = 0.55                   # final ACN volume fraction
 T_GRADIENT = 5.0 * 60.0            # gradient time [s]
 BETA = (PHI_FINAL - PHI0) / T_GRADIENT   # gradient steepness [1/s]
 
-S_LSSM = 25.0                      # ** carried over from the 17-peptide case, see docstring **
+S_LSSM = 25.0                      # carried over from the 17-peptide case,
+                                   # see the markdown file
 
 QMAX1 = 1000.0                     # arbitrary reference solid-phase capacity
 C_INJ = 1.0                        # arbitrary reference injected concentration
 KD1 = 1.0                          # arbitrary reference desorption rate [1/s]
 
-# Van Deemter fit to Gritti et al. Fig. 5 (H(v) = A + B/v + C*v), identical values
-# to Gritti2019_fig6.py's/fig7.py's VD_A/VD_B/VD_C (see fig6's module
-# docstring for the digitization/fit procedure and fig6's
-# plot_fig5_verification() for the fit-quality check, RMSE=0.071 um).
+# Van Deemter fit to Fig. 5, H(v) = A + B/v + C*v. Same values as in
+# Gritti2019_fig6.py and fig7.py, repeated here so that this script runs on
+# its own; Gritti2019_fig6.md describes the digitization and the fit.
 VD_A = 3.15452704e-06   # m
 VD_B = 4.52688414e-09   # m^2/s
 VD_C = 2.23971679e-03   # s
 
-# --- sanity check on EPS_T against Section 4.1.4's own worked example ---
+# --- check EPS_T against the worked example of Sec. 4.1.4 ---
 _u0_check = Q_CONE / (EPS_T * np.pi * R_SMALL ** 2) * 100.0 * 60.0  # cm/min
-assert abs(_u0_check - 17.77) < 0.05, f"EPS_T sanity check failed: u0(0)={_u0_check:.3f} cm/min (paper: 17.77)"
+assert abs(_u0_check - 17.77) < 0.05, f"EPS_T does not reproduce the paper's u0(0): {_u0_check:.3f} cm/min vs. 17.77"
 
 
 def area_cyl(r):
@@ -108,16 +103,16 @@ def u0_entrance(Q, area):
 
 
 def m1_of_s(s):
-    """Dimensionless hold-up time at the column outlet, m(1) = (1+s+s^2)/3
-    (closed form of paper's Eq. 15/16 at xi=1; s=1 -> m(1)=1, cylinder)."""
+    """Dimensionless hold-up time at the column outlet, m(1) = (1+s+s^2)/3,
+    the closed form of Eqs. 15/16 at xi=1. A cylinder (s=1) gives m(1)=1."""
     return (1.0 + s + s ** 2) / 3.0
 
 
 def solve_k0(t_ref, s, t_R_target):
-    """Solve the paper's exact (non-perturbative) LSSM gradient elution-time
-    equation e(1) = m(1) + (1/G)*ln(1+G*k0*m(1)) for k0, given the target
-    (observed) retention time t_R_target [s] on a column with entrance
-    time scale t_ref=L/u0(0) [s] and geometry ratio s."""
+    """Solve the LSSM gradient elution-time equation
+    e(1) = m(1) + (1/G)*ln(1+G*k0*m(1)) for k0, given the observed retention
+    time t_R_target [s] on a column with entrance time scale t_ref = L/u0(0)
+    [s] and geometry ratio s."""
     G = S_LSSM * BETA * t_ref
     m1 = m1_of_s(s)
     e1 = t_R_target / t_ref
@@ -125,8 +120,7 @@ def solve_k0(t_ref, s, t_R_target):
     return k0, G, m1
 
 
-# --- solve for k0 from the CYLINDER column's Table 3 retention time (see
-# docstring's "Parameter derivation" section) ---
+# --- solve for k0 from the cylindrical column's Table 3 retention time ---
 _t_ref_cyl = L_COL / u0_entrance(Q_CYL, area_cyl(R_CYL))
 _t_R_cyl_target = TABLE3['cylinder']['tR'] * 60.0  # min -> s
 K0, _G_cyl, _m1_cyl = solve_k0(_t_ref_cyl, 1.0, _t_R_cyl_target)
@@ -142,11 +136,10 @@ KA1 = K0 * np.exp(S_LSSM * PHI0) / (F_PHASE * QMAX1)
 def get_model(cadet_path, config, col_dispersion_base, t_end=330.0, n_points=2201,
               polydeg=4, nelem=10, spatial_method='DG'):
     """config: 'cylinder', 'cone_s2', or 'cone_s05'.
-    col_dispersion_base: dimensionless COL_DISPERSION scale factor for
-        component 1 (bombesin), multiplying the Fig. 5 VAN_DEEMTER H(v) curve
-        (VD_A, VD_B, VD_C): D_ax(xi) = col_dispersion_base * H(v(xi))*v(xi)/2
-        via COL_DISPERSION_DEP='VAN_DEEMTER' (see docstring's "Axial
-        dispersion" section).
+
+    col_dispersion_base: scale factor on the Fig. 5 H(v) curve for bombesin,
+        so that D_ax(xi) = col_dispersion_base*H(v(xi))*v(xi)/2 through
+        COL_DISPERSION_DEP='VAN_DEEMTER'.
     """
     if config == 'cylinder':
         Q = Q_CYL
@@ -208,8 +201,7 @@ def get_model(cadet_path, config, col_dispersion_base, t_end=330.0, n_points=220
     m.input.model.unit_000.sec_002.quad_coeff = [0.0, 0.0]
     m.input.model.unit_000.sec_002.cube_coeff = [0.0, 0.0]
 
-    # --- Column --- (auto-vivified live reference into m.input.model.unit_001,
-    # no separate Dict import needed -- see note at top of file)
+    # --- Column ---
     col = m.input.model.unit_001
     col.unit_type = 'COLUMN_MODEL_1D'
     col.geometry = geometry
@@ -226,14 +218,11 @@ def get_model(cadet_path, config, col_dispersion_base, t_end=330.0, n_points=220
         col.cross_section_area_small_end = area_cyl(R_SMALL)
         col.cross_section_area_large_end = area_cyl(R_LARGE)
 
-    # Modifier (component 0): negligible, geometry-independent dispersion so
-    # its ramp propagates essentially undistorted (paper's own assumption) --
-    # a tiny fraction of the analyte's own VAN_DEEMTER curve, same convention
-    # as Gritti2019_fig7.py. Bombesin (component 1):
-    # COL_DISPERSION_DEP='VAN_DEEMTER' -> D_ax(xi) = col_dispersion_base *
-    # H(v(xi))*v(xi)/2, the REAL Fig. 5 plate-height curve (see docstring).
-    # For the cylinder, v is constant anyway, so the DEP mechanism just
-    # evaluates H(v) once (kept on for consistency/testability).
+    # The modifier (component 0) gets a negligible dispersion, a tiny
+    # fraction of the analyte's own curve, so that its ramp travels
+    # undistorted as the paper assumes. Bombesin (component 1) uses the
+    # Fig. 5 plate-height curve. For the cylinder the velocity is constant,
+    # so the dependency simply evaluates H(v) once.
     col.col_dispersion = [1.0e-6, col_dispersion_base]
     col.col_dispersion_multiplex = 1  # component-dependent, section-independent
     col.col_dispersion_dep = 'VAN_DEEMTER'
@@ -262,8 +251,7 @@ def get_model(cadet_path, config, col_dispersion_base, t_end=330.0, n_points=220
     else:
         raise ValueError(f"Unsupported spatial method: {spatial_method}")
 
-    # --- Particle type: EQUILIBRIUM_PARTICLE (HAS_FILM_DIFFUSION=0), i.e.
-    # the "LRM-without-pores"-equivalent local-equilibrium binding ---
+    # --- Particle type: local equilibrium, no film or pore diffusion ---
     col.particle_type_000.nbound = [0, 1]
     col.particle_type_000.init_cp = [PHI0, 0.0]
     col.particle_type_000.init_cs = [0.0]
@@ -334,9 +322,7 @@ def run_model(cadet_path, output_path, config, col_dispersion_base, fname=None,
 # Moment / mass-balance helpers
 # ===========================================================================
 def _trapezoid(y, x):
-    """Trapezoidal integration without relying on a specific numpy version's
-    trapz/trapezoid naming (the two spellings differ across supported numpy
-    releases)."""
+    """Trapezoidal integration, tolerant of the numpy trapz/trapezoid rename."""
     return vm.trapezoid(y, x)
 
 
@@ -354,20 +340,17 @@ def peak_time(t, c):
 
 
 def compute_metrics(config, t_sim, c_sim, t_ref, c_ref):
-    """The four unified validation metrics -- see src/validation/validation_metrics.py
-    for their definitions, which are shared verbatim by all six case studies.
+    """The validation metrics, see src/validation/validation_metrics.py.
 
-    ``c_sim`` is the RAW simulated outlet; the per-column least-squares
-    Absorbance-[AU] amplitude fit that the arbitrary-unit reference requires
-    is performed inside the metric routine.
+    ``c_sim`` is the raw simulated outlet. The reference is an uncalibrated
+    absorbance, so the least-squares amplitude factor is fitted inside the
+    metric routine, per column.
 
-    Delta mu_1 is taken against Table 3's measured first moment. Delta mu_2
-    is taken against Table 3's measured second central moment for the two
-    CONES, where it is a genuine prediction: the VAN_DEEMTER dispersion
-    scale factor was calibrated once, on the cylinder alone, and reused
-    unchanged for both cones (see calibrate_dispersion()). For the CYLINDER
-    itself the entry is left empty, since there mu_2 is exactly what was
-    fitted.
+    Delta mu_1 is taken against Table 3's first moment. For the two cones,
+    Delta mu_2 is a prediction against Table 3's second central moment: the
+    dispersion scale factor is calibrated once on the cylinder and reused
+    unchanged (see calibrate_dispersion()). The cylinder's own entry is left
+    empty, since its mu_2 is what was calibrated against.
     """
     ref = TABLE3[config]
     t_inj = V_INJ / (Q_CYL if config == 'cylinder' else Q_CONE)
@@ -387,30 +370,27 @@ def compute_metrics(config, t_sim, c_sim, t_ref, c_ref):
 
 
 # ===========================================================================
-# Calibrate the VAN_DEEMTER dispersion SCALE FACTOR via CADET runs, matching
-# the cylinder's Table 3 second central moment, then reuse the same scale
-# factor unchanged for both conical geometries -- mirroring the paper's own
-# single-calibration-then-reuse structure for Fig. 5's curve (see docstring,
-# "Axial dispersion" section). Because H(v) is correct-by-construction at
-# every local velocity along the column, this single cylinder calibration is
-# expected to transfer to both cones despite the frustum's several-fold
-# velocity swing (u0(0) for the rho_s=2 entrance is ~2.3x the cylinder's
-# velocity; for rho_s=0.5 it is ~0.58x) -- verified directly below against
-# Table 3.
+# Calibration of the dispersion scale factor
 #
-# Grid resolution: the calibrated dispersion values are small enough that a
-# coarse grid's own numerical dispersion is not negligible by comparison
-# (checked explicitly: NELEM=8/10/16 give non-converged sigma^2=
-# 2.41/1.20/1.34 s^2 for the cylinder at a comparably small dispersion
-# scale, while NELEM=32/48/64 agree to <0.01%), so NELEM=32 is used for both
-# calibration and production runs throughout this script.
-_SCALE_BRACKET = (0.3, 3.0)   # dimensionless COL_DISPERSION scale-factor probe bracket
+# The Fig. 5 plate height was measured for the alkanophenones, not for
+# bombesin, so one scale factor on that curve is unavoidable. It is
+# calibrated against the cylinder's Table 3 second central moment and then
+# reused unchanged for both cones, which is what makes their mu_2 a
+# prediction: the entrance velocity of the rho_s=2 cone is about 2.3 times
+# the cylinder's and that of rho_s=0.5 about 0.58 times.
+#
+# The calibrated dispersion is small enough that a coarse grid's own
+# numerical dispersion would not be negligible against it. NELEM=32 is the
+# coarsest resolution at which the moments are converged (NELEM=32/48/64
+# agree to better than 0.01%), so it is used for the calibration runs.
+# ===========================================================================
+_SCALE_BRACKET = (0.3, 3.0)   # probe bracket for the scale factor
 
 
 def calibrate_dispersion(cadet_path, output_path, config='cylinder'):
-    """Calibrate the dimensionless VAN_DEEMTER scale factor against `config`'s
-    own Table 3 second central moment. Called ONCE (on the cylinder) in
-    main(); the resulting scale factor is reused unchanged for both cones."""
+    """Calibrate the scale factor against `config`'s own Table 3 second
+    central moment. main() calls this once, on the cylinder, and reuses the
+    result unchanged for both cones."""
     target_var_s2 = TABLE3[config]['mu2'] * 3600.0  # min^2 -> s^2
     scale_trials = _SCALE_BRACKET
     var_trials = []
@@ -434,7 +414,6 @@ def calibrate_dispersion(cadet_path, output_path, config='cylinder'):
 # ===========================================================================
 # Main
 # ===========================================================================
-from pathlib import Path
 CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
 
@@ -454,21 +433,18 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     print(f"  solved k0 (retention factor at phi0) = {K0:.4f}")
     print(f"  MPM-Langmuir: ka_1={KA1:.6g}, kd_1={KD1}, qmax_1={QMAX1}, gamma_1={GAMMA1}")
 
-    print("\nCalibrating the VAN_DEEMTER dispersion scale factor ONCE, against the")
-    print("cylinder's own Table 3 second moment, then reusing it UNCHANGED for")
-    print("both cones (see calibrate_dispersion() docstring)...")
+    print("\nCalibrating the dispersion scale factor against the cylinder's "
+          "Table 3 second moment, then reusing it for both cones...")
     scale_cal = calibrate_dispersion(cadet_path, output_path, 'cylinder')
     col_disp_base = {'cylinder': scale_cal, 'cone_s2': scale_cal, 'cone_s05': scale_cal}
-    print(f"  -> calibrated VAN_DEEMTER scale factor = {scale_cal:.4f} "
-          f"(reused unchanged for cone_s2 and cone_s05)")
+    print(f"  -> calibrated scale factor = {scale_cal:.4f} "
+          f"(reused for cone_s2 and cone_s05)")
 
-    print("\nRunning production simulations (all three column configurations)...")
-    # NELEM=64 (finer than the NELEM=32 used for calibration -- moments are
-    # already grid-converged there, see above, but the raw curve shape at
-    # NELEM=32 shows small Gibbs-type ringing near the rectangular injection
-    # pulse -- an O(1e-2)-amplitude artifact at NELEM=32 that shrinks to
-    # ~1e-5 by NELEM=96; NELEM=64 is a good quality/cost compromise for the
-    # production curves used in the plot).
+    print("\nRunning the three column configurations...")
+    # NELEM=64 rather than the 32 used for the calibration: the moments are
+    # already converged at 32, but the curve still shows a small ringing of
+    # order 1e-2 near the rectangular injection pulse, which is down to
+    # about 1e-5 by NELEM=96. 64 is a reasonable compromise for the plots.
     results = {}
     for config in ('cylinder', 'cone_s2', 'cone_s05'):
 
@@ -483,8 +459,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         print(f"  {config:10s}: peak_t={tp:7.3f} s   mu1={mu1:7.3f} s   "
               f"sigma^2={mu2:.5f} s^2   area={area:.5f}")
 
-    # ---- validation: the four unified metrics shared by all six case
-    # studies, see src/validation/validation_metrics.py ----
+    # ---- validation metrics, see src/validation/validation_metrics.py ----
     print("\n" + "=" * 70)
     print("Validation metrics -- Gritti et al. (2019), Fig. 8 "
           "(Bombesin, gradient)")
@@ -495,8 +470,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         t_ref, c_ref = REFERENCE[config]
         metrics[config] = compute_metrics(config, t_sim, c_sim, t_ref, c_ref)
 
-    # ---- comparison plots: one figure per column, matching the style/layout
-    # of Gritti2019_fig7.py's per-column plots ----
+    # ---- one comparison plot per column ----
     colors = {'cylinder': 'k', 'cone_s2': 'tab:red', 'cone_s05': 'tab:blue'}
     labels = {'cylinder': r'$\rho_s=1$', 'cone_s2': r'$\rho_s=2$', 'cone_s05': r'$\rho_s=0.5$'}
     for config in ('cylinder', 'cone_s2', 'cone_s05'):
@@ -533,11 +507,9 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     ordered = [metrics[config] for config in ('cylinder', 'cone_s2', 'cone_s05')]
     vm.print_metrics_table(ordered, time_unit='s')
-    print(f"  [diagnostic] cylinder  : calibrated mu_2 = "
-          f"{ordered[0]['mu2_sim_full']:.6g} s^2 vs. Table 3 target "
-          f"{ordered[0]['mu2_ref']:.6g} s^2 "
-          f"(fitted by construction -- hence the empty Delta mu_2 above; the "
-          f"cone entries reuse this factor unchanged and are predictions)")
+    print(f"  cylinder  : calibrated mu_2 = {ordered[0]['mu2_sim_full']:.6g} s^2 "
+          f"vs. Table 3 target {ordered[0]['mu2_ref']:.6g} s^2, which is why "
+          f"its Delta mu_2 is left empty above")
     vm.dump_metrics(output_path, 'Gritti2019_fig8',
                     'Gradient Bombesin', ordered, time_unit='s')
     return ordered

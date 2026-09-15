@@ -6,13 +6,12 @@ Reproduction of Fig. 7 from:
     conically shaped columns: Theory and practice", J. Chromatogr. A 1593
     (2019) 34-46. https://doi.org/10.1016/j.chroma.2019.01.055
 
-Self-contained script: model definition, run, comparison plot, and
-validation metrics. Further explanation on model and parameter selection is
-provided under Gritti2019_fig7.md
-
+The model, the source of the parameters and the derivation of the LSSM
+retention law are explained in Gritti2019_fig7.md.
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,10 +19,9 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The shared metric definitions live one directory up, so that all six
-# validation case studies report an identical set of numbers. Adding that
-# directory to sys.path keeps this script runnable both directly and as an
-# imported module (scripts/verify_geometries.py imports main()).
+# The metric definitions shared by all validation case studies live one
+# directory up. Adding it to sys.path keeps this script runnable both
+# directly and as an import (scripts/verify_geometries.py calls main()).
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
@@ -52,15 +50,13 @@ TG_MIN = (PHI_FINAL - PHI0) / BETA_PER_MIN   # = 5.0 min, gradient duration
 K_ISO = 1.08                     # isocratic k(phi=0.75), valerophenone (text, p.44)
 PHI_ISO = 0.75
 
-H_VALEROPHENONE = 9.5e-6         # m, isocratic plate height, cylinder, 0.35 mL/min (text, p.43)
-                                 # -- reference/context value only (see
-                                 # COL_DISP_VALEROPHENONE below).
+H_VALEROPHENONE = 9.5e-6         # m, isocratic plate height, cylinder, 0.35 mL/min
+                                 # (p. 43); kept for reference, the simulation
+                                 # uses the Fig. 5 H(v) curve below
 
-# Van Deemter fit to Gritti et al. Fig. 5 (H(v) = A + B/v + C*v), identical values
-# to Gritti2019_fig6.py's VD_A/VD_B/VD_C (re-derived there from the digitized
-# Fig. 5 data; hardcoded here too so this script stays self-contained/importable on
-# its own). See fig6's module docstring for the digitization/fit procedure and
-# fig6's plot_fig5_verification() for the fit-quality check (RMSE=0.071 um).
+# Van Deemter fit to Fig. 5, H(v) = A + B/v + C*v. Same values as in
+# Gritti2019_fig6.py, repeated here so that this script runs on its own;
+# Gritti2019_fig6.md describes the digitization and the fit.
 VD_A = 3.15452704e-06   # m
 VD_B = 4.52688414e-09   # m^2/s
 VD_C = 2.23971679e-03   # s
@@ -71,9 +67,8 @@ TR_GRAD_CYL_MIN = 4.656          # Table 2, cylindrical column, first moment [mi
 TR_GRAD_S2_MIN = 4.659           # Table 2, cone rho_s=2
 TR_GRAD_S05_MIN = 4.674          # Table 2, cone rho_s=0.5
 
-# Table 2, valerophenone, SECOND CENTRAL MOMENT [min^2] under gradient
-# conditions -- the reference against which Delta mu_2 is reported. Nothing
-# is fitted to it; see COL_DISP_VALEROPHENONE below.
+# Table 2, valerophenone, second central moment [min^2] under gradient
+# conditions, the reference for Delta mu_2. Nothing is fitted to it.
 MU2_GRAD_CYL = 0.00096
 MU2_GRAD_S2 = 0.00080
 MU2_GRAD_S05 = 0.00072
@@ -91,10 +86,9 @@ T0_S05_MIN = tau_ref_min(RE_LARGE, FV_CON)    # cone rho_s=0.5: inlet = large en
 
 
 def _bisect(f, a, b, xtol=1e-13, max_iter=200):
-    """Minimal dependency-free bisection root finder (replaces
-    scipy.optimize.brentq -- this script intentionally imports nothing beyond
-    cadet/numpy/matplotlib). f is assumed continuous with f(a) and f(b) of
-    opposite sign (checked below)."""
+    """Bisection root finder, so that the script needs nothing beyond cadet,
+    numpy and matplotlib. f must be continuous with a sign change over [a, b],
+    which is checked below."""
     fa, fb = f(a), f(b)
     if fa == 0.0:
         return a
@@ -115,10 +109,9 @@ def _bisect(f, a, b, xtol=1e-13, max_iter=200):
 
 
 def derive_lssm_parameters():
-    """Derive (S, k0) for valerophenone from the paper's own Eqs. (28) & (34)
-    evaluated at the cylindrical column only (rho_s=1), using the paper's own
-    tabulated k(0.75)=1.08 and Table-2 gradient retention time (4.656 min).
-    See module docstring, "Reparameterization"."""
+    """Derive (S, k0) for valerophenone from Eqs. 28 and 34, evaluated on the
+    cylindrical column alone, using the tabulated k(0.75)=1.08 and the Table 2
+    gradient retention time of 4.656 min. See the markdown file."""
     tau_e1_target = TR_GRAD_CYL_MIN / T0_CYL_MIN
 
     def resid(S):
@@ -148,13 +141,10 @@ A_PREFACTOR = K0_LSSM * np.exp(S_LSSM * PHI0)   # = k(phi=0)-equivalent prefacto
 KA1 = A_PREFACTOR * EPS_T / (1.0 - EPS_T) / QMAX1
 KD1 = 1.0
 
-COL_DISP_VALEROPHENONE = 1.0  # dimensionless scale factor on the Fig. 5 VAN_DEEMTER H(v)
-                            # curve. Held at 1.0, i.e. the plate height exactly as Gritti
-                            # et al. measured it: since they report H(v) for valerophenone,
-                            # this study fits nothing, and its second central moment is a
-                            # prediction. (Contrast Gritti2019_fig8.py, where no plate
-                            # height is reported for bombesin and a scale factor is
-                            # therefore unavoidable.)
+COL_DISP_VALEROPHENONE = 1.0  # scale factor on the Fig. 5 H(v) curve. Held at 1.0, so
+                            # the plate height enters as measured and nothing about the
+                            # dispersion is fitted. Gritti2019_fig8.py cannot do this,
+                            # since no plate height is reported for bombesin.
 COL_DISP_MODIFIER = 1.0e-6  # dimensionless scale factor for the ACN modifier: a tiny fraction
                             # of valerophenone's own H(v) curve, giving near-plug-flow transport.
 
@@ -177,21 +167,16 @@ def get_model(cadet_path, column, spatial_method='DG', nelem=128, polydeg=4, nco
               n_points=3000, t_end_min=7.5, col_disp_valerophenone=None):
     """Build the CADET model for one of the three column configurations
     ('cylinder', 'cone_s2', 'cone_s05') and return a ready-to-run `Cadet`
-    instance. The model tree is built directly on the `Cadet` object's own
-    `.root` attribute -- which the `cadet` package itself already provides as
-    an addict.Dict-like nested structure -- so this script does not need to
-    import addict (or anything else) itself.
+    instance. The model tree is built on the `Cadet` object's own `.root`,
+    which the cadet package already provides as a nested dict-like structure.
 
-    Flow sheet: unit_000=INLET (2 components: 0=ACN modifier, 1=valerophenone)
-    -> unit_001=COLUMN (native geometry) -> unit_002=OUTLET.
+    Flow sheet: unit_000 = INLET (component 0 = ACN modifier, component 1 =
+    valerophenone) -> unit_001 = COLUMN -> unit_002 = OUTLET.
 
-    col_disp_valerophenone: dimensionless COL_DISPERSION scale factor for
-        component 1 (valerophenone), multiplying the Fig. 5 VAN_DEEMTER
-        H(v) curve (VD_A, VD_B, VD_C -- same fit as Gritti2019_fig6.py):
-        Dax(z) = col_disp_valerophenone * H(v(z))*v(z)/2 via
-        COL_DISPERSION_DEP='VAN_DEEMTER'. Defaults to COL_DISP_VALEROPHENONE
-        = 1.0, i.e. the measured Fig. 5 curve used exactly as it stands;
-        nothing about the dispersion is fitted in this study.
+    col_disp_valerophenone: scale factor on the Fig. 5 H(v) curve for
+        valerophenone, so that Dax(z) = col_disp_valerophenone*H(v(z))*v(z)/2
+        through COL_DISPERSION_DEP='VAN_DEEMTER'. Defaults to 1.0, i.e. the
+        measured curve as it stands.
     """
     cfg = COLUMNS[column]
     if col_disp_valerophenone is None:
@@ -287,7 +272,7 @@ def get_model(cadet_path, column, spatial_method='DG', nelem=128, polydeg=4, nco
     else:
         raise ValueError(f"Unsupported spatial method: {spatial_method}")
 
-    # --- particle_type_000: Lumped-Rate-Model-without-pores mode ---
+    # --- Particle type: lumped rate model without pores ---
     col.particle_type_000.nbound = [0, 1]
     col.particle_type_000.has_film_diffusion = 0
     col.particle_type_000.init_cs = [0.0]
@@ -299,9 +284,8 @@ def get_model(cadet_path, column, spatial_method='DG', nelem=128, polydeg=4, nco
     col.particle_type_000.adsorption.mpm_qmax = [0.0, QMAX1]
     col.particle_type_000.adsorption.mpm_gamma = [0.0, GAMMA1]
     col.particle_type_000.adsorption.mpm_beta = [0.0, 0.0]
-    # Scalar linearization threshold for the c_{p,0}^beta term (only matters
-    # for beta!=0; kept far below the gradient's phi range 0.6-0.95 so the
-    # full nonlinear branch is always used in this model).
+    # Linearization threshold for the c_{p,0}^beta term. It only matters for
+    # beta != 0 and is kept far below the gradient's phi range of 0.6-0.95.
     col.particle_type_000.adsorption.mpm_linear_threshold = 1e-6
 
     m.input.model.unit_002.ncomp = 2
@@ -348,11 +332,12 @@ def run_column(cadet_path, output_path, column, **kwargs):
 # Digitized reference data
 # ---------------------------------------------------------------------------
 def load_digitized(path=None):
-    """Load the digitized CSV. Each curve keeps only its own valid (non-NaN)
-    samples and its own x-grid -- the three curves do not fully share pixel
-    columns in the source image (partial occlusion of the red "cone rho_s=2"
-    trace by the black/blue traces where they overlap), so a shared x-grid
-    with NaN gaps is deliberately NOT assumed downstream."""
+    """Load the digitized CSV, each curve on its own x-grid.
+
+    The three curves do not share all pixel columns in the source image: the
+    red rho_s=2 trace is partly hidden where the other two cross it. Keeping
+    only each curve's own valid samples avoids assuming a shared grid.
+    """
     if path is None:
         path = os.path.join(HERE, 'Gritti2019_fig7_digitized.csv')
     data = np.genfromtxt(path, delimiter=',', names=True)
@@ -369,18 +354,16 @@ def load_digitized(path=None):
 # Validation metrics
 # ---------------------------------------------------------------------------
 def compute_metrics(column, t_sim, c_sim, t_ref, c_ref):
-    """The four unified validation metrics -- see src/validation/validation_metrics.py
-    for their definitions, which are shared verbatim by all six case studies.
+    """The validation metrics, see src/validation/validation_metrics.py.
 
-    ``c_sim`` is the RAW simulated outlet; the per-column least-squares
-    Absorbance-[AU] amplitude fit that the arbitrary-unit reference requires
-    is performed inside the metric routine (see "AU-scale amplitude" in the
-    module docstring for why it is fit per column and not shared).
+    ``c_sim`` is the raw simulated outlet. The reference is an uncalibrated
+    absorbance, so the least-squares amplitude factor is fitted inside the
+    metric routine, per column; the markdown file explains why it is not
+    shared between columns.
 
-    Delta mu_1 and Delta mu_2 are both taken against Table 2's measured
-    moments, and both are genuine predictions: the dispersion comes from the
-    plate height Gritti et al. measured in their Fig. 5, used exactly as it
-    stands, and nothing in this study is fitted to Table 2.
+    Delta mu_1 and Delta mu_2 are taken against the moments measured in
+    Table 2. Both are predictions: the dispersion is the plate height
+    measured in Fig. 5, used as it stands, and nothing is fitted to Table 2.
     """
     cfg = COLUMNS[column]
     t_inj = VINJ / cfg['Fv']
@@ -401,7 +384,6 @@ def compute_metrics(column, t_sim, c_sim, t_ref, c_ref):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-from pathlib import Path
 CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
 
@@ -411,15 +393,14 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     print("Derived LSSM parameters (valerophenone): "
           f"S={S_LSSM:.4f}, k0={K0_LSSM:.4f}, gamma={GAMMA1:.4f}, KA={KA1:.4e}")
-    print(f"COL_DISPERSION scale factor on the Fig. 5 VAN_DEEMTER H(v) curve: "
-          f"{COL_DISP_VALEROPHENONE:.4g} (1.0 = curve exactly as measured/fitted, "
-          f"nothing fitted in this study; "
+    print(f"COL_DISPERSION scale factor on the Fig. 5 H(v) curve: "
+          f"{COL_DISP_VALEROPHENONE:.4g} (1.0 = the curve as measured; "
           f"VD_A={VD_A:.4e} m, VD_B={VD_B:.4e} m^2/s, VD_C={VD_C:.4e} s)")
     print(f"t0 [min]: cylinder={T0_CYL_MIN:.4f}  cone_s2={T0_S2_MIN:.4f}  "
           f"cone_s05={T0_S05_MIN:.4f}")
 
-    print("\nAnalytic (paper Eq. 34) cross-check, using ONLY parameters "
-          "derived from the cylindrical column:")
+    print("\nCross-check against Eq. 34, using only parameters derived from "
+          "the cylindrical column:")
     for col, s in (('cylinder', 1.0), ('cone_s2', 2.0), ('cone_s05', 0.5)):
         t0 = {'cylinder': T0_CYL_MIN, 'cone_s2': T0_S2_MIN, 'cone_s05': T0_S05_MIN}[col]
         tR_pred = tau_e1_analytic(S_LSSM, K0_LSSM, BETA_PER_MIN, t0, s) * t0
@@ -442,14 +423,8 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
                                      spatial_method=spatial_method, nelem=128, polydeg=4)
         results[col] = (t, c_mod, c_val)
 
-    # Per-column least-squares AU-scale fit (matching the convention used in
-    # Gritti2019_fig8.py); see "AU-scale amplitude" in the module docstring
-    # for why this is a display convention and why it is fit independently
-    # per column rather than with one shared scale.
-    print("\nFitting a per-column least-squares Absorbance-[AU] scale factor "
-          "(simulated vs. digitized), independently for each column -- see "
-          "'AU-scale amplitude' in the module docstring for why no shared "
-          "AU-per-concentration scale factor is used.")
+    print("\nFitting a least-squares absorbance scale factor per column "
+          "(simulated vs. digitized).")
 
     print("\nValidation metrics:")
     all_metrics = {}
@@ -457,9 +432,8 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         t, c_mod, c_val = results[col]
         t_ref, c_ref = ref[col]
 
-        # The per-column least-squares Absorbance-[AU] scale (c_val is in
-        # arbitrary CADET concentration units) is fit inside the shared
-        # metric routine and returned as 'amplitude_scale'.
+        # c_val is in arbitrary concentration units; the absorbance scale is
+        # fitted inside the metric routine and returned as 'amplitude_scale'.
         metrics = compute_metrics(col, t, c_val, t_ref, c_ref)
         all_metrics[col] = metrics
         scale = metrics['amplitude_scale']
@@ -478,8 +452,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         ax.set_ylabel('Absorbance [AU]', fontsize=fontsize)
         ax.set_xlim(270, 295)
         ax.set_ylim(None, 0.2)
-        # ax.set_title('Gritti et al. (2019), Fig. 7 -- valerophenone gradient elution\n',
-        #              fontsize=fontsize)
+
         nrmse = all_metrics[col]['nrmse_%']
         ax.text(
             0.98, 0.75, f"NRMSE: {nrmse:.2f}%", transform=ax.transAxes,
@@ -504,9 +477,8 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     print("=" * 70)
     vm.print_metrics_table(metrics, time_unit='s')
     for m in metrics:
-        print(f"  [diagnostic] {m['name']:10s}: simulated mu_2 = "
-              f"{m['mu2_sim_full']:.6g} s^2 vs. Table 2 {m['mu2_ref']:.6g} s^2 "
-              f"(predicted, with the plate height exactly as measured)")
+        print(f"  {m['name']:10s}: simulated mu_2 = {m['mu2_sim_full']:.6g} s^2 "
+              f"vs. Table 2 {m['mu2_ref']:.6g} s^2")
     vm.dump_metrics(output_path, 'Gritti2019_fig7',
                     'Gradient valerophenone', metrics, time_unit='s')
     return metrics

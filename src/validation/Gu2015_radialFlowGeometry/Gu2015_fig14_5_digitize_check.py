@@ -1,21 +1,22 @@
 """
-Sanity-check plot for the digitized data extracted from Gu (2015),
-Fig. 14.5 "Binary elution with an inert mobile phase in inward flow RFC"
-(T. Gu, "Mathematical Modeling and Scale-Up of Liquid Chromatography",
-Springer, 2015, p. 201) - a screenshot of the "Chromulator RateRFC Model
-Simulator" GUI.
+Overlay plot for the data digitized from Gu (2015), Fig. 14.5, "Binary
+elution with an inert mobile phase in inward flow RFC" (T. Gu, "Mathematical
+Modeling and Scale-Up of Liquid Chromatography", Springer, 2015, p. 201),
+which is a screenshot of the Chromulator RateRFC simulator.
 
-Reproduces the paper figure's appearance (red Component 1: narrow early
-peak ~0.58 near tau~2.4; black Component 2: broader later peak ~0.15-0.16
-near tau~5.4 with a long decaying tail out past tau=16) from the digitized
-CSV (Gu2015_fig14_5_digitized.csv) so the extraction can be visually compared
-against the scanned GUI screenshot.
+The digitized curves are redrawn on the figure's own axes so that the
+extraction can be held next to the screenshot: component 1 in red, a narrow
+early peak near tau = 2.4, and component 2 in black, broader and later near
+tau = 5.4 with a long tail past tau = 16.
 """
+import os
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
-CSV_PATH = r"C:\Users\jmbr\software\CADET-Verification\scripts\Gu2015_fig14_5_digitized.csv"
-OUT_PATH = r"C:\Users\jmbr\software\CADET-Verification\scripts\Gu2015_fig14_5_digitize_check.png"
+HERE = os.path.dirname(os.path.abspath(__file__))
+CSV_PATH = os.path.join(HERE, "Gu2015_fig14_5_digitized.csv")
+OUT_PATH = os.path.join(HERE, "Gu2015_fig14_5_digitize_check.png")
 
 df = pd.read_csv(CSV_PATH)
 
