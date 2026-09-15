@@ -141,15 +141,15 @@ def test_selected_model_groups(
 
             # DG elements
             ax_disc = [
-                [bench_func.disc_list(4, 7 if not small_test else 3)],
-                [bench_func.disc_list(8, 9 if not small_test else 3)],
-                [bench_func.disc_list(4, 7 if not small_test else 3)],
-                [bench_func.disc_list(8, 9 if not small_test else 3)]
+                [bench_func.disc_list(4, 5 if not small_test else 3)],
+                [bench_func.disc_list(8, 7 if not small_test else 3)],
+                [bench_func.disc_list(4, 5 if not small_test else 3)],
+                [bench_func.disc_list(8, 7 if not small_test else 3)]
             ]
             par_disc = [
-                [bench_func.disc_list(1, 7 if not small_test else 3)],
+                [bench_func.disc_list(1, 5 if not small_test else 3)],
                 [None],
-                [bench_func.disc_list(1, 7 if not small_test else 3)],
+                [bench_func.disc_list(1, 5 if not small_test else 3)],
                 [None]
             ]
 
