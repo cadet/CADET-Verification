@@ -259,7 +259,7 @@ def load_digitized():
     return data
 
 
-def plot_fig5_verification():
+def plot_fig5_verification(output_path):
     """Verification plot for the digitized Gritti et al. (2019) Fig. 5 plate-height
     data (Gritti2019_fig6_fig5H_digitized.csv) and the VAN_DEEMTER fit
     (VD_A, VD_B, VD_C) derived from it and used throughout this script.
@@ -311,7 +311,7 @@ def plot_fig5_verification():
     ax.text(0.02, 0.02, f'RMSE={rmse:.3f} um\nmax|resid|={maxabs:.3f} um', transform=ax.transAxes,
             fontsize=fontsize, va='bottom', ha='left', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
     fig.tight_layout()
-    outpath = os.path.join(HERE, 'Gritti2019_fig6_fig5H_verification.png')
+    outpath = os.path.join(output_path, 'Gritti2019_fig6_fig5H_verification.png')
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
     print(f"Saved Fig. 5 digitization/fit verification plot to {outpath}")
@@ -451,7 +451,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
     print(f"  Van Deemter H(v)=A+B/v+C*v : A={VD_A:.4e} m, B={VD_B:.4e} m^2/s, C={VD_C:.4e} s")
     print()
 
-    plot_fig5_verification()
+    plot_fig5_verification(output_path)
 
     digitized = load_digitized()
     ref_time = digitized['time_s']

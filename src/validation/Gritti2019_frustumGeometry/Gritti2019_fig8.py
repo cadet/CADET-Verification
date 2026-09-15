@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 # ===========================================================================
 # Digitized reference data (Fig. 8): loaded from Gritti2019_fig8_digitized.csv,
@@ -131,7 +130,7 @@ KA1 = K0 * np.exp(S_LSSM * PHI0) / (F_PHASE * QMAX1)
 # ===========================================================================
 # CADET model definition
 # ===========================================================================
-def get_model(config, col_dispersion_base, t_end=330.0, n_points=2201,
+def get_model(cadet_path, config, col_dispersion_base, t_end=330.0, n_points=2201,
               polydeg=4, nelem=10, spatial_method='DG'):
     """config: 'cylinder', 'cone_s2', or 'cone_s05'.
     col_dispersion_base: dimensionless COL_DISPERSION scale factor for
@@ -160,7 +159,7 @@ def get_model(config, col_dispersion_base, t_end=330.0, n_points=2201,
 
     t_inj = V_INJ / Q  # injection duration [s]
 
-    cadet = Cadet(install_path=INSTALL_PATH)
+    cadet = Cadet(install_path=cadet_path)
     m = cadet.root
     m.input.model.nunits = 3
 
@@ -307,9 +306,11 @@ def get_model(config, col_dispersion_base, t_end=330.0, n_points=2201,
     return cadet
 
 
-def run_model(config, col_dispersion_base, fname=None, spatial_method='DG', **kwargs):
-    c = get_model(config, col_dispersion_base, spatial_method=spatial_method, **kwargs)
-    c.filename = os.path.join(HERE, fname or f'Gritti2019_fig8_{config}.h5')
+def run_model(cadet_path, output_path, config, col_dispersion_base, fname=None,
+              spatial_method='DG', **kwargs):
+    c = get_model(cadet_path, config, col_dispersion_base,
+                  spatial_method=spatial_method, **kwargs)
+    c.filename = os.path.join(output_path, fname or f'Gritti2019_fig8_{config}.h5')
     c.save()
     rc = c.run_simulation()
     if rc.return_code != 0:
@@ -449,7 +450,7 @@ def print_metrics(name, m):
 _SCALE_BRACKET = (0.3, 3.0)   # dimensionless COL_DISPERSION scale-factor probe bracket
 
 
-def calibrate_dispersion(config='cylinder'):
+def calibrate_dispersion(cadet_path, output_path, config='cylinder'):
     """Calibrate the dimensionless VAN_DEEMTER scale factor against `config`'s
     own Table 3 second central moment. Called ONCE (on the cylinder) in
     main(); the resulting scale factor is reused unchanged for both cones."""
@@ -457,7 +458,8 @@ def calibrate_dispersion(config='cylinder'):
     scale_trials = _SCALE_BRACKET
     var_trials = []
     for scale in scale_trials:
-        t, c = run_model(config, scale, fname=f'Gritti2019_fig8_calib_{config}.h5',
+        t, c = run_model(cadet_path, output_path, config, scale,
+                          fname=f'Gritti2019_fig8_calib_{config}.h5',
                           polydeg=4, nelem=32, n_points=2001)
         _, _, var = moments(t, c)
         var_trials.append(var)
@@ -475,7 +477,13 @@ def calibrate_dispersion(config='cylinder'):
 # ===========================================================================
 # Main
 # ===========================================================================
-def main():
+from pathlib import Path
+CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
+
+def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
+
+    os.makedirs(output_path, exist_ok=True)
 
     spatial_method = 'DG'
 
@@ -492,7 +500,7 @@ def main():
     print("\nCalibrating the VAN_DEEMTER dispersion scale factor ONCE, against the")
     print("cylinder's own Table 3 second moment, then reusing it UNCHANGED for")
     print("both cones (see calibrate_dispersion() docstring)...")
-    scale_cal = calibrate_dispersion('cylinder')
+    scale_cal = calibrate_dispersion(cadet_path, output_path, 'cylinder')
     col_disp_base = {'cylinder': scale_cal, 'cone_s2': scale_cal, 'cone_s05': scale_cal}
     print(f"  -> calibrated VAN_DEEMTER scale factor = {scale_cal:.4f} "
           f"(reused unchanged for cone_s2 and cone_s05)")
@@ -508,7 +516,9 @@ def main():
     for config in ('cylinder', 'cone_s2', 'cone_s05'):
 
         print(f"\nRunning simulation for {config} with spatial method {spatial_method}...")
-        t, c = run_model(config, col_disp_base[config], polydeg=4, nelem=64, n_points=2201, spatial_method=spatial_method)
+        t, c = run_model(cadet_path, output_path, config, col_disp_base[config],
+                         polydeg=4, nelem=64, n_points=2201,
+                         spatial_method=spatial_method)
 
         results[config] = (t, c)
         area, mu1, mu2 = moments(t, c)
@@ -559,7 +569,7 @@ def main():
         ax.legend(loc='upper right', fontsize=fontsize, ncol=1)
         ax.grid(alpha=0.3)
         fig.tight_layout()
-        outpath = os.path.join(HERE, f'Gritti2019_fig8_comparison_{config}_{spatial_method}.png')
+        outpath = os.path.join(output_path, f'Gritti2019_fig8_comparison_{config}_{spatial_method}.png')
         fig.savefig(outpath, dpi=150)
         plt.close(fig)
         print(f"\nSaved comparison plot to {outpath}")

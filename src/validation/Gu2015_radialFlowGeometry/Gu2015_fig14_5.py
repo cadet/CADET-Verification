@@ -20,7 +20,6 @@ from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 # ---------------------------------------------------------------------------
 # Paper's parameters, exactly as printed in the GUI screenshot (Fig. 14.5,
@@ -247,13 +246,14 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
     return m
 
 
-def run_model(ncol=120, par_ncells=4, n_points=800, fname='Gu2015_fig14_5.h5', **kwargs):
+def run_model(cadet_path, output_path, ncol=120, par_ncells=4, n_points=800,
+              fname='Gu2015_fig14_5.h5', **kwargs):
 
     model = get_model(ncol=ncol, par_ncells=par_ncells, n_points=n_points, **kwargs)
 
-    c = Cadet(install_path=INSTALL_PATH)
+    c = Cadet(install_path=cadet_path)
     c.root.input = model.input
-    c.filename = os.path.join(HERE, fname)
+    c.filename = os.path.join(output_path, fname)
     c.save()
     rc = c.run_simulation()
     if rc.return_code != 0:
@@ -379,7 +379,14 @@ def print_metrics(metrics):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-if __name__ == '__main__':
+from pathlib import Path
+CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
+
+def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
+
+    os.makedirs(output_path, exist_ok=True)
+
     print("Physical (SI) parameters derived from the paper's dimensionless groups:")
     for i, p in PAPER.items():
         print(f"  Component {i}: Db(V=1)={p['Db_V1']:.4g} m^2/s (COL_DISPERSION={p['col_dispersion_value']:.4g}), "
@@ -401,10 +408,10 @@ if __name__ == '__main__':
     spatial_method = 'DG'
 
     if spatial_method == 'DG':
-        t_phys, outlet = run_model(ncol=64, par_ncells=2, dg_polydeg=4, bulk_discretization=spatial_method,
+        t_phys, outlet = run_model(cadet_path, output_path, ncol=64, par_ncells=2, dg_polydeg=4, bulk_discretization=spatial_method,
                                    n_points=400, fname=f'Gu2015_fig14_5_{spatial_method}.h5', **model_kwargs)
     elif spatial_method == 'FV':
-        t_phys, outlet = run_model(ncol=256, par_ncells=8, dg_polydeg=None, bulk_discretization=spatial_method,
+        t_phys, outlet = run_model(cadet_path, output_path, ncol=256, par_ncells=8, dg_polydeg=None, bulk_discretization=spatial_method,
                                    n_points=400, fname=f'Gu2015_fig14_5_{spatial_method}.h5', **model_kwargs)
 
     tau_sim = dimless_time(t_phys)
@@ -445,6 +452,9 @@ if __name__ == '__main__':
     ax.legend(loc='upper right', fontsize=fontsize)
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    outpath = os.path.join(HERE, f'Gu2015_fig14_5_comparison_{spatial_method}.png')
+    outpath = os.path.join(output_path, f'Gu2015_fig14_5_comparison_{spatial_method}.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+if __name__ == '__main__':
+    main()

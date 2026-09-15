@@ -18,7 +18,6 @@ from addict import Dict
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 # ---------------------------------------------------------------------------
 # Paper's parameters, read off the Fig. 10.14 GUI screenshot (p. 138),
@@ -87,7 +86,7 @@ C0_3_PHYS = PAPER[3]['C0_phys']  # == C0_1_PHYS by construction (book convention
 # F_acc = ExF reproduces the book's accessible-porosity formulation term by
 # term (eps_ap = F_acc*eps_p enters pore transport and the film boundary
 # condition, while the solid phase keeps the true (1-eps_p) weight) so
-# qmax1 is the paper's own C_inf,1, with no correction factor.
+# qmax1 is the paper's own C_inf,1.
 QMAX1_PHYS = PAPER[1]['C_inf_phys']
 
 KA1 = DA1A * V_CHAR / (BED_LENGTH * C0_1_PHYS)
@@ -302,11 +301,12 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
     return m
 
 
-def run_model(ncol=256, par_ncells=4, n_points=900, fname='Gu2015_fig14_6.h5', spatial_method='FV', **kwargs):
+def run_model(cadet_path, output_path, ncol=256, par_ncells=4, n_points=900,
+              fname='Gu2015_fig14_6.h5', spatial_method='FV', **kwargs):
     model = get_model(ncol=ncol, par_ncells=par_ncells, n_points=n_points, spatial_method=spatial_method, **kwargs)
-    c = Cadet(install_path=INSTALL_PATH)
+    c = Cadet(install_path=cadet_path)
     c.root.input = model.input
-    c.filename = os.path.join(HERE, fname)
+    c.filename = os.path.join(output_path, fname)
     c.save()
     rc = c.run_simulation()
     if rc.return_code != 0:
@@ -558,7 +558,13 @@ def print_atom_balance(tau_sim, c1_sim, c2_sim, c3_sim):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-if __name__ == '__main__':
+from pathlib import Path
+CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
+
+def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
+
+    os.makedirs(output_path, exist_ok=True)
 
     print("Physical (SI-like) parameters derived from the paper's dimensionless groups:")
     for i, p in PAPER.items():
@@ -577,9 +583,9 @@ if __name__ == '__main__':
 
     spatial_method = 'DG'
     if spatial_method == 'DG':
-        t_phys, outlet = run_model(spatial_method=spatial_method, dg_polydeg=4, ncol=64, par_ncells=3)
+        t_phys, outlet = run_model(cadet_path, output_path, spatial_method=spatial_method, dg_polydeg=4, ncol=64, par_ncells=3)
     elif spatial_method == 'FV':
-        t_phys, outlet = run_model(spatial_method=spatial_method, ncol=256, par_ncells=4)
+        t_phys, outlet = run_model(cadet_path, output_path, spatial_method=spatial_method, ncol=256, par_ncells=4)
 
     tau_sim = dimless_time(t_phys)
     c1_sim = outlet[:, 0] / C0_1_PHYS
@@ -627,6 +633,9 @@ if __name__ == '__main__':
     ax.legend(loc='center right', fontsize=fontsize)
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    outpath = os.path.join(HERE, f'Gu2015_fig14_6_comparison_{spatial_method}.png')
+    outpath = os.path.join(output_path, f'Gu2015_fig14_6_comparison_{spatial_method}.png')
     fig.savefig(outpath, dpi=150)
     print(f"\nSaved comparison plot to {outpath}")
+
+if __name__ == '__main__':
+    main()

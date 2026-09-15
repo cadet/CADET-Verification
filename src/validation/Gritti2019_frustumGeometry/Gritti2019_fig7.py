@@ -18,7 +18,6 @@ import matplotlib.pyplot as plt
 from cadet import Cadet
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-INSTALL_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
 
 # ---------------------------------------------------------------------------
 # Physical parameters (SI units)
@@ -167,7 +166,7 @@ COLUMNS = {
 H_EFF = {}
 
 
-def get_model(column, spatial_method='DG', nelem=128, polydeg=4, ncol=800,
+def get_model(cadet_path, column, spatial_method='DG', nelem=128, polydeg=4, ncol=800,
               n_points=3000, t_end_min=7.5, col_disp_valerophenone=None):
     """Build the CADET model for one of the three column configurations
     ('cylinder', 'cone_s2', 'cone_s05') and return a ready-to-run `Cadet`
@@ -198,7 +197,7 @@ def get_model(column, spatial_method='DG', nelem=128, polydeg=4, ncol=800,
     t_end = t_end_min * 60.0
     beta_per_s = BETA_PER_MIN / 60.0
 
-    cadet_obj = Cadet(install_path=INSTALL_PATH)
+    cadet_obj = Cadet(install_path=cadet_path)
     m = cadet_obj.root
     m.input.model.nunits = 3
 
@@ -325,9 +324,9 @@ def get_model(column, spatial_method='DG', nelem=128, polydeg=4, ncol=800,
     return cadet_obj
 
 
-def run_column(column, **kwargs):
-    c = get_model(column, **kwargs)
-    c.filename = os.path.join(HERE, f'Gritti2019_fig7_{column}.h5')
+def run_column(cadet_path, output_path, column, **kwargs):
+    c = get_model(cadet_path, column, **kwargs)
+    c.filename = os.path.join(output_path, f'Gritti2019_fig7_{column}.h5')
     c.save()
     rc = c.run_simulation()
     if rc.return_code != 0:
@@ -348,7 +347,8 @@ def second_central_moment(t, c):
     return m1, m2
 
 
-def calibrate_dispersion(column, nelem=64, probe_value=COL_DISP_PROBE):
+def calibrate_dispersion(cadet_path, output_path, column, nelem=64,
+                         probe_value=COL_DISP_PROBE):
     """Calibrate the dimensionless COL_DISPERSION scale factor for
     valerophenone on this column (multiplying the Fig. 5 VAN_DEEMTER H(v)
     curve, see get_model()) so that the full gradient-elution PDE simulation
@@ -363,8 +363,9 @@ def calibrate_dispersion(column, nelem=64, probe_value=COL_DISP_PROBE):
     problem (verified separately to <0.1% by direct probing at 1x/2x/3x the
     baseline value), so a single probe run plus closed-form rescaling is used
     instead of an iterative optimizer."""
-    t, _, c_val = run_column(column, spatial_method='DG', nelem=nelem, polydeg=4,
-                              col_disp_valerophenone=probe_value)
+    t, _, c_val = run_column(cadet_path, output_path, column, spatial_method='DG',
+                             nelem=nelem, polydeg=4,
+                             col_disp_valerophenone=probe_value)
     _, var_probe = second_central_moment(t, c_val)
     target_var_s2 = COLUMNS[column]['mu2_ref'] * 3600.0   # min^2 -> s^2
     return probe_value * (target_var_s2 / var_probe), var_probe / 3600.0
@@ -478,7 +479,14 @@ def print_metrics(name, metrics):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-if __name__ == '__main__':
+from pathlib import Path
+CADET_PATH = r"C:\Users\jmbr\software\CADET-Core\out\install\aRELEASE"
+OUTPUT_PATH = Path(__file__).resolve().parent.parent.parent.parent / "output" / "validation"
+
+def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
+
+    os.makedirs(output_path, exist_ok=True)
+
     print("Derived LSSM parameters (valerophenone): "
           f"S={S_LSSM:.4f}, k0={K0_LSSM:.4f}, gamma={GAMMA1:.4f}, KA={KA1:.4e}")
     print(f"COL_DISPERSION probe scale factor on the Fig. 5 VAN_DEEMTER H(v) curve: "
@@ -499,7 +507,8 @@ if __name__ == '__main__':
         # under-converged at NELEM=64 (see "Numerical resolution" in the
         # module docstring), which would otherwise bake a resolution error
         # into the calibrated scale factor.
-        disp_scale, var_probe_min2 = calibrate_dispersion(col, nelem=128)
+        disp_scale, var_probe_min2 = calibrate_dispersion(
+            cadet_path, output_path, col, nelem=128)
         H_EFF[col] = disp_scale
         print(f"  {col:10s}: probe (VAN_DEEMTER, scale=1.0) variance={var_probe_min2:.6f} min^2  "
               f"Table 2 target={COLUMNS[col]['mu2_ref']:.6f} min^2  "
@@ -526,7 +535,8 @@ if __name__ == '__main__':
 
     for col in ('cylinder', 'cone_s2', 'cone_s05'):
         print(f"  {col} ...")
-        t, c_mod, c_val = run_column(col, spatial_method=spatial_method, nelem=128, polydeg=4)
+        t, c_mod, c_val = run_column(cadet_path, output_path, col,
+                                     spatial_method=spatial_method, nelem=128, polydeg=4)
         results[col] = (t, c_mod, c_val)
 
     # Per-column least-squares AU-scale fit (matching the convention used in
@@ -585,7 +595,10 @@ if __name__ == '__main__':
         ax.grid(alpha=0.3)
         ax.tick_params(axis='both', labelsize=fontsize)
         fig.tight_layout()
-        outpath = os.path.join(HERE, f'Gritti2019_fig7_comparison_{col}_{spatial_method}.png')
+        outpath = os.path.join(output_path, f'Gritti2019_fig7_comparison_{col}_{spatial_method}.png')
         fig.savefig(outpath, dpi=150)
         plt.close(fig)
         print(f"\nSaved comparison plot to {outpath}")
+
+if __name__ == '__main__':
+    main()
