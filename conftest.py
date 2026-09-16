@@ -13,7 +13,16 @@ def pytest_addoption(parser):
     parser.addoption("--n-jobs", type=int, default=-1)
     parser.addoption("--delete-h5-files", type=str2bool, default=True)
 
+    # Extra repeats per simulation of a performance benchmark, keeping the
+    # fastest compute time; a single measurement carries whatever else the
+    # machine was doing.
+    parser.addoption("--n-reruns", type=int, default=0)
+
     parser.addoption("--run-performance-tests", type=str2bool, default=True)
+    # The column geometry performance benchmarks are selected per physical case,
+    # so that the two can be run separately, see scripts/verify_geometries.py
+    parser.addoption("--run-performance-sma-tests", type=str2bool, default=True)
+    parser.addoption("--run-performance-langmuir-tests", type=str2bool, default=True)
     parser.addoption("--run-validation-tests", type=str2bool, default=True)
     parser.addoption("--run-eoc-tests", type=str2bool, default=True)
 

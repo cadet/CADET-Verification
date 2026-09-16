@@ -10,11 +10,9 @@ import sys
 from pathlib import Path
 import pytest
 from joblib import Parallel, delayed
-import copy
 
 from cadetrdm import ProjectRepo
 
-from src import bench_func
 import src.utility.convergence as convergence
 from src.utility.versionInfo import print_cadet_versions
 
@@ -28,6 +26,11 @@ from src.validation.Gu2015_radialFlowGeometry.Gu2015_fig14_6 import main as Gu20
 from src.bench_configs import geometry_performance_benchmark
 from src.bench_configs import add_benchmark
 from src.bench_func import run_convergence_analysis
+
+# Reference solutions of the performance benchmarks live in the repository, so
+# that a run in continuous integration finds them after a plain checkout.
+reference_data_path = str(Path(__file__).resolve().parent.parent / "data")
+
 
 @pytest.fixture
 def small_test(request):
@@ -50,8 +53,18 @@ def run_validation_tests(request):
     return request.config.getoption("--run-validation-tests")
 
 @pytest.fixture
-def run_performance_tests(request):
-    return request.config.getoption("--run-performance-tests")
+def n_reruns(request):
+    return request.config.getoption("--n-reruns")
+
+
+@pytest.fixture
+def run_performance_sma_tests(request):
+    return request.config.getoption("--run-performance-sma-tests")
+
+
+@pytest.fixture
+def run_performance_langmuir_tests(request):
+    return request.config.getoption("--run-performance-langmuir-tests")
 
 @pytest.fixture
 def commit_message(request):
@@ -72,7 +85,8 @@ def branch_name(request):
 
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
-    run_EOC_tests, run_performance_tests, run_validation_tests,
+    run_EOC_tests, run_performance_sma_tests, run_performance_langmuir_tests,
+    run_validation_tests, n_reruns,
 ):
 
     sys.path.append(str(Path(".")))
@@ -98,12 +112,27 @@ def test_selected_model_groups(
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/transport")
 
-        if run_performance_tests:
+        # The two performance benchmarks of Breuer et al. (2023) on the radial
+        # flow and the conical column geometry, the four-component GRM with
+        # kinetic SMA binding of Fig. 5 and the two-component LRM with
+        # rapid-equilibrium Langmuir binding of Figs. 7 and 8 in its less
+        # disperse variant. They are selected separately, because the Langmuir
+        # one is by far the more expensive of the two and because two benchmarks
+        # sharing a machine do not have comparable compute times.
+        #
+        # small_test runs two refinement levels fewer per series than the
+        # publication; small_test=False runs its exact steps, see
+        # bench_configs.geometry_performance_benchmark.
+        performance_cases = []
+        if run_performance_sma_tests:
+            performance_cases.append('SMA')
+        if run_performance_langmuir_tests:
+            performance_cases.append('langmuir')
+
+        for performance_case in performance_cases:
 
             chromatography_path = str(output_path) + "/chromatography"
             os.makedirs(chromatography_path, exist_ok=True)
-
-            # Define settings and benchmarks
 
             cadet_configs = []
             cadet_config_names = []
@@ -118,66 +147,23 @@ def test_selected_model_groups(
             par_discs = []
             disc_refinement_functions = []
 
-            # FV cells
-            ax_disc = [
-                [bench_func.disc_list(8, 6 if not small_test else 3)],
-                [bench_func.disc_list(32, 9 if not small_test else 3)],
-                [bench_func.disc_list(8, 6 if not small_test else 3)],
-                [bench_func.disc_list(32, 9 if not small_test else 3)]
-                ]
-            par_disc = [[bench_func.disc_list(1, 6 if not small_test else 3)], [None], [bench_func.disc_list(1, 6 if not small_test else 3)], [None]]
+            # The WENO finite volume scheme and DG of degrees three and four,
+            # all measured against the same stored reference per geometry.
+            for spatial_method in [0, 3, 4]:
 
-            addition = geometry_performance_benchmark(
-                spatial_method=0, ax_disc=ax_disc, par_disc=par_disc,
-                ref_files=ref_files, small_test=small_test
-                )
+                addition = geometry_performance_benchmark(
+                    case=performance_case, spatial_method=spatial_method,
+                    small_test=small_test, ref_filepath=reference_data_path,
+                    cadet_path=cadet_path, output_path=chromatography_path
+                    )
 
-            add_benchmark(
-                cadet_configs, include_sens, ref_files, unit_IDs, which,
-                ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
-                cadet_config_names=cadet_config_names, addition=addition,
-                disc_refinement_functions=disc_refinement_functions
-                )
-
-            # DG elements
-            ax_disc = [
-                [bench_func.disc_list(4, 5 if not small_test else 3)],
-                [bench_func.disc_list(8, 7 if not small_test else 3)],
-                [bench_func.disc_list(4, 5 if not small_test else 3)],
-                [bench_func.disc_list(8, 7 if not small_test else 3)]
-            ]
-            par_disc = [
-                [bench_func.disc_list(1, 5 if not small_test else 3)],
-                [None],
-                [bench_func.disc_list(1, 5 if not small_test else 3)],
-                [None]
-            ]
-
-            addition = geometry_performance_benchmark(
-                spatial_method=3, ax_disc=copy.deepcopy(ax_disc),
-                par_disc=copy.deepcopy(par_disc),
-                ref_files=ref_files, small_test=small_test
-                )
-
-            add_benchmark(
-                cadet_configs, include_sens, ref_files, unit_IDs, which,
-                ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
-                cadet_config_names=cadet_config_names, addition=addition,
-                disc_refinement_functions=disc_refinement_functions
-                )
-
-            addition = geometry_performance_benchmark(
-                spatial_method=4, ax_disc=copy.deepcopy(ax_disc),
-                par_disc=copy.deepcopy(par_disc),
-                ref_files=ref_files, small_test=small_test
-                )
-
-            add_benchmark(
-                cadet_configs, include_sens, ref_files, unit_IDs, which,
-                ax_methods, ax_discs, par_methods, par_discs, idas_abstol=idas_abstol, 
-                cadet_config_names=cadet_config_names, addition=addition,
-                disc_refinement_functions=disc_refinement_functions
-                )
+                add_benchmark(
+                    cadet_configs, include_sens, ref_files, unit_IDs, which,
+                    ax_methods, ax_discs, par_methods, par_discs,
+                    idas_abstol=idas_abstol,
+                    cadet_config_names=cadet_config_names, addition=addition,
+                    disc_refinement_functions=disc_refinement_functions
+                    )
 
             run_convergence_analysis(
                 output_path=chromatography_path,
@@ -193,25 +179,38 @@ def test_selected_model_groups(
                 par_methods=par_methods,
                 par_discs=par_discs,
                 idas_abstol=idas_abstol,
-                n_jobs=n_jobs,
+                # Serial on purpose, whatever --n-jobs says: this benchmark
+                # measures compute times, and simulations that share cores do
+                # not have comparable ones.
+                n_jobs=1,
                 rerun_sims=True,
-                disc_refinement_functions = disc_refinement_functions
-                # For which='bulk', exactly one of the following two must be given:
-                #
-                # time_point: solution time index at which spatial error norms are
-                # evaluated. Must hit a time at which the concentration front is still
-                # inside the column (here t = 125s); at the end of the simulation the
-                # column is empty again.
-                # time_point=500,
-                #
-                # normed_coord: normalized axial coordinate z/L in [0, 1] at which
-                # temporal (outlet-like) error norms are evaluated; normed_coord=1.0
-                # is equivalent to the outlet solution.
-                # normed_coord=1.0,
-            )
-            
-            if delete_h5_files:
-                convergence.delete_h5_files(chromatography_path)
+                disc_refinement_functions=disc_refinement_functions
+                )
+
+            # A single compute time carries whatever else the machine was doing,
+            # so a benchmark repeats every simulation and keeps the fastest, and
+            # then rebuilds the tables from the files it just updated.
+            if n_reruns:
+                convergence.mult_sim_rerun(
+                    chromatography_path, str(cadet_path), n_reruns)
+                run_convergence_analysis(
+                    output_path=chromatography_path,
+                    cadet_path=cadet_path,
+                    cadet_configs=cadet_configs,
+                    cadet_config_names=cadet_config_names,
+                    include_sens=include_sens,
+                    ref_files=ref_files,
+                    unit_IDs=unit_IDs,
+                    which=which,
+                    ax_methods=ax_methods,
+                    ax_discs=ax_discs,
+                    par_methods=par_methods,
+                    par_discs=par_discs,
+                    idas_abstol=idas_abstol,
+                    n_jobs=1,
+                    rerun_sims=False,
+                    disc_refinement_functions=disc_refinement_functions
+                    )
 
         if run_validation_tests:
 
