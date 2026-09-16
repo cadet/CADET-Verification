@@ -4172,7 +4172,7 @@ def mult_sim_rerun(file_path, cadet_path, n_wdh):
 
             model.filename = file_path + "/" + file
             success = model.run_load()
-            if not success.returncode == 0:
+            if not success.return_code == 0:
                 print(success)
                 break
 
@@ -4181,7 +4181,7 @@ def mult_sim_rerun(file_path, cadet_path, n_wdh):
             for i in range(0, n_wdh):
 
                 success = model.run_load()
-                if not success.returncode == 0:
+                if not success.return_code == 0:
                     print(success)
                     break
 
