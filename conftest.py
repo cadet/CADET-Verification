@@ -18,11 +18,20 @@ def pytest_addoption(parser):
     # machine was doing.
     parser.addoption("--n-reruns", type=int, default=0)
 
+    # Column geometry of the performance benchmarks: "radial", "frustum" or
+    # "both". One at a time keeps the expensive sweeps tractable, since each
+    # geometry brings its own reference solution.
+    parser.addoption("--column-geometry", type=str, default="both")
+
     parser.addoption("--run-performance-tests", type=str2bool, default=True)
     # The column geometry performance benchmarks are selected per physical case,
     # so that the two can be run separately, see scripts/verify_geometries.py
     parser.addoption("--run-performance-sma-tests", type=str2bool, default=True)
     parser.addoption("--run-performance-langmuir-tests", type=str2bool, default=True)
+    # Particle treatment of the SMA benchmark: 0 runs it as an LRMP, which has
+    # no particle grid and so compares the bulk discretizations alone, 1 as the
+    # GRM of the publication.
+    parser.addoption("--sma-particle-resolution", type=int, default=1)
     parser.addoption("--run-validation-tests", type=str2bool, default=True)
     parser.addoption("--run-eoc-tests", type=str2bool, default=True)
 

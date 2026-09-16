@@ -67,6 +67,14 @@ def run_performance_langmuir_tests(request):
     return request.config.getoption("--run-performance-langmuir-tests")
 
 @pytest.fixture
+def column_geometry(request):
+    return request.config.getoption("--column-geometry")
+
+@pytest.fixture
+def sma_particle_resolution(request):
+    return request.config.getoption("--sma-particle-resolution")
+
+@pytest.fixture
 def commit_message(request):
     return request.config.getoption("--commit-message")
 
@@ -86,7 +94,7 @@ def branch_name(request):
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
     run_EOC_tests, run_performance_sma_tests, run_performance_langmuir_tests,
-    run_validation_tests, n_reruns,
+    run_validation_tests, n_reruns, column_geometry, sma_particle_resolution,
 ):
 
     sys.path.append(str(Path(".")))
@@ -147,14 +155,16 @@ def test_selected_model_groups(
             par_discs = []
             disc_refinement_functions = []
 
-            # The WENO finite volume scheme and DG of degrees three and four,
+            # The WENO finite volume scheme and DG of degrees three to five,
             # all measured against the same stored reference per geometry.
-            for spatial_method in [0, 3, 4]:
+            for spatial_method in [0, 3, 4, 5]:
 
                 addition = geometry_performance_benchmark(
                     case=performance_case, spatial_method=spatial_method,
                     small_test=small_test, ref_filepath=reference_data_path,
-                    cadet_path=cadet_path, output_path=chromatography_path
+                    cadet_path=cadet_path, output_path=chromatography_path,
+                    geometries=column_geometry,
+                    sma_particle_resolution=sma_particle_resolution
                     )
 
                 add_benchmark(

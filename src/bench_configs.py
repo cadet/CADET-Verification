@@ -640,20 +640,36 @@ def paper_geometry_LRMPdynLin_benchmark(setting_name,
 #
 # The steps are those of the published figures: Fig. 5 starts at four axial and
 # one particle element and shows FV up to 512 and 128, DG P3 up to 32 and 8 and
-# DG P4 up to 16 and 4; Table S5, the left panel of Fig. 7, lists FV from 32 to
-# 65536 cells and both DG degrees from 8 to 1024 elements. Only the less
-# disperse Langmuir setting is covered, which is what the settings file and the
-# stored references hold.
+# DG P4 up to 16 and 4; Fig. 3, the same load-wash-elute setting as an LRMP,
+# starts at four and shows FV up to 512 cells, DG P3 up to 32 and DG P4 up to 16
+# elements; Table S5, the left panel of Fig. 7, lists FV from 32 to 65536 cells
+# and both DG degrees from 8 to 1024 elements. Only the less disperse Langmuir
+# setting is covered, which is what the settings file and the stored references
+# hold.
+#
+# The LRMP carries no particle grid at all, only film diffusion, so its sweeps
+# refine nothing but the bulk. That is what makes it the cleanest of the three
+# for comparing bulk discretizations: no particle discretization error enters
+# the measured error, and no choice of particle to bulk resolution has to be
+# made and defended.
 _GEOMETRY_BENCHMARK_STEPS_ = {
     'SMA': {
         0: (4, 8),
         3: (4, 4),
         4: (4, 3),
+        5: (4, 3),
+        },
+    'LRMP_SMA': {
+        0: (4, 8),
+        3: (4, 4),
+        4: (4, 3),
+        5: (4, 3),
         },
     'langmuir': {
         0: (32, 12),
         3: (8, 8),
         4: (8, 8),
+        5: (8, 8),
         },
     }
 
@@ -681,6 +697,12 @@ _GEOMETRY_BENCHMARK_REFERENCES_ = {
         'radial_LRM_langmuir_2comp_benchmark1_FV_Z8192.h5',
     ('langmuir', 'frustum'):
         'frustum_LRM_langmuir_2comp_benchmark1_FV_Z8192.h5',
+    # None is stored for the LRMP yet, so its reference is simulated at double
+    # the last refinement step; drop a file of this name in to reuse one.
+    ('LRMP_SMA', 'radial'):
+        'radial_LRMP_reqSMA_4comp_benchmark1_reference.h5',
+    ('LRMP_SMA', 'frustum'):
+        'frustum_LRMP_reqSMA_4comp_benchmark1_reference.h5',
     }
 
 _GEOMETRY_BENCHMARK_GEOMETRIES_ = {
@@ -688,16 +710,106 @@ _GEOMETRY_BENCHMARK_GEOMETRIES_ = {
     'frustum': 'AXIAL_FLOW_FRUSTUM',
     }
 
-_GEOMETRY_BENCHMARK_UNIT_ = {'SMA': '000', 'langmuir': '001'}
+# The SMA study runs either as a general rate model, which resolves the particle
+# in space and is Fig. 5 of the publication, or as a lumped rate model with
+# pores, which carries no particle grid and so compares nothing but the bulk
+# discretizations. They are separate internal cases because they differ in their
+# reference, in the names of their files and in whether their sweeps refine a
+# particle grid at all.
+_SMA_PARTICLE_RESOLUTION_CASES_ = {0: 'LRMP_SMA', 1: 'SMA'}
+
+
+def geometry_benchmark_case(case, sma_particle_resolution=1):
+    """Internal case key of a physical case and its particle treatment.
+
+    sma_particle_resolution is 0 for an LRMP and 1 for a GRM, and applies to the
+    SMA case only; the Langmuir case has no particles to resolve.
+    """
+
+    if case != 'SMA':
+        return case
+
+    if sma_particle_resolution not in _SMA_PARTICLE_RESOLUTION_CASES_:
+        raise ValueError(
+            'sma_particle_resolution must be 0 for an LRMP or 1 for a GRM, got '
+            + str(sma_particle_resolution) + '.'
+            )
+
+    return _SMA_PARTICLE_RESOLUTION_CASES_[sma_particle_resolution]
+
+
+def geometry_benchmark_geometries(selection=None):
+    """Resolve a column geometry selection into the geometries to run.
+
+    Accepts the short key, the CADET geometry name, 'both' or None for all of
+    them, or a sequence of any of those. Selecting one at a time is what makes
+    the expensive sweeps tractable: each geometry brings its own reference, so
+    running one does not compute the other.
+    """
+
+    if selection is None or (isinstance(selection, str)
+                             and selection.lower() in ('both', 'all')):
+        return tuple(_GEOMETRY_BENCHMARK_GEOMETRIES_)
+
+    if isinstance(selection, str):
+        selection = [selection]
+
+    resolved = []
+    for name in selection:
+        if name in _GEOMETRY_BENCHMARK_GEOMETRIES_:
+            resolved.append(name)
+            continue
+        matches = [key for key, geometry in _GEOMETRY_BENCHMARK_GEOMETRIES_.items()
+                   if str(name).upper() == geometry]
+        if not matches:
+            raise ValueError(
+                'Unknown column geometry ' + repr(name) + '; expected one of '
+                + str(sorted(_GEOMETRY_BENCHMARK_GEOMETRIES_)) + ', '
+                + str(sorted(_GEOMETRY_BENCHMARK_GEOMETRIES_.values()))
+                + " or 'both'."
+                )
+        resolved.append(matches[0])
+
+    return tuple(resolved)
+
+_GEOMETRY_BENCHMARK_UNIT_ = {'SMA': '000', 'LRMP_SMA': '000', 'langmuir': '001'}
 
 # Spatial method a computed reference of a case uses: a finite volume scheme for
 # the Langmuir case, DG of the highest degree of the study for the SMA case.
-_GEOMETRY_BENCHMARK_REFERENCE_METHOD_ = {'SMA': 4, 'langmuir': 0}
+_GEOMETRY_BENCHMARK_REFERENCE_METHOD_ = {'SMA': 4, 'LRMP_SMA': 4, 'langmuir': 0}
 
 _GEOMETRY_BENCHMARK_SETTINGS_ = {
     'SMA': setting_Col1D_SMA_4comp_LWE_benchmark1,
+    'LRMP_SMA': setting_Col1D_SMA_4comp_LWE_benchmark1,
     'langmuir': setting_Col1D_langLRM_2comp_benchmark1,
     }
+
+# Name of the setting, which prefixes its simulation files and its convergence
+# json, and has to name the transport model and the number of components.
+_GEOMETRY_BENCHMARK_CONFIG_NAME_ = {
+    'SMA': 'GRM_reqSMA_4comp_benchmark1',
+    'LRMP_SMA': 'LRMP_reqSMA_4comp_benchmark1',
+    'langmuir': 'LRM_langmuir_2comp_benchmark1',
+    }
+
+# Only the GRM resolves the particle in space; the LRMP has film diffusion but
+# no particle grid, and the LRM has no particles at all.
+_GEOMETRY_BENCHMARK_PARTICLE_GRID_ = {
+    'SMA': True, 'LRMP_SMA': False, 'langmuir': False,
+    }
+
+
+def _geometry_benchmark_model_kwargs(case, spatial_method):
+    """Particle arguments of the setting of one case."""
+
+    if case == 'SMA':
+        return dict(spatial_method_particle=spatial_method,
+                    particle_type='GENERAL_RATE_PARTICLE')
+
+    if case == 'LRMP_SMA':
+        return dict(particle_type='HOMOGENEOUS_PARTICLE')
+
+    return {}
 
 
 def _geometry_benchmark_axial_points(spatial_method, n_ax):
@@ -805,14 +917,10 @@ def _geometry_benchmark_computed_reference(case, geometry, small_test,
 
     n_ax = bench_func.disc_list(n_ax_start, n_levels)[-1]
     n_par = (bench_func.disc_list(_GEOMETRY_BENCHMARK_PAR_START_, n_levels)[-1]
-             if case == 'SMA' else None)
+             if _GEOMETRY_BENCHMARK_PARTICLE_GRID_[case] else None)
 
     settings = _GEOMETRY_BENCHMARK_SETTINGS_[case]
-    model_kwargs = (
-        dict(spatial_method_particle=method,
-             particle_type='GENERAL_RATE_PARTICLE')
-        if case == 'SMA' else {}
-        )
+    model_kwargs = _geometry_benchmark_model_kwargs(case, method)
 
     unit = 'unit_' + _GEOMETRY_BENCHMARK_UNIT_[case]
 
@@ -868,25 +976,34 @@ def _geometry_benchmark_computed_reference(case, geometry, small_test,
 
 def geometry_performance_benchmark(case, spatial_method, small_test=False,
                                    ref_filepath=None,
-                                   geometries=('radial', 'frustum'),
+                                   geometries=None, sma_particle_resolution=1,
                                    cadet_path=None, output_path=None):
     """Performance benchmark of one physical case on the column geometries.
 
     case is 'SMA', the four-component GRM with kinetic steric mass action
-    binding of Fig. 5 of Breuer et al. (2023), or 'langmuir', the two-component
-    LRM with rapid-equilibrium Langmuir binding of Figs. 7 and 8 in its less
-    disperse variant. spatial_method is 0 for the WENO finite volume scheme and
+    binding of Fig. 5 of Breuer et al. (2023), 'LRMP_SMA', the same setting as
+    an LRMP, which is Fig. 3 and which resolves no particle at all and so
+    compares nothing but the bulk discretizations, or 'langmuir', the
+    two-component LRM with rapid-equilibrium Langmuir binding of Figs. 7 and 8
+    in its less disperse variant. spatial_method is 0 for the WENO finite volume scheme and
     the polynomial degree for DG, used for the axial and the particle
     discretization alike.
 
     The refinement steps are those of the publication, see
     _GEOMETRY_BENCHMARK_STEPS_, or two levels fewer per series for a small test.
 
+    geometries selects the column geometries, one of them or both, see
+    geometry_benchmark_geometries. sma_particle_resolution selects the particle
+    treatment of the SMA case, 0 for an LRMP and 1 for a GRM, see
+    geometry_benchmark_case.
+
     Every spatial method of a case is measured against the same reference, which
     is what makes them comparable to one another: the stored one where it
     resolves the sweep, and otherwise one simulated at double the last
     refinement step, which needs cadet_path and output_path.
     """
+
+    case = geometry_benchmark_case(case, sma_particle_resolution)
 
     if case not in _GEOMETRY_BENCHMARK_STEPS_:
         raise ValueError(
@@ -896,11 +1013,7 @@ def geometry_performance_benchmark(case, spatial_method, small_test=False,
 
     settings = _GEOMETRY_BENCHMARK_SETTINGS_[case]
 
-    model_kwargs = (
-        dict(spatial_method_particle=spatial_method,
-             particle_type='GENERAL_RATE_PARTICLE')
-        if case == 'SMA' else {}
-        )
+    model_kwargs = _geometry_benchmark_model_kwargs(case, spatial_method)
 
     n_ax_start, n_levels = _geometry_benchmark_levels(
         case, spatial_method, small_test)
@@ -912,7 +1025,7 @@ def geometry_performance_benchmark(case, spatial_method, small_test=False,
     ax_discs = []
     par_discs = []
 
-    for geometry in geometries:
+    for geometry in geometry_benchmark_geometries(geometries):
 
         reference, reference_points = _geometry_benchmark_reference(
             case, geometry, ref_filepath)
@@ -932,15 +1045,12 @@ def geometry_performance_benchmark(case, spatial_method, small_test=False,
             **model_kwargs
             ))
         cadet_config_names.append(
-            geometry + '_'
-            + ('GRM_reqSMA_4comp_benchmark1' if case == 'SMA'
-               else 'LRM_langmuir_2comp_benchmark1')
-            )
+            geometry + '_' + _GEOMETRY_BENCHMARK_CONFIG_NAME_[case])
         ref_files.append([reference])
         ax_discs.append([bench_func.disc_list(n_ax_start, n_levels)])
         par_discs.append(
             [bench_func.disc_list(_GEOMETRY_BENCHMARK_PAR_START_, n_levels)]
-            if case == 'SMA' else [None]
+            if _GEOMETRY_BENCHMARK_PARTICLE_GRID_[case] else [None]
             )
 
     n_settings = len(cadet_configs)
@@ -955,7 +1065,9 @@ def geometry_performance_benchmark(case, spatial_method, small_test=False,
         'idas_abstol': [[1e-8]] * n_settings,
         'ax_methods': [[spatial_method]] * n_settings,
         'ax_discs': ax_discs,
-        'par_methods': [[spatial_method if case == 'SMA' else None]] * n_settings,
+        'par_methods': [
+            [spatial_method if _GEOMETRY_BENCHMARK_PARTICLE_GRID_[case] else None]
+            ] * n_settings,
         'par_discs': par_discs,
         'disc_refinement_functions': [
             [bench_func.create_object_from_config] for _ in range(n_settings)
