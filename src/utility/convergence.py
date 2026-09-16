@@ -485,6 +485,36 @@ def get_compute_time(simulation):
     )
 
 
+def get_idas_timesteps(simulation):
+    """Get the number of time steps IDAS took from a simulation.
+
+    Written by CADET-Core under meta/idas. Older versions do not write it, in
+    which case nan is returned rather than raising, so that a convergence table
+    can still be computed from older simulation files.
+    """
+    try:
+        return np.squeeze(
+            sim_go_to(
+                get_simulation(simulation).root, ['meta',
+                                                  'idas',
+                                                  'idas_ntimesteps']
+            )
+        )
+    except ValueError:
+        return np.nan
+
+
+def get_all_idas_timesteps(simulations):
+
+    timesteps = np.zeros(len(simulations))
+
+    for simulation in range(0, len(simulations)):
+
+        timesteps[simulation] = get_idas_timesteps(simulations[simulation])
+
+    return np.squeeze(timesteps)
+
+
 def get_compute_times(simulations):
 
     computeTimes = np.zeros(len(simulations))
@@ -3557,6 +3587,12 @@ def convergency_table(method,
     if sim_names is not None:
         header.append('Sim. time')
         table.append(get_compute_times(sim_names))
+        # How many time steps the time integrator needed. A count that keeps
+        # growing under spatial refinement, where another method's saturates,
+        # says the time integration and not the spatial discretization is what
+        # the refinement is costing.
+        header.append('idas n_timesteps')
+        table.append(get_all_idas_timesteps(sim_names))
 
     return header, np.array(table).transpose()
 
