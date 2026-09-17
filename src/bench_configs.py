@@ -630,449 +630,191 @@ def paper_geometry_LRMPdynLin_benchmark(setting_name,
     return benchmark_config
 
 
-# Refinement steps of the performance benchmarks of Breuer et al. (2023),
-# doi:10.1016/j.compchemeng.2023.108340, run here on the radial flow and the
-# conical column geometry instead of the axial flow cylinder of the publication.
-#
-# Per physical case and spatial method, (first level, number of levels), every
-# level doubling. For the SMA case the axial and the particle grid are refined
-# together, starting at one particle element.
-#
-# The steps are those of the published figures: Fig. 5 starts at four axial and
-# one particle element and shows FV up to 512 and 128, DG P3 up to 32 and 8 and
-# DG P4 up to 16 and 4; Fig. 3, the same load-wash-elute setting as an LRMP,
-# starts at four and shows FV up to 512 cells, DG P3 up to 32 and DG P4 up to 16
-# elements; Table S5, the left panel of Fig. 7, lists FV from 32 to 65536 cells
-# and both DG degrees from 8 to 1024 elements. Only the less disperse Langmuir
-# setting is covered, which is what the settings file and the stored references
-# hold.
-#
-# The LRMP carries no particle grid at all, only film diffusion, so its sweeps
-# refine nothing but the bulk. That is what makes it the cleanest of the three
-# for comparing bulk discretizations: no particle discretization error enters
-# the measured error, and no choice of particle to bulk resolution has to be
-# made and defended.
-_GEOMETRY_BENCHMARK_STEPS_ = {
-    'SMA': {
-        0: (4, 8),
-        3: (4, 4),
-        4: (4, 3),
-        5: (4, 3),
-        },
-    'LRMP_SMA': {
-        0: (4, 8),
-        3: (4, 4),
-        4: (4, 3),
-        5: (4, 3),
-        },
-    'langmuir': {
-        0: (32, 12),
-        3: (8, 8),
-        4: (8, 8),
-        5: (8, 8),
-        },
-    }
-
-# Particle elements of the coarsest level of the SMA case.
-_GEOMETRY_BENCHMARK_PAR_START_ = 1
-
-# A small test runs this many refinement levels fewer per series, but never
-# fewer than two, since a single level is not a convergence study.
-_GEOMETRY_BENCHMARK_SMALL_TEST_FEWER_ = 2
-_GEOMETRY_BENCHMARK_MIN_LEVELS_ = 2
-
-# Reference solution per physical case and geometry, shared by every spatial
-# method of that case so that the methods are comparable to one another. They
-# live in the repository under data/CADET-Core_reference/chromatography. The SMA
-# case takes the finest DG solution available, the Langmuir case the finest FV
-# one: the DG schemes oscillate on the self-sharpening Langmuir fronts, which is
-# the very effect that benchmark measures, so the monotone scheme is the safer
-# reference there.
-_GEOMETRY_BENCHMARK_REFERENCES_ = {
-    ('SMA', 'radial'):
-        'radial_GRM_reqSMA_4comp_benchmark1_cDG_P4Z256_DGexInt_parP4parZ64.h5',
-    ('SMA', 'frustum'):
-        'frustum_GRM_reqSMA_4comp_benchmark1_cDG_P4Z256_DGexInt_parP4parZ64.h5',
-    ('langmuir', 'radial'):
-        'radial_LRM_langmuir_2comp_benchmark1_FV_Z8192.h5',
-    ('langmuir', 'frustum'):
-        'frustum_LRM_langmuir_2comp_benchmark1_FV_Z8192.h5',
-    # None is stored for the LRMP yet, so its reference is simulated at double
-    # the last refinement step; drop a file of this name in to reuse one.
-    ('LRMP_SMA', 'radial'):
-        'radial_LRMP_reqSMA_4comp_benchmark1_reference.h5',
-    ('LRMP_SMA', 'frustum'):
-        'frustum_LRMP_reqSMA_4comp_benchmark1_reference.h5',
-    }
-
-_GEOMETRY_BENCHMARK_GEOMETRIES_ = {
-    'radial': 'RADIAL_FLOW_CYLINDER_SHELL',
-    'frustum': 'AXIAL_FLOW_FRUSTUM',
-    }
-
-# The SMA study runs either as a general rate model, which resolves the particle
-# in space and is Fig. 5 of the publication, or as a lumped rate model with
-# pores, which carries no particle grid and so compares nothing but the bulk
-# discretizations. They are separate internal cases because they differ in their
-# reference, in the names of their files and in whether their sweeps refine a
-# particle grid at all.
-_SMA_PARTICLE_RESOLUTION_CASES_ = {0: 'LRMP_SMA', 1: 'SMA'}
+# %% Performance benchmarks of Breuer et al. (2023)
 
 
-def geometry_benchmark_case(case, sma_particle_resolution=1):
-    """Internal case key of a physical case and its particle treatment.
+def langmuir_performance_benchmark(
+        small_test=False, ref_file=None,
+        column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7):
+    """Performance benchmark of the two-component LRM with Langmuir binding.
 
-    sma_particle_resolution is 0 for an LRMP and 1 for a GRM, and applies to the
-    SMA case only; the Langmuir case has no particles to resolve.
+    Figs. 7 and 8 of Breuer et al. (2023),
+    doi:10.1016/j.compchemeng.2023.108340, on the refinement steps of the
+    publication. col_dispersion defaults to the less disperse of its two
+    settings.
+
+    ref_file is the reference solution, shared by every spatial method, which is
+    what makes the methods comparable to one another. Without one every series
+    runs one level further and takes its own finest level as its reference.
     """
 
-    if case != 'SMA':
-        return case
+    # Prefixes the file names, so that the geometries do not write over one
+    # another.
+    geometry_names = {
+        'AXIAL_FLOW_CYLINDER': 'axial',
+        'RADIAL_FLOW_CYLINDER_SHELL': 'radial',
+        'AXIAL_FLOW_FRUSTUM': 'frustum',
+        }
 
-    if sma_particle_resolution not in _SMA_PARTICLE_RESOLUTION_CASES_:
+    if column_geometry not in geometry_names:
         raise ValueError(
-            'sma_particle_resolution must be 0 for an LRMP or 1 for a GRM, got '
-            + str(sma_particle_resolution) + '.'
+            'column_geometry must be one of ' + str(sorted(geometry_names))
+            + ', got ' + str(column_geometry) + '.'
             )
 
-    return _SMA_PARTICLE_RESOLUTION_CASES_[sma_particle_resolution]
+    # The WENO finite volume scheme and DG of degrees three to five, with their
+    # refinement steps as (first level, number of levels), every level doubling
+    # the resolution. Table S5, the left panel of Fig. 7, lists FV from 32 to
+    # 65536 cells and both DG degrees from 8 to 1024 elements; degree five
+    # repeats the steps of degree four.
+    ax_methods = [0, 3, 4, 5]
+    steps = {0: (32, 12), 3: (8, 8), 4: (8, 8), 5: (8, 8)}
 
+    ax_discs = []
 
-def geometry_benchmark_geometries(selection=None):
-    """Resolve a column geometry selection into the geometries to run.
+    for method in ax_methods:
 
-    Accepts the short key, the CADET geometry name, 'both' or None for all of
-    them, or a sequence of any of those. Selecting one at a time is what makes
-    the expensive sweeps tractable: each geometry brings its own reference, so
-    running one does not compute the other.
-    """
+        n_start, n_levels = steps[method]
 
-    if selection is None or (isinstance(selection, str)
-                             and selection.lower() in ('both', 'all')):
-        return tuple(_GEOMETRY_BENCHMARK_GEOMETRIES_)
+        # A small test runs two levels fewer per series, but never fewer than
+        # two, since a single level is not a convergence study.
+        if small_test:
+            n_levels = max(n_levels - 2, 2)
 
-    if isinstance(selection, str):
-        selection = [selection]
+        # Without a reference solution the series runs one level further, so
+        # that its finest level can serve as the reference of that method.
+        if ref_file is None:
+            n_levels += 1
 
-    resolved = []
-    for name in selection:
-        if name in _GEOMETRY_BENCHMARK_GEOMETRIES_:
-            resolved.append(name)
-            continue
-        matches = [key for key, geometry in _GEOMETRY_BENCHMARK_GEOMETRIES_.items()
-                   if str(name).upper() == geometry]
-        if not matches:
-            raise ValueError(
-                'Unknown column geometry ' + repr(name) + '; expected one of '
-                + str(sorted(_GEOMETRY_BENCHMARK_GEOMETRIES_)) + ', '
-                + str(sorted(_GEOMETRY_BENCHMARK_GEOMETRIES_.values()))
-                + " or 'both'."
+        ax_discs.append(bench_func.disc_list(n_start, n_levels))
+
+    n_methods = len(ax_methods)
+
+    return {
+        'cadet_config_jsons': [
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                spatial_method_bulk=0, column_geometry=column_geometry,
+                col_dispersion=col_dispersion
                 )
-        resolved.append(matches[0])
-
-    return tuple(resolved)
-
-_GEOMETRY_BENCHMARK_UNIT_ = {'SMA': '000', 'LRMP_SMA': '000', 'langmuir': '001'}
-
-# Spatial method a computed reference of a case uses: a finite volume scheme for
-# the Langmuir case, DG of the highest degree of the study for the SMA case.
-_GEOMETRY_BENCHMARK_REFERENCE_METHOD_ = {'SMA': 4, 'LRMP_SMA': 4, 'langmuir': 0}
-
-_GEOMETRY_BENCHMARK_SETTINGS_ = {
-    'SMA': setting_Col1D_SMA_4comp_LWE_benchmark1,
-    'LRMP_SMA': setting_Col1D_SMA_4comp_LWE_benchmark1,
-    'langmuir': setting_Col1D_langLRM_2comp_benchmark1,
-    }
-
-# Name of the setting, which prefixes its simulation files and its convergence
-# json, and has to name the transport model and the number of components.
-_GEOMETRY_BENCHMARK_CONFIG_NAME_ = {
-    'SMA': 'GRM_reqSMA_4comp_benchmark1',
-    'LRMP_SMA': 'LRMP_reqSMA_4comp_benchmark1',
-    'langmuir': 'LRM_langmuir_2comp_benchmark1',
-    }
-
-# Only the GRM resolves the particle in space; the LRMP has film diffusion but
-# no particle grid, and the LRM has no particles at all.
-_GEOMETRY_BENCHMARK_PARTICLE_GRID_ = {
-    'SMA': True, 'LRMP_SMA': False, 'langmuir': False,
-    }
+            ],
+        'cadet_config_names': [
+            geometry_names[column_geometry] + '_LRM_langmuir_2comp_benchmark1'
+            ],
+        'include_sens': [False],
+        'ref_files': [[ref_file] * n_methods],
+        'unit_IDs': ['001'],
+        'which': ['outlet'],
+        'idas_abstol': [[1e-8] * n_methods],
+        'ax_methods': [ax_methods],
+        'ax_discs': [ax_discs],
+        'par_methods': [[None] * n_methods],
+        'par_discs': [[None] * n_methods],
+        'disc_refinement_functions': [
+            [bench_func.create_object_from_config] * n_methods
+            ],
+        }
 
 
-def _geometry_benchmark_model_kwargs(case, spatial_method):
-    """Particle arguments of the setting of one case."""
+def SMA_performance_benchmark(
+        small_test=False, ref_file=None,
+        column_geometry='AXIAL_FLOW_CYLINDER',
+        particle_type='GENERAL_RATE_PARTICLE'):
+    """Performance benchmark of the four-component load-wash-elute SMA setting.
 
-    if case == 'SMA':
-        return dict(spatial_method_particle=spatial_method,
-                    particle_type='GENERAL_RATE_PARTICLE')
+    Fig. 5 of Breuer et al. (2023), doi:10.1016/j.compchemeng.2023.108340, on
+    the refinement steps of the publication. A general rate particle is resolved
+    in space and is refined along with the axial grid; any other particle type
+    carries no particle grid, which leaves the bulk discretizations as the only
+    difference between the methods.
 
-    if case == 'LRMP_SMA':
-        return dict(particle_type='HOMOGENEOUS_PARTICLE')
-
-    return {}
-
-
-def _geometry_benchmark_axial_points(spatial_method, n_ax):
-    """Axial discrete points of one discretization, the measure of resolution."""
-
-    return n_ax if spatial_method == 0 else n_ax * (spatial_method + 1)
-
-
-def _geometry_benchmark_reference(case, geometry, ref_filepath):
-    """Stored reference solution of one case and geometry, and its resolution.
-
-    Returns (solution, axial points), or (None, None) when no reference is
-    stored, upon which run_convergence_analysis falls back on the finest level
-    of every method as the reference of that same method.
+    ref_file is the reference solution, shared by every spatial method, which is
+    what makes the methods comparable to one another. Without one every series
+    runs one level further and takes its own finest level as its reference.
     """
 
-    if ref_filepath is None:
-        return None, None
+    # Prefixes the file names, so that the geometries do not write over one
+    # another.
+    geometry_names = {
+        'AXIAL_FLOW_CYLINDER': 'axial',
+        'RADIAL_FLOW_CYLINDER_SHELL': 'radial',
+        'AXIAL_FLOW_FRUSTUM': 'frustum',
+        }
 
-    path = os.path.join(ref_filepath, 'CADET-Core_reference', 'chromatography',
-                        _GEOMETRY_BENCHMARK_REFERENCES_[(case, geometry)])
-
-    if not os.path.isfile(path):
-        return None, None
-
-    unit = 'unit_' + _GEOMETRY_BENCHMARK_UNIT_[case]
-    disc = convergence.get_simulation(path).root.input.model[unit].discretization
-
-    method = convergence.get_case_insensitive(disc, 'SPATIAL_METHOD')
-    method = method.decode() if isinstance(method, bytes) else str(method)
-
-    if method.upper() == 'FV':
-        points = int(convergence.get_case_insensitive(disc, 'NCOL'))
-    else:
-        points = int(convergence.get_case_insensitive(disc, 'NELEM')) * (
-            int(convergence.get_case_insensitive(disc, 'POLYDEG')) + 1)
-
-    return convergence.get_solution(path, unit=unit), points
-
-
-def _geometry_benchmark_levels(case, spatial_method, small_test):
-    """First level and number of refinement levels of one series.
-
-    The steps of the publication, or two levels fewer for a small test, never
-    fewer than two, since a single level is not a convergence study.
-    """
-
-    n_ax_start, n_levels = _GEOMETRY_BENCHMARK_STEPS_[case][spatial_method]
-
-    if small_test:
-        n_levels = max(n_levels - _GEOMETRY_BENCHMARK_SMALL_TEST_FEWER_,
-                       _GEOMETRY_BENCHMARK_MIN_LEVELS_)
-
-    return n_ax_start, n_levels
-
-
-def _geometry_benchmark_sweep_resolution(case, small_test):
-    """Axial points of the finest level of the whole sweep of one case.
-
-    Across all spatial methods, since they share one reference and it has to
-    out-resolve every one of them.
-    """
-
-    return max(
-        _geometry_benchmark_axial_points(
-            spatial_method,
-            bench_func.disc_list(*_geometry_benchmark_levels(
-                case, spatial_method, small_test))[-1])
-        for spatial_method in _GEOMETRY_BENCHMARK_STEPS_[case]
-        )
-
-
-def _geometry_benchmark_computed_reference(case, geometry, small_test,
-                                           cadet_path, output_path):
-    """Simulate the reference of one case and geometry and return its solution.
-
-    Used when no stored reference resolves the sweep. The discretization is the
-    one of the case, a finite volume scheme for the Langmuir case and DG of the
-    highest degree the study uses for the SMA case, refined one step beyond the
-    sweep, i.e. at double the last refinement step. Where that is still not
-    finer than the sweep as a whole, which happens when the reference method is
-    not the one reaching furthest, it is doubled again until it is.
-
-    The file is written to the output folder and reused, so that the three
-    spatial methods of a case simulate it once rather than three times.
-    """
-
-    if cadet_path is None or output_path is None:
+    if column_geometry not in geometry_names:
         raise ValueError(
-            'The ' + case + ' benchmark on the ' + geometry + ' geometry needs '
-            'a reference that is not stored in the reference data folder, so it '
-            'has to be simulated, for which geometry_performance_benchmark needs '
-            'cadet_path and output_path.'
+            'column_geometry must be one of ' + str(sorted(geometry_names))
+            + ', got ' + str(column_geometry) + '.'
             )
 
-    method = _GEOMETRY_BENCHMARK_REFERENCE_METHOD_[case]
-    n_ax_start, n_levels = _geometry_benchmark_levels(case, method, small_test)
+    # The WENO finite volume scheme and DG of degrees three to five, with their
+    # refinement steps as (first level, number of levels), every level doubling
+    # the resolution. Fig. 5 starts at four axial and one particle element and
+    # shows FV up to 512 cells and 128 particle cells, DG P3 up to 32 and 8 and
+    # DG P4 up to 16 and 4 elements; degree five repeats the steps of degree
+    # four.
+    ax_methods = [0, 3, 4, 5]
+    steps = {0: (4, 8), 3: (4, 4), 4: (4, 3), 5: (4, 3)}
 
-    # One refinement beyond the sweep, i.e. double the last refinement step.
-    target = 2 * _geometry_benchmark_sweep_resolution(case, small_test)
-    n_levels += 1
-    while _geometry_benchmark_axial_points(
-            method, bench_func.disc_list(n_ax_start, n_levels)[-1]) < target:
-        n_levels += 1
+    # Particle elements of the coarsest level, refined along with the axial grid.
+    n_par_start = 1
 
-    n_ax = bench_func.disc_list(n_ax_start, n_levels)[-1]
-    n_par = (bench_func.disc_list(_GEOMETRY_BENCHMARK_PAR_START_, n_levels)[-1]
-             if _GEOMETRY_BENCHMARK_PARTICLE_GRID_[case] else None)
+    resolves_particle = particle_type == 'GENERAL_RATE_PARTICLE'
 
-    settings = _GEOMETRY_BENCHMARK_SETTINGS_[case]
-    model_kwargs = _geometry_benchmark_model_kwargs(case, method)
-
-    unit = 'unit_' + _GEOMETRY_BENCHMARK_UNIT_[case]
-
-    build_kwargs = dict(
-        setting_name=geometry + '_' + case + '_benchmark_reference',
-        unit_id=_GEOMETRY_BENCHMARK_UNIT_[case],
-        ax_method=method, ax_cells=n_ax,
-        par_method=None if n_par is None else method, par_cells=n_par,
-        output_path=str(output_path), idas_abstol=1e-8, include_sens=False,
-        )
-
-    # The name first, without writing anything: a reference that has already
-    # been simulated is reused, so that the spatial methods of a case simulate
-    # it once rather than once each.
-    filename = bench_func.create_object_from_config(
-        config_data=copy.deepcopy(settings.get_model(
-            column_geometry=_GEOMETRY_BENCHMARK_GEOMETRIES_[geometry],
-            spatial_method_bulk=method,
-            **model_kwargs
-            )),
-        only_return_name=True, **build_kwargs
-        )
-
-    if os.path.isfile(filename):
-        try:
-            solution = convergence.get_solution(filename, unit=unit)
-            print('Reference of the ' + case + ' benchmark on the ' + geometry
-                  + ' geometry: reusing ' + os.path.basename(filename))
-            return solution
-        except ValueError:
-            # An input file without results, from an interrupted run.
-            pass
-
-    print('Reference of the ' + case + ' benchmark on the ' + geometry
-          + ' geometry: no stored reference resolves this sweep, simulating '
-          + ('FV' if method == 0 else 'DG P' + str(method)) + ' at N_e = '
-          + str(n_ax) + ('' if n_par is None else ' and N_e^p = ' + str(n_par))
-          + ', double the last refinement step.')
-
-    simulation = bench_func.create_object_from_config(
-        config_data=copy.deepcopy(settings.get_model(
-            column_geometry=_GEOMETRY_BENCHMARK_GEOMETRIES_[geometry],
-            spatial_method_bulk=method,
-            **model_kwargs
-            )),
-        **build_kwargs
-        )
-
-    bench_func.run_simulation_in_verification([simulation], str(cadet_path))
-
-    return convergence.get_solution(simulation.filename, unit=unit)
-
-
-def geometry_performance_benchmark(case, spatial_method, small_test=False,
-                                   ref_filepath=None,
-                                   geometries=None, sma_particle_resolution=1,
-                                   cadet_path=None, output_path=None):
-    """Performance benchmark of one physical case on the column geometries.
-
-    case is 'SMA', the four-component GRM with kinetic steric mass action
-    binding of Fig. 5 of Breuer et al. (2023), 'LRMP_SMA', the same setting as
-    an LRMP, which is Fig. 3 and which resolves no particle at all and so
-    compares nothing but the bulk discretizations, or 'langmuir', the
-    two-component LRM with rapid-equilibrium Langmuir binding of Figs. 7 and 8
-    in its less disperse variant. spatial_method is 0 for the WENO finite volume scheme and
-    the polynomial degree for DG, used for the axial and the particle
-    discretization alike.
-
-    The refinement steps are those of the publication, see
-    _GEOMETRY_BENCHMARK_STEPS_, or two levels fewer per series for a small test.
-
-    geometries selects the column geometries, one of them or both, see
-    geometry_benchmark_geometries. sma_particle_resolution selects the particle
-    treatment of the SMA case, 0 for an LRMP and 1 for a GRM, see
-    geometry_benchmark_case.
-
-    Every spatial method of a case is measured against the same reference, which
-    is what makes them comparable to one another: the stored one where it
-    resolves the sweep, and otherwise one simulated at double the last
-    refinement step, which needs cadet_path and output_path.
-    """
-
-    case = geometry_benchmark_case(case, sma_particle_resolution)
-
-    if case not in _GEOMETRY_BENCHMARK_STEPS_:
-        raise ValueError(
-            'case must be one of ' + str(sorted(_GEOMETRY_BENCHMARK_STEPS_))
-            + ', got ' + str(case) + '.'
-            )
-
-    settings = _GEOMETRY_BENCHMARK_SETTINGS_[case]
-
-    model_kwargs = _geometry_benchmark_model_kwargs(case, spatial_method)
-
-    n_ax_start, n_levels = _geometry_benchmark_levels(
-        case, spatial_method, small_test)
-    needed = 2 * _geometry_benchmark_sweep_resolution(case, small_test)
-
-    cadet_configs = []
-    cadet_config_names = []
-    ref_files = []
     ax_discs = []
     par_discs = []
 
-    for geometry in geometry_benchmark_geometries(geometries):
+    for method in ax_methods:
 
-        reference, reference_points = _geometry_benchmark_reference(
-            case, geometry, ref_filepath)
+        n_start, n_levels = steps[method]
 
-        if reference is None or reference_points < needed:
-            if reference is not None:
-                print('Reference of the ' + case + ' benchmark on the '
-                      + geometry + ' geometry: the stored one resolves '
-                      + str(reference_points) + ' axial points, which does not '
-                      'out-resolve this sweep.')
-            reference = _geometry_benchmark_computed_reference(
-                case, geometry, small_test, cadet_path, output_path)
+        # A small test runs two levels fewer per series, but never fewer than
+        # two, since a single level is not a convergence study.
+        if small_test:
+            n_levels = max(n_levels - 2, 2)
 
-        cadet_configs.append(settings.get_model(
-            column_geometry=_GEOMETRY_BENCHMARK_GEOMETRIES_[geometry],
-            spatial_method_bulk=spatial_method,
-            **model_kwargs
-            ))
-        cadet_config_names.append(
-            geometry + '_' + _GEOMETRY_BENCHMARK_CONFIG_NAME_[case])
-        ref_files.append([reference])
-        ax_discs.append([bench_func.disc_list(n_ax_start, n_levels)])
+        # Without a reference solution the series runs one level further, so
+        # that its finest level can serve as the reference of that method.
+        if ref_file is None:
+            n_levels += 1
+
+        ax_discs.append(bench_func.disc_list(n_start, n_levels))
         par_discs.append(
-            [bench_func.disc_list(_GEOMETRY_BENCHMARK_PAR_START_, n_levels)]
-            if _GEOMETRY_BENCHMARK_PARTICLE_GRID_[case] else [None]
+            bench_func.disc_list(n_par_start, n_levels)
+            if resolves_particle else None
             )
 
-    n_settings = len(cadet_configs)
+    n_methods = len(ax_methods)
 
     return {
-        'cadet_config_jsons': cadet_configs,
-        'cadet_config_names': cadet_config_names,
-        'include_sens': [False] * n_settings,
-        'ref_files': ref_files,
-        'unit_IDs': [_GEOMETRY_BENCHMARK_UNIT_[case]] * n_settings,
-        'which': ['outlet'] * n_settings,
-        'idas_abstol': [[1e-8]] * n_settings,
-        'ax_methods': [[spatial_method]] * n_settings,
-        'ax_discs': ax_discs,
+        'cadet_config_jsons': [
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=0, column_geometry=column_geometry,
+                particle_type=particle_type,
+                **(dict(spatial_method_particle=0) if resolves_particle else {})
+                )
+            ],
+        'cadet_config_names': [
+            geometry_names[column_geometry] + '_'
+            + ('GRM' if resolves_particle else 'LRMP')
+            + '_reqSMA_4comp_benchmark1'
+            ],
+        'include_sens': [False],
+        'ref_files': [[ref_file] * n_methods],
+        'unit_IDs': ['000'],
+        'which': ['outlet'],
+        'idas_abstol': [[1e-8] * n_methods],
+        'ax_methods': [ax_methods],
+        'ax_discs': [ax_discs],
         'par_methods': [
-            [spatial_method if _GEOMETRY_BENCHMARK_PARTICLE_GRID_[case] else None]
-            ] * n_settings,
-        'par_discs': par_discs,
+            [method if resolves_particle else None for method in ax_methods]
+            ],
+        'par_discs': [par_discs],
         'disc_refinement_functions': [
-            [bench_func.create_object_from_config] for _ in range(n_settings)
-            ]
+            [bench_func.create_object_from_config] * n_methods
+            ],
         }
+
+
 
 
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
