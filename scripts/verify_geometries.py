@@ -3,7 +3,7 @@
 This script executes the column geometry verification and validation studies for a paper publication
 
 """ 
-  
+
 #%% Include packages
 import os
 import sys
@@ -23,14 +23,10 @@ from src.validation.Gritti2019_frustumGeometry.Gritti2019_fig8 import main as Gr
 from src.validation.Gu2015_radialFlowGeometry.Gu2015_fig14_3 import main as Gu2015_fig14_3
 from src.validation.Gu2015_radialFlowGeometry.Gu2015_fig14_5 import main as Gu2015_fig14_5
 from src.validation.Gu2015_radialFlowGeometry.Gu2015_fig14_6 import main as Gu2015_fig14_6
-from src.bench_configs import geometry_performance_benchmark
+from src.bench_configs import SMA_performance_benchmark
+from src.bench_configs import langmuir_performance_benchmark
 from src.bench_configs import add_benchmark
 from src.bench_func import run_convergence_analysis
-
-# Reference solutions of the performance benchmarks live in the repository, so
-# that a run in continuous integration finds them after a plain checkout.
-reference_data_path = str(Path(__file__).resolve().parent.parent / "data")
-
 
 @pytest.fixture
 def small_test(request):
@@ -67,12 +63,12 @@ def run_performance_langmuir_tests(request):
     return request.config.getoption("--run-performance-langmuir-tests")
 
 @pytest.fixture
-def column_geometry(request):
-    return request.config.getoption("--column-geometry")
+def column_geometries(request):
+    return request.config.getoption("--column-geometries")
 
 @pytest.fixture
-def sma_particle_resolution(request):
-    return request.config.getoption("--sma-particle-resolution")
+def sma_particle_resolutions(request):
+    return request.config.getoption("--sma-particle-resolutions")
 
 @pytest.fixture
 def commit_message(request):
@@ -94,7 +90,7 @@ def branch_name(request):
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
     run_EOC_tests, run_performance_sma_tests, run_performance_langmuir_tests,
-    run_validation_tests, n_reruns, column_geometry, sma_particle_resolution,
+    run_validation_tests, n_reruns, column_geometries, sma_particle_resolutions,
 ):
 
     sys.path.append(str(Path(".")))
@@ -105,6 +101,11 @@ def test_selected_model_groups(
     with project_repo.track_results(results_commit_message=commit_message, debug=rdm_debug_mode):
 
         print_cadet_versions(cadet_path)
+
+        delete_h5_files = False
+        n_jobs = -1
+        small_test = False
+        n_reruns = 0
 
         if run_EOC_tests:
 
@@ -120,24 +121,25 @@ def test_selected_model_groups(
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/transport")
 
-        # The two performance benchmarks of Breuer et al. (2023) on the radial
-        # flow and the conical column geometry, the four-component GRM with
-        # kinetic SMA binding of Fig. 5 and the two-component LRM with
-        # rapid-equilibrium Langmuir binding of Figs. 7 and 8 in its less
-        # disperse variant. They are selected separately, because the Langmuir
-        # one is by far the more expensive of the two and because two benchmarks
-        # sharing a machine do not have comparable compute times.
-        #
-        # small_test runs two refinement levels fewer per series than the
-        # publication; small_test=False runs its exact steps, see
-        # bench_configs.geometry_performance_benchmark.
-        performance_cases = []
+        performance_benchmarks = []
         if run_performance_sma_tests:
-            performance_cases.append('SMA')
+            performance_benchmarks.append([
+                SMA_performance_benchmark(
+                    small_test=small_test,
+                    column_geometry=geometry,
+                    particle_type=particle_type
+                )
+                for geometry in column_geometries
+                for particle_type in sma_particle_resolutions
+            ])
         if run_performance_langmuir_tests:
-            performance_cases.append('langmuir')
+            performance_benchmarks.append([
+                langmuir_performance_benchmark(
+                    small_test=small_test, column_geometry=geometry)
+                for geometry in column_geometries
+                ])
 
-        for performance_case in performance_cases:
+        for performance_benchmark in performance_benchmarks:
 
             chromatography_path = str(output_path) + "/chromatography"
             os.makedirs(chromatography_path, exist_ok=True)
@@ -155,17 +157,7 @@ def test_selected_model_groups(
             par_discs = []
             disc_refinement_functions = []
 
-            # The WENO finite volume scheme and DG of degrees three to five,
-            # all measured against the same stored reference per geometry.
-            for spatial_method in [0, 3, 4, 5]:
-
-                addition = geometry_performance_benchmark(
-                    case=performance_case, spatial_method=spatial_method,
-                    small_test=small_test, ref_filepath=reference_data_path,
-                    cadet_path=cadet_path, output_path=chromatography_path,
-                    geometries=column_geometry,
-                    sma_particle_resolution=sma_particle_resolution
-                    )
+            for addition in performance_benchmark:
 
                 add_benchmark(
                     cadet_configs, include_sens, ref_files, unit_IDs, which,
@@ -192,7 +184,7 @@ def test_selected_model_groups(
                 # Serial on purpose, whatever --n-jobs says: this benchmark
                 # measures compute times, and simulations that share cores do
                 # not have comparable ones.
-                n_jobs=1,
+                n_jobs=n_jobs,
                 rerun_sims=True,
                 disc_refinement_functions=disc_refinement_functions
                 )

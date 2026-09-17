@@ -1,3 +1,6 @@
+import argparse
+
+
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -7,6 +10,16 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError("Boolean value expected (true/false).")
+
+def str2list(v):
+    """A comma separated command line value as a list of its entries."""
+    if isinstance(v, (list, tuple)):
+        return list(v)
+    entries = [entry.strip() for entry in v.split(",") if entry.strip()]
+    if not entries:
+        raise argparse.ArgumentTypeError("Expected at least one comma separated entry.")
+    return entries
+
 
 def pytest_addoption(parser):
     parser.addoption("--small-test", type=str2bool, default=True)
@@ -18,20 +31,27 @@ def pytest_addoption(parser):
     # machine was doing.
     parser.addoption("--n-reruns", type=int, default=0)
 
-    # Column geometry of the performance benchmarks: "radial", "frustum" or
-    # "both". One at a time keeps the expensive sweeps tractable, since each
-    # geometry brings its own reference solution.
-    parser.addoption("--column-geometry", type=str, default="both")
+    # Column geometries the performance benchmarks are run on, comma separated.
+    # One at a time keeps the expensive sweeps tractable.
+    parser.addoption(
+        "--column-geometries", type=str2list,
+        default=['RADIAL_FLOW_CYLINDER_SHELL', 'AXIAL_FLOW_FRUSTUM',
+                 'AXIAL_FLOW_CYLINDER']
+        )
 
     parser.addoption("--run-performance-tests", type=str2bool, default=True)
     # The column geometry performance benchmarks are selected per physical case,
     # so that the two can be run separately, see scripts/verify_geometries.py
     parser.addoption("--run-performance-sma-tests", type=str2bool, default=True)
     parser.addoption("--run-performance-langmuir-tests", type=str2bool, default=True)
-    # Particle treatment of the SMA benchmark: 0 runs it as an LRMP, which has
-    # no particle grid and so compares the bulk discretizations alone, 1 as the
-    # GRM of the publication.
-    parser.addoption("--sma-particle-resolution", type=int, default=1)
+    # Particle treatments the SMA benchmark is run with, comma separated. A
+    # general rate particle is resolved in space, which is the case of the
+    # publication; a homogeneous one carries no particle grid and so leaves the
+    # bulk discretizations as the only difference between the methods.
+    parser.addoption(
+        "--sma-particle-resolutions", type=str2list,
+        default=['HOMOGENEOUS_PARTICLE', 'GENERAL_RATE_PARTICLE']
+        )
     parser.addoption("--run-validation-tests", type=str2bool, default=True)
     parser.addoption("--run-eoc-tests", type=str2bool, default=True)
 
