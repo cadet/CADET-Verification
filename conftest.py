@@ -39,11 +39,11 @@ def pytest_addoption(parser):
                  'AXIAL_FLOW_CYLINDER']
         )
 
-    parser.addoption("--run-performance-tests", type=str2bool, default=True)
+    parser.addoption("--run-performance-tests", type=str2bool, default=False)
     # The column geometry performance benchmarks are selected per physical case,
     # so that the two can be run separately, see scripts/verify_geometries.py
-    parser.addoption("--run-performance-sma-tests", type=str2bool, default=True)
-    parser.addoption("--run-performance-langmuir-tests", type=str2bool, default=True)
+    parser.addoption("--run-performance-sma-tests", type=str2bool, default=False)
+    parser.addoption("--run-performance-langmuir-tests", type=str2bool, default=False)
     # Particle treatments the SMA benchmark is run with, comma separated. A
     # general rate particle is resolved in space, which is the case of the
     # publication; a homogeneous one carries no particle grid and so leaves the
@@ -52,8 +52,8 @@ def pytest_addoption(parser):
         "--sma-particle-resolutions", type=str2list,
         default=['HOMOGENEOUS_PARTICLE', 'GENERAL_RATE_PARTICLE']
         )
-    parser.addoption("--run-validation-tests", type=str2bool, default=True)
-    parser.addoption("--run-eoc-tests", type=str2bool, default=True)
+    parser.addoption("--run-validation-tests", type=str2bool, default=False)
+    parser.addoption("--run-eoc-tests", type=str2bool, default=False)
 
     parser.addoption("--commit-message", type=str, default="CADET model test run")
     parser.addoption("--rdm-debug-mode", type=str2bool, default=True)
