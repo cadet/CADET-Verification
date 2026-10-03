@@ -802,7 +802,7 @@ def SMA_performance_benchmark(
         'ref_files': [[ref_file] * n_methods],
         'unit_IDs': ['000'],
         'which': ['outlet'],
-        'idas_abstol': [[1e-8] * n_methods],
+        'idas_abstol': [[1e-8 if resolves_particle else 1e-12] * n_methods],
         'ax_methods': [ax_methods],
         'ax_discs': [ax_discs],
         'par_methods': [
