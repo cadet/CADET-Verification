@@ -35,9 +35,15 @@ jobs:
             bash -c "
               set -e
 
-              echo 'Extracting branch name from pytest args...'
-              VERIFICATION_BRANCH=\$(echo \"\$PYTEST_ARGS\" | grep -oP '(?<=--branch-name=)[^ ]*')
-              VERIFICATION_BRANCH=\${VERIFICATION_BRANCH:-main}
+              echo 'Parsing pytest args...'
+              python -c 'import os, shlex, sys; [sys.stdout.write(arg + chr(0)) for arg in shlex.split(os.environ[\"PYTEST_ARGS\"])]' > /tmp/pytest_args
+              mapfile -d '' ARGS < /tmp/pytest_args
+              VERIFICATION_BRANCH=main
+              for arg in \"\${ARGS[@]}\"; do
+                case \"\$arg\" in
+                  --branch-name=*) VERIFICATION_BRANCH=\"\${arg#--branch-name=}\" ;;
+                esac
+              done
               echo \"Using CADET-Verification branch: \$VERIFICATION_BRANCH\"
 
               echo 'Creating and entering workspace...'
@@ -46,7 +52,7 @@ jobs:
               echo 'Installing keyring and setting up token'
               pip install keyring keyrings.alt
 
-              echo '\${GITHUB_TOKEN}' | keyring set https://github.com cadet-bot
+              echo \"\$GITHUB_TOKEN\" | keyring set https://github.com cadet-bot
 
               echo 'Setting up Git credential helper'
               git config --global credential.helper store
@@ -64,8 +70,9 @@ jobs:
               pip install .
 
               echo 'Running verification'
-              pytest -s \$PYTEST_ARGS scripts/verify_cadet-core.py \
-                --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\"
+              pytest -s scripts/verify_cadet-core.py \
+                --commit-message=\"CADET-Core verification via \$EVENT_NAME on \$(date +%F)\" \
+                \"\${ARGS[@]}\"
 
               echo 'Running rdm checks and pushing'
               rdm check
