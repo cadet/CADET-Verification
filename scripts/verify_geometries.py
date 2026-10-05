@@ -26,6 +26,9 @@ from src.validation.Gu2015_radialFlowGeometry.Gu2015_fig14_6 import main as Gu20
 from src.bench_configs import SMA_performance_benchmark
 from src.bench_configs import langmuir_performance_benchmark
 from src.bench_configs import add_benchmark
+from src.bench_configs import GEOMETRY_NAMES, GEOMETRY_REFERENCES, geometry_reference
+from src.bench_func import create_object_from_config
+from src.bench_func import run_simulation_in_verification
 from src.bench_func import run_convergence_analysis
 
 @pytest.fixture
@@ -87,10 +90,96 @@ def branch_name(request):
     return request.config.getoption("--branch-name")
 
 
+@pytest.fixture
+def reference_setting(request):
+    return request.config.getoption("--reference-setting")
+
+@pytest.fixture
+def reference_geometry(request):
+    return request.config.getoption("--reference-geometry")
+
+# The geometries are selected by the prefix their output files carry, which is
+# shorter on the command line than the CADET geometry name.
+REFERENCE_GEOMETRIES = {
+    prefix: geometry for geometry, prefix in GEOMETRY_NAMES.items()
+    }
+
+
+def selected_reference(option, value, choices):
+    """The one choice a reference run is given, as named on the command line."""
+    if value is None:
+        raise ValueError(
+            option + ' is required to compute a reference and is one of '
+            + ', '.join(choices) + '.'
+            )
+
+    if value.strip() not in choices:
+        raise ValueError(
+            option + ' is one of ' + ', '.join(choices) + ', got ' + value + '.'
+            )
+
+    return value.strip()
+
+
+def compute_geometry_reference(setting, geometry, output_path, cadet_path):
+    """Simulate the reference solution of one performance benchmark.
+
+    Every setting of a performance benchmark is compared against a single
+    reference, shared by all of its spatial methods, which is what makes the
+    methods comparable to one another. Without one,
+    bench_func.run_convergence_analysis falls back to self-convergence, where
+    each method takes its own finest level as its reference, and the last levels
+    of every sweep then say more about that level than about the method.
+
+    A reference is one simulation at a resolution beyond the sweep it serves and
+    at the time integration tolerance of Breuer et al. (2023),
+    doi:10.1016/j.compchemeng.2023.108340, and costs hours rather than minutes,
+    which is why one run computes one of them. It is written next to the
+    simulations of the sweep, which is where the sweep looks it up by name.
+    """
+
+    reference = geometry_reference(
+        setting=setting, column_geometry=REFERENCE_GEOMETRIES[geometry]
+        )
+
+    simulation = create_object_from_config(
+        config_data=reference['cadet_config_json'],
+        setting_name=reference['setting_name'],
+        unit_id=reference['unit_id'],
+        ax_method=reference['ax_method'],
+        ax_cells=reference['ax_cells'],
+        par_method=reference['par_method'],
+        par_cells=reference['par_cells'],
+        output_path=output_path,
+        idas_abstol=reference['idas_abstol'],
+        USE_COLLOCATION_DG=reference['use_collocation_dg'],
+        include_sens=False,
+        )
+
+    print(
+        f"Computing the {setting} reference on the {geometry} geometry: "
+        f"{simulation.filename}"
+        )
+
+    run_simulation_in_verification([simulation], cadet_path)
+
+    print(
+        f"Done in {convergence.get_compute_time(simulation.filename):.1f} "
+        f"seconds, {convergence.get_idas_timesteps(simulation.filename):.0f} "
+        "time steps."
+        )
+    print(
+        f"Pass {Path(simulation.filename).name} as the ref_file of the "
+        "benchmark configuration of this setting to compare its spatial methods "
+        "against it."
+        )
+
+
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
     run_EOC_tests, run_performance_sma_tests, run_performance_langmuir_tests,
     run_validation_tests, n_reruns, column_geometries, sma_particle_resolutions,
+    reference_setting, reference_geometry,
 ):
 
     sys.path.append(str(Path(".")))
@@ -106,6 +195,27 @@ def test_selected_model_groups(
         n_jobs = -1
         small_test = False
         n_reruns = 0
+
+        # Computing no reference is the default, since one of them is a job of
+        # its own: naming a setting and a geometry asks for that one reference
+        # and nothing else.
+        if reference_setting is not None or reference_geometry is not None:
+
+            chromatography_path = str(output_path) + "/chromatography"
+            os.makedirs(chromatography_path, exist_ok=True)
+
+            compute_geometry_reference(
+                setting=selected_reference(
+                    '--reference-setting', reference_setting,
+                    sorted(GEOMETRY_REFERENCES)
+                    ),
+                geometry=selected_reference(
+                    '--reference-geometry', reference_geometry,
+                    sorted(REFERENCE_GEOMETRIES)
+                    ),
+                output_path=chromatography_path,
+                cadet_path=cadet_path,
+                )
 
         if run_EOC_tests:
 

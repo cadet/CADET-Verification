@@ -646,7 +646,7 @@ GEOMETRY_NAMES = {
 def langmuir_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7,
-        idas_abstol=1e-12):
+        idas_abstol=1e-10):
     """Performance benchmark of the two-component LRM with Langmuir binding.
 
     Figs. 7 and 8 of Breuer et al. (2023),
@@ -722,7 +722,7 @@ def SMA_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER',
         particle_type='GENERAL_RATE_PARTICLE',
-        idas_abstol=1e-12):
+        idas_abstol=None):
     """Performance benchmark of the four-component load-wash-elute SMA setting.
 
     Fig. 5 of Breuer et al. (2023), doi:10.1016/j.compchemeng.2023.108340, on
@@ -759,6 +759,8 @@ def SMA_performance_benchmark(
 
     resolves_particle = particle_type == 'GENERAL_RATE_PARTICLE'
 
+    if idas_abstol is None:
+        idas_abstol = 1e-10 if resolves_particle else 1e-12
     ax_discs = []
     par_discs = []
 
@@ -814,7 +816,136 @@ def SMA_performance_benchmark(
         }
 
 
+# %% Reference solutions of the column geometry performance benchmarks
 
+
+# Discretization and time integration tolerance of the reference solution of each
+# setting of the column geometry performance benchmarks, see
+# scripts/verify_geometries.py. One reference per setting and geometry
+# is shared by all spatial methods of that sweep, which is what makes the methods
+# comparable to one another.
+#
+# Every resolution is beyond the finest level of the sweep it serves, at degree
+# five, where the DG scheme has long left the oscillatory regime of the Langmuir
+# setting. The Langmuir sweep already refines DG to 1024 elements, so its
+# reference is one level beyond that; the two SMA sweeps are much coarser and
+# their references sit several levels beyond their finest level.
+#
+# The tolerance is the one of Breuer et al. (2023),
+# doi:10.1016/j.compchemeng.2023.108340, chosen there so that the spatial error
+# dominates. create_object_from_config derives RELTOL and ALGTOL from ABSTOL as
+# ABSTOL * 100, so 1e-12 gives the relative tolerance 1e-10 of the publication.
+# At a looser tolerance every spatial method of a setting stops at the same
+# error, which for the Langmuir setting on the radial geometry is an L1 error of
+# about 2e-2, well above the range the benchmark is about.
+GEOMETRY_REFERENCES = {
+    'langmuir': {
+        'polydeg': 5,
+        'n_elements': 2048,
+        'n_par_elements': None,
+        'idas_abstol': 1e-10,
+        'use_collocation_dg': 0,
+        },
+    'sma_lrmp': {
+        'polydeg': 5,
+        'n_elements': 256,
+        'n_par_elements': None,
+        'idas_abstol': 1e-12,
+        'use_collocation_dg': 0,
+        },
+    'sma_grm': {
+        'polydeg': 5,
+        'n_elements': 64,
+        'n_par_elements': 16,
+        'idas_abstol': 1e-10,
+        'use_collocation_dg': 0,
+        },
+    }
+
+
+def geometry_reference(setting, column_geometry):
+    """The reference solution of one column geometry performance benchmark.
+
+    Returns everything needed to simulate the reference of the given setting on
+    the given geometry: the model, the name the sweep expects the file under and
+    the discretization and tolerance it is to be run with, which are the entry
+    of GEOMETRY_REFERENCES.
+
+    Parameters
+    ----------
+    setting : string
+        One of the keys of GEOMETRY_REFERENCES.
+    column_geometry : string
+        One of the keys of GEOMETRY_NAMES.
+
+    Returns
+    -------
+    dict
+    """
+    if setting not in GEOMETRY_REFERENCES:
+        raise ValueError(
+            'setting must be one of ' + str(sorted(GEOMETRY_REFERENCES))
+            + ', got ' + str(setting) + '.'
+            )
+
+    if column_geometry not in GEOMETRY_NAMES:
+        raise ValueError(
+            'column_geometry must be one of ' + str(sorted(GEOMETRY_NAMES))
+            + ', got ' + str(column_geometry) + '.'
+            )
+
+    reference = GEOMETRY_REFERENCES[setting]
+
+    prefix = GEOMETRY_NAMES[column_geometry]
+
+    if setting == 'langmuir':
+
+        cadet_config_json = setting_Col1D_langLRM_2comp_benchmark1.get_model(
+            spatial_method_bulk=0, column_geometry=column_geometry
+            )
+        setting_name = prefix + '_LRM_langmuir_2comp_benchmark1'
+        unit_id = '001'
+        par_method = None
+        par_cells = None
+
+    else:
+
+        resolves_particle = setting == 'sma_grm'
+        particle_type = (
+            'GENERAL_RATE_PARTICLE' if resolves_particle
+            else 'HOMOGENEOUS_PARTICLE'
+            )
+
+        cadet_config_json = setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+            spatial_method_bulk=0, column_geometry=column_geometry,
+            particle_type=particle_type,
+            **(dict(spatial_method_particle=0) if resolves_particle else {})
+            )
+        setting_name = (
+            prefix + '_' + ('GRM' if resolves_particle else 'LRMP')
+            + '_reqSMA_4comp_benchmark1'
+            )
+        unit_id = '000'
+        par_method = reference['polydeg'] if resolves_particle else None
+        par_cells = reference['n_par_elements'] if resolves_particle else None
+
+        if resolves_particle and par_cells is None:
+            raise ValueError(
+                'the general rate particle of the SMA setting is resolved in '
+                'space and so needs a number of particle elements.'
+                )
+
+    return {
+        'cadet_config_json': cadet_config_json,
+        'setting_name': setting_name,
+        'unit_id': unit_id,
+        'ax_method': reference['polydeg'],
+        'ax_cells': reference['n_elements'],
+        'par_method': par_method,
+        'par_cells': par_cells,
+        'idas_abstol': reference['idas_abstol'],
+        'use_collocation_dg': reference['use_collocation_dg'],
+        }
 
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 

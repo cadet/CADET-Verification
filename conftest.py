@@ -55,6 +55,16 @@ def pytest_addoption(parser):
     parser.addoption("--run-validation-tests", type=str2bool, default=False)
     parser.addoption("--run-eoc-tests", type=str2bool, default=False)
 
+    # The reference solution of a column geometry performance benchmark, see
+    # scripts/verify_geometries.py. One setting and one geometry per run: a
+    # reference is expensive enough that its run is the whole job. Naming
+    # neither of the two computes no reference, which is the default.
+    # The discretization and the tolerance a reference is computed at are
+    # bench_configs.GEOMETRY_REFERENCES and are not overridden per run, so that
+    # a reference always carries the resolution the repository records for it.
+    parser.addoption("--reference-setting", type=str, default=None)
+    parser.addoption("--reference-geometry", type=str, default=None)
+
     parser.addoption("--commit-message", type=str, default="CADET model test run")
     parser.addoption("--rdm-debug-mode", type=str2bool, default=True)
     parser.addoption("--rdm-push", type=str2bool, default=False)
