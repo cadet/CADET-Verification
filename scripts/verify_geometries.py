@@ -181,6 +181,7 @@ def test_selected_model_groups(
                 par_methods=par_methods,
                 par_discs=par_discs,
                 idas_abstol=idas_abstol,
+                USE_COLLOCATION_DG=0,
                 # Serial on purpose, whatever --n-jobs says: this benchmark
                 # measures compute times, and simulations that share cores do
                 # not have comparable ones.
@@ -209,6 +210,7 @@ def test_selected_model_groups(
                     par_methods=par_methods,
                     par_discs=par_discs,
                     idas_abstol=idas_abstol,
+                    USE_COLLOCATION_DG=0,
                     n_jobs=1,
                     rerun_sims=False,
                     disc_refinement_functions=disc_refinement_functions
