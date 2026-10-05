@@ -633,9 +633,20 @@ def paper_geometry_LRMPdynLin_benchmark(setting_name,
 # %% Performance benchmarks of Breuer et al. (2023)
 
 
+# Column geometries of the performance benchmarks of the column geometry
+# publication, mapped to the prefix of their file names, so that the geometries
+# do not write over one another.
+GEOMETRY_NAMES = {
+    'AXIAL_FLOW_CYLINDER': 'axial',
+    'RADIAL_FLOW_CYLINDER_SHELL': 'radial',
+    'AXIAL_FLOW_FRUSTUM': 'frustum',
+    }
+
+
 def langmuir_performance_benchmark(
         small_test=False, ref_file=None,
-        column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7):
+        column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7,
+        idas_abstol=1e-12):
     """Performance benchmark of the two-component LRM with Langmuir binding.
 
     Figs. 7 and 8 of Breuer et al. (2023),
@@ -648,17 +659,9 @@ def langmuir_performance_benchmark(
     runs one level further and takes its own finest level as its reference.
     """
 
-    # Prefixes the file names, so that the geometries do not write over one
-    # another.
-    geometry_names = {
-        'AXIAL_FLOW_CYLINDER': 'axial',
-        'RADIAL_FLOW_CYLINDER_SHELL': 'radial',
-        'AXIAL_FLOW_FRUSTUM': 'frustum',
-        }
-
-    if column_geometry not in geometry_names:
+    if column_geometry not in GEOMETRY_NAMES:
         raise ValueError(
-            'column_geometry must be one of ' + str(sorted(geometry_names))
+            'column_geometry must be one of ' + str(sorted(GEOMETRY_NAMES))
             + ', got ' + str(column_geometry) + '.'
             )
 
@@ -698,13 +701,13 @@ def langmuir_performance_benchmark(
                 )
             ],
         'cadet_config_names': [
-            geometry_names[column_geometry] + '_LRM_langmuir_2comp_benchmark1'
+            GEOMETRY_NAMES[column_geometry] + '_LRM_langmuir_2comp_benchmark1'
             ],
         'include_sens': [False],
         'ref_files': [[ref_file] * n_methods],
         'unit_IDs': ['001'],
         'which': ['outlet'],
-        'idas_abstol': [[1e-8] * n_methods],
+        'idas_abstol': [[idas_abstol] * n_methods],
         'ax_methods': [ax_methods],
         'ax_discs': [ax_discs],
         'par_methods': [[None] * n_methods],
@@ -718,7 +721,8 @@ def langmuir_performance_benchmark(
 def SMA_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER',
-        particle_type='GENERAL_RATE_PARTICLE'):
+        particle_type='GENERAL_RATE_PARTICLE',
+        idas_abstol=1e-12):
     """Performance benchmark of the four-component load-wash-elute SMA setting.
 
     Fig. 5 of Breuer et al. (2023), doi:10.1016/j.compchemeng.2023.108340, on
@@ -732,17 +736,9 @@ def SMA_performance_benchmark(
     runs one level further and takes its own finest level as its reference.
     """
 
-    # Prefixes the file names, so that the geometries do not write over one
-    # another.
-    geometry_names = {
-        'AXIAL_FLOW_CYLINDER': 'axial',
-        'RADIAL_FLOW_CYLINDER_SHELL': 'radial',
-        'AXIAL_FLOW_FRUSTUM': 'frustum',
-        }
-
-    if column_geometry not in geometry_names:
+    if column_geometry not in GEOMETRY_NAMES:
         raise ValueError(
-            'column_geometry must be one of ' + str(sorted(geometry_names))
+            'column_geometry must be one of ' + str(sorted(GEOMETRY_NAMES))
             + ', got ' + str(column_geometry) + '.'
             )
 
@@ -797,7 +793,7 @@ def SMA_performance_benchmark(
                 )
             ],
         'cadet_config_names': [
-            geometry_names[column_geometry] + '_'
+            GEOMETRY_NAMES[column_geometry] + '_'
             + ('GRM' if resolves_particle else 'LRMP')
             + '_reqSMA_4comp_benchmark1'
             ],
@@ -805,7 +801,7 @@ def SMA_performance_benchmark(
         'ref_files': [[ref_file] * n_methods],
         'unit_IDs': ['000'],
         'which': ['outlet'],
-        'idas_abstol': [[1e-8 if resolves_particle else 1e-12] * n_methods],
+        'idas_abstol': [[idas_abstol] * n_methods],
         'ax_methods': [ax_methods],
         'ax_discs': [ax_discs],
         'par_methods': [
