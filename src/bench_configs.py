@@ -753,7 +753,10 @@ def SMA_performance_benchmark(
     # DG P4 up to 16 and 4 elements; degree five repeats the steps of degree
     # four.
     ax_methods = [0, 3, 4, 5]
-    steps = {0: (4, 8), 3: (4, 4), 4: (4, 3), 5: (4, 3)}
+    if particle_type == 'GENERAL_RATE_PARTICLE':
+        steps = {0: (4, 8), 3: (4, 4), 4: (4, 3), 5: (4, 3)}
+    else:
+        steps = {0: (4, 8), 3: (2, 4), 4: (2, 4), 5: (1, 4)}
 
     # Particle elements of the coarsest level, refined along with the axial grid.
     n_par_start = 1
