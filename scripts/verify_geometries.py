@@ -193,7 +193,7 @@ def test_selected_model_groups(
         print_cadet_versions(cadet_path)
 
         delete_h5_files = False
-        n_jobs = -1
+        n_jobs = 1
         small_test = False
         n_reruns = 0
 
