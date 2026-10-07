@@ -947,6 +947,93 @@ def geometry_reference(setting, column_geometry):
         'use_collocation_dg': reference['use_collocation_dg'],
         }
 
+# Subdirectory of the data directory holding the reference solutions of the
+# performance benchmarks, next to the transport references of the EOC studies,
+# see src/geometry_references.py.
+GEOMETRY_REFERENCE_SUBDIR = os.path.join('CADET-Core_reference', 'chromatography')
+
+
+def geometry_reference_path(setting, column_geometry, data_dir):
+    """Path of the stored reference solution of a performance benchmark.
+
+    The file is named as the sweep names its own simulations, so that it is
+    recognisable as the resolution it was computed at, see
+    scripts/verify_geometries.py, which computes it.
+
+    Parameters
+    ----------
+    setting : string
+        One of the keys of GEOMETRY_REFERENCES.
+    column_geometry : string
+        One of the keys of GEOMETRY_NAMES.
+    data_dir : string
+        Path of the data directory.
+
+    Returns
+    -------
+    string
+    """
+    reference = geometry_reference(setting, column_geometry)
+
+    return bench_func.create_object_from_config(
+        config_data=reference['cadet_config_json'],
+        setting_name=reference['setting_name'],
+        unit_id=reference['unit_id'],
+        ax_method=reference['ax_method'],
+        ax_cells=reference['ax_cells'],
+        par_method=reference['par_method'],
+        par_cells=reference['par_cells'],
+        output_path=os.path.join(data_dir, GEOMETRY_REFERENCE_SUBDIR),
+        only_return_name=True,
+        include_sens=False,
+        )
+
+
+def geometry_reference_simulation(setting, column_geometry, data_dir,
+                                  verbose=True):
+    """The stored reference solution of a performance benchmark, or None.
+
+    Handed to the benchmark configuration as its ref_file, which makes all of
+    its spatial methods comparable to one another. A setting whose reference has
+    not been computed yet is reported as None, upon which
+    bench_func.run_convergence_analysis falls back to self-convergence, i.e.
+    every method computes one level beyond its sweep and takes that as its own
+    reference.
+
+    Parameters
+    ----------
+    setting : string
+        One of the keys of GEOMETRY_REFERENCES.
+    column_geometry : string
+        One of the keys of GEOMETRY_NAMES.
+    data_dir : string
+        Path of the data directory. None disables the references.
+    verbose : bool
+        Report which reference is used.
+
+    Returns
+    -------
+    Cadet object or None
+    """
+    if data_dir is None:
+        return None
+
+    path = geometry_reference_path(setting, column_geometry, data_dir)
+    name = os.path.basename(path)
+
+    if os.path.exists(path):
+        if verbose:
+            print(f"{setting} on {GEOMETRY_NAMES[column_geometry]}: "
+                  f"reference {name} for all methods")
+        return convergence.get_simulation(path)
+
+    if verbose:
+        print(f"WARNING {setting} on {GEOMETRY_NAMES[column_geometry]}: the "
+              f"reference {name} is not in the reference data directory, "
+              "falling back to self-convergence")
+
+    return None
+
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 

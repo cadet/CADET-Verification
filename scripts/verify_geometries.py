@@ -27,6 +27,7 @@ from src.bench_configs import SMA_performance_benchmark
 from src.bench_configs import langmuir_performance_benchmark
 from src.bench_configs import add_benchmark
 from src.bench_configs import GEOMETRY_NAMES, GEOMETRY_REFERENCES, geometry_reference
+from src.bench_configs import geometry_reference_simulation
 from src.bench_func import create_object_from_config
 from src.bench_func import run_simulation_in_verification
 from src.bench_func import run_convergence_analysis
@@ -231,13 +232,24 @@ def test_selected_model_groups(
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/transport")
 
+        # The reference solutions are inputs, not results: a sweep reads the one
+        # of its setting and geometry from the data directory and never computes
+        # it, see the reference block above, which does.
+        reference_data_path = str(Path(__file__).resolve().parent.parent / 'data')
+
         performance_benchmarks = []
         if run_performance_sma_tests:
             performance_benchmarks.append([
                 SMA_performance_benchmark(
                     small_test=small_test,
                     column_geometry=geometry,
-                    particle_type=particle_type
+                    particle_type=particle_type,
+                    ref_file=geometry_reference_simulation(
+                        'sma_grm'
+                        if particle_type == 'GENERAL_RATE_PARTICLE'
+                        else 'sma_lrmp',
+                        geometry, reference_data_path
+                        )
                 )
                 for geometry in column_geometries
                 for particle_type in sma_particle_resolutions
@@ -245,7 +257,10 @@ def test_selected_model_groups(
         if run_performance_langmuir_tests:
             performance_benchmarks.append([
                 langmuir_performance_benchmark(
-                    small_test=small_test, column_geometry=geometry)
+                    small_test=small_test, column_geometry=geometry,
+                    ref_file=geometry_reference_simulation(
+                        'langmuir', geometry, reference_data_path)
+                    )
                 for geometry in column_geometries
                 ])
 
