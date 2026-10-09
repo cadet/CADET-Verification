@@ -102,7 +102,6 @@ def CSTR_PBM_growth(n_x, cadet_path, output_path):
     model.root.input.model.unit_001.init_c = initial_c
     model.root.input.model.unit_001.init_liquid_volume = 500e-6
     model.root.input.model.unit_001.const_solid_volume = 0.0
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
 
     # crystallization
     model.root.input.model.unit_001.nreac_liquid = 1
@@ -459,7 +458,6 @@ def PureAgg_Golovin(n_x: 'int, number of bins', x_c, x_max, v_0, N_0, beta_0, t,
     model.root.input.model.unit_001.init_c = initial_c
     model.root.input.model.unit_001.init_volume = 500e-6
     model.root.input.model.unit_001.const_solid_volume = 0.0
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
 
     # crystallization reactions
     model.root.input.model.unit_001.nreac_liquid = 1
@@ -559,7 +557,6 @@ def PureFrag_LinBi(n_x: 'int, number of bins', x_c, x_max, S_0, t, cadet_path, o
     model.root.input.model.unit_001.init_c = initial_c
     model.root.input.model.unit_001.init_volume = 500e-6
     model.root.input.model.unit_001.const_solid_volume = 0.0
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
 
     # crystallization reactions
     model.root.input.model.unit_001.nreac_liquid = 1
@@ -660,7 +657,6 @@ def Agg_frag(n_x: 'int, number of bins', x_c, x_max, beta_0, S_0, t, cadet_path,
     model.root.input.model.unit_001.init_c = initial_c
     model.root.input.model.unit_001.init_volume = 500e-6
     model.root.input.model.unit_001.const_solid_volume = 0.0
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
 
     # crystallization reactions
     model.root.input.model.unit_001.nreac_liquid = 1
@@ -784,7 +780,6 @@ def CSTR_PBM_aggregation_fragmentation(n_x: 'int, number of bins', x_c, x_max, g
     model.root.input.model.unit_001.init_c = initial_c
     model.root.input.model.unit_001.init_volume = 500e-6
     model.root.input.model.unit_001.const_solid_volume = 0.0
-    model.root.input.model.unit_001.adsorption_model = 'NONE'
 
     # crystallization reaction
     model.root.input.model.unit_001.nreac_liquid = 1
