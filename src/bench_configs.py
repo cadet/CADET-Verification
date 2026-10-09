@@ -643,10 +643,34 @@ GEOMETRY_NAMES = {
     }
 
 
+def _selected_ax_methods(ax_methods, steps):
+    """The spatial methods a sweep is run with, in the order of its steps.
+
+    A method is the polynomial degree of the DG discretization, or zero for the
+    WENO finite volume scheme. None selects all of them, which is the whole
+    benchmark; a subset reruns part of it, for instance after a change that
+    only affects one of the methods. The order of the steps is kept whatever
+    order the selection is given in, so that the tables stay comparable.
+    """
+    if ax_methods is None:
+        return list(steps)
+
+    ax_methods = [int(method) for method in ax_methods]
+
+    unknown = sorted(set(ax_methods) - set(steps))
+    if unknown:
+        raise ValueError(
+            'ax_methods must be a subset of ' + str(sorted(steps)) + ', got '
+            + str(unknown) + '.'
+            )
+
+    return [method for method in steps if method in ax_methods]
+
+
 def langmuir_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7,
-        idas_abstol=1e-10):
+        idas_abstol=1e-10, ax_methods=None):
     """Performance benchmark of the two-component LRM with Langmuir binding.
 
     Figs. 7 and 8 of Breuer et al. (2023),
@@ -670,8 +694,8 @@ def langmuir_performance_benchmark(
     # the resolution. Table S5, the left panel of Fig. 7, lists FV from 32 to
     # 65536 cells and both DG degrees from 8 to 1024 elements; degree five
     # repeats the steps of degree four.
-    ax_methods = [0, 3, 4, 5]
     steps = {0: (32, 12), 3: (8, 8), 4: (8, 8), 5: (8, 8)}
+    ax_methods = _selected_ax_methods(ax_methods, steps)
 
     ax_discs = []
 
@@ -722,7 +746,7 @@ def SMA_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER',
         particle_type='GENERAL_RATE_PARTICLE',
-        idas_abstol=None):
+        idas_abstol=None, ax_methods=None):
     """Performance benchmark of the four-component load-wash-elute SMA setting.
 
     Fig. 5 of Breuer et al. (2023), doi:10.1016/j.compchemeng.2023.108340, on
@@ -748,11 +772,12 @@ def SMA_performance_benchmark(
     # shows FV up to 512 cells and 128 particle cells, DG P3 up to 32 and 8 and
     # DG P4 up to 16 and 4 elements; degree five repeats the steps of degree
     # four.
-    ax_methods = [0, 3, 4, 5]
     if particle_type == 'GENERAL_RATE_PARTICLE':
         steps = {0: (4, 8), 3: (4, 4), 4: (4, 3), 5: (4, 3)}
     else:
         steps = {0: (4, 8), 3: (2, 4), 4: (2, 4), 5: (1, 4)}
+
+    ax_methods = _selected_ax_methods(ax_methods, steps)
 
     # Particle elements of the coarsest level, refined along with the axial grid.
     n_par_start = 1

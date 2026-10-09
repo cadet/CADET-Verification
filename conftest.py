@@ -52,6 +52,10 @@ def pytest_addoption(parser):
         "--sma-particle-resolutions", type=str2list,
         default=['HOMOGENEOUS_PARTICLE', 'GENERAL_RATE_PARTICLE']
         )
+    # Spatial methods of the performance benchmarks, comma separated, as the
+    # polynomial degree of the DG discretization or zero for the WENO finite
+    # volume scheme. Defaults to all of them; a subset reruns part of a sweep.
+    parser.addoption("--spatial-methods", type=str2list, default=None)
     parser.addoption("--run-validation-tests", type=str2bool, default=False)
     parser.addoption("--run-eoc-tests", type=str2bool, default=False)
 

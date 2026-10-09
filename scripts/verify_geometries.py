@@ -75,6 +75,10 @@ def sma_particle_resolutions(request):
     return request.config.getoption("--sma-particle-resolutions")
 
 @pytest.fixture
+def spatial_methods(request):
+    return request.config.getoption("--spatial-methods")
+
+@pytest.fixture
 def commit_message(request):
     return request.config.getoption("--commit-message")
 
@@ -180,7 +184,7 @@ def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
     run_EOC_tests, run_performance_sma_tests, run_performance_langmuir_tests,
     run_validation_tests, n_reruns, column_geometries, sma_particle_resolutions,
-    reference_setting, reference_geometry,
+    spatial_methods, reference_setting, reference_geometry,
 ):
 
     sys.path.append(str(Path(".")))
@@ -244,6 +248,7 @@ def test_selected_model_groups(
                     small_test=small_test,
                     column_geometry=geometry,
                     particle_type=particle_type,
+                    ax_methods=spatial_methods,
                     ref_file=geometry_reference_simulation(
                         'sma_grm'
                         if particle_type == 'GENERAL_RATE_PARTICLE'
@@ -258,6 +263,7 @@ def test_selected_model_groups(
             performance_benchmarks.append([
                 langmuir_performance_benchmark(
                     small_test=small_test, column_geometry=geometry,
+                    ax_methods=spatial_methods,
                     ref_file=geometry_reference_simulation(
                         'langmuir', geometry, reference_data_path)
                     )
