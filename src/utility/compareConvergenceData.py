@@ -81,6 +81,39 @@ SEVERITY_DESCRIPTIONS: Dict[str, str] = {
 
 SIM_TIME_KEY = "Sim. time"
 
+# Error and EOC keys of the same norm, used by the convergence screen.
+ERROR_EOC_KEYS: Tuple[Tuple[str, str], ...] = (
+    ("Max. error", "Max. EOC"),
+    ("$L^1$ error", "$L^1$ EOC"),
+    ("$L^2$ error", "$L^2$ EOC"),
+)
+
+# Compute times below this many seconds are dominated by start-up and say
+# nothing about performance, so they are left out of the timing analysis.
+SIM_TIME_FLOOR = 0.05
+
+# A file whose median compute time ratio deviates from the median ratio of the
+# whole run by more than this factor is reported as a timing outlier. Runs on
+# different machines differ by a factor that applies to every simulation, which
+# is what normalizing against the run median removes.
+SIM_TIME_OUTLIER_FACTOR = 2.0
+
+# A refinement level whose error did not fall by at least this factor compared
+# to the previous level has reached the accuracy of the reference solution. Its
+# EOC describes the reference, not the method, so the screen ignores it. Even a
+# series converging at order 0.2 falls to 0.87 per level, so the threshold
+# separates a saturated series from a slowly converging one.
+EOC_SATURATION_FACTOR = 0.9
+
+# An EOC below this is not convergence.
+EOC_NONCONVERGENT = 0.5
+
+# A drop of at least this much, ending below EOC_SUSPICIOUS and accompanied by
+# an error grown by at least ERROR_GROWTH_FACTOR, is reported.
+EOC_DROP = 0.5
+EOC_SUSPICIOUS = 2.0
+ERROR_GROWTH_FACTOR = 1.5
+
 class Severity(str, Enum):
     """Allowed severity levels for findings."""
 
@@ -150,6 +183,72 @@ class MethodSimTimeSummary:
 
 
 @dataclass
+class EocFinding:
+    """One payload whose order of convergence got worse from A to B.
+
+    Advisory: these findings are reported but do not influence the severity
+    counts or the exit code, since an EOC can legitimately change with the
+    refinement range or the reference solution.
+    """
+
+    relative_path: str
+    method: str
+    solution: str
+    key: str
+    kind: str  # "new_nonconvergent" or "worse"
+    eoc_a: float
+    eoc_b: float
+    error_a: float
+    error_b: float
+    level_a: int
+    level_b: int
+
+
+@dataclass
+class FileSimTime:
+    """Compute time ratios B/A of one file."""
+
+    relative_path: str
+    n_values: int
+    median_ratio: float
+    normalized_ratio: Optional[float] = None  # median_ratio / run median
+
+
+@dataclass
+class SimTimeAnalysis:
+    """Compute time ratios B/A over the whole run.
+
+    A run on another machine scales every simulation by a similar factor, so the
+    median over all compared simulations is the machine difference and the files
+    that deviate from it are the ones worth looking at.
+    """
+
+    n_values: int = 0
+    median_ratio: Optional[float] = None
+    p10_ratio: Optional[float] = None
+    p90_ratio: Optional[float] = None
+    min_ratio: Optional[float] = None
+    max_ratio: Optional[float] = None
+    files: List[FileSimTime] = field(default_factory=list)
+    outliers: List[FileSimTime] = field(default_factory=list)
+
+
+@dataclass
+class MethodInventory:
+    """How often each method name occurs in either tree.
+
+    A method renamed between two runs shows up here as one name losing and
+    another gaining files, which the per-file comparison can only report as
+    missing on both sides.
+    """
+
+    counts_a: Dict[str, int] = field(default_factory=dict)
+    counts_b: Dict[str, int] = field(default_factory=dict)
+    only_in_a: List[str] = field(default_factory=list)
+    only_in_b: List[str] = field(default_factory=list)
+
+
+@dataclass
 class MethodResult:
     """Comparison results for a specific numerical method."""
 
@@ -180,6 +279,10 @@ class FileResult:
     structural_differences: List[StructuralDifference] = field(default_factory=list)
     methods: List[MethodResult] = field(default_factory=list)
     highest_severity: Severity = Severity.OK
+    methods_a: List[str] = field(default_factory=list)
+    methods_b: List[str] = field(default_factory=list)
+    sim_time_ratios: List[float] = field(default_factory=list)
+    eoc_findings: List[EocFinding] = field(default_factory=list)
 
 
 @dataclass
@@ -211,6 +314,9 @@ class Report:
     summary: Summary
     missing_files: MissingFiles
     files: List[FileResult]
+    method_inventory: MethodInventory = field(default_factory=MethodInventory)
+    sim_time_analysis: SimTimeAnalysis = field(default_factory=SimTimeAnalysis)
+    eoc_findings: List[EocFinding] = field(default_factory=list)
 
 
 def severity_max(*severities: Severity) -> Severity:
@@ -653,6 +759,212 @@ def compare_solution_payload(
     return entries
 
 
+def median(values: Sequence[float]) -> Optional[float]:
+    """Median of a sequence, None if it is empty."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return 0.5 * (ordered[middle - 1] + ordered[middle])
+
+
+def quantile(values: Sequence[float], fraction: float) -> Optional[float]:
+    """Nearest-rank quantile of a sequence, None if it is empty."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, int(fraction * len(ordered))))
+    return ordered[index]
+
+
+def collect_sim_time_ratios(
+    payload_a: Mapping[str, Any],
+    payload_b: Mapping[str, Any],
+) -> List[float]:
+    """Compute time ratios B/A of one solution payload, short runs excluded."""
+    a_value = payload_a.get(SIM_TIME_KEY)
+    b_value = payload_b.get(SIM_TIME_KEY)
+
+    if not is_scalar_or_number_sequence(a_value) or not is_scalar_or_number_sequence(b_value):
+        return []
+
+    a_values = normalize_numeric_value(a_value)
+    b_values = normalize_numeric_value(b_value)
+
+    return [
+        b / a for a, b in zip(a_values, b_values)
+        if a > SIM_TIME_FLOOR and b > 0.0
+    ]
+
+
+def last_converging_level(
+    errors: Sequence[float],
+    eocs: Sequence[float],
+) -> Optional[Tuple[float, float, int]]:
+    """EOC, error and index of the finest level that still resolves the solution.
+
+    Walks the series from the finest level down to the first level whose error
+    fell compared to its predecessor. Levels beyond that have reached the
+    accuracy of the reference solution, where the EOC says nothing about the
+    method, which is what would otherwise look like a sudden loss of order.
+    """
+    n_levels = min(len(errors), len(eocs))
+
+    for index in range(n_levels - 1, 0, -1):
+        if errors[index] < errors[index - 1] * EOC_SATURATION_FACTOR:
+            return eocs[index], errors[index], index
+
+    return None
+
+
+def screen_eoc(
+    relative_path: str,
+    method: str,
+    solution: str,
+    payload_a: Mapping[str, Any],
+    payload_b: Mapping[str, Any],
+) -> List[EocFinding]:
+    """Report the norms whose order of convergence got worse from A to B."""
+    findings: List[EocFinding] = []
+
+    for error_key, eoc_key in ERROR_EOC_KEYS:
+
+        series = [payload.get(key)
+                  for payload in (payload_a, payload_b)
+                  for key in (error_key, eoc_key)]
+
+        if not all(is_number_sequence(entry) for entry in series):
+            continue
+
+        level_a = last_converging_level(payload_a[error_key], payload_a[eoc_key])
+        level_b = last_converging_level(payload_b[error_key], payload_b[eoc_key])
+
+        if level_a is None or level_b is None:
+            continue
+
+        eoc_a, error_a, index_a = level_a
+        eoc_b, error_b, index_b = level_b
+
+        # A method that is more accurate than before has lost nothing, whatever
+        # its EOC does: a series approaching the accuracy of its reference flattens
+        # out, which is a statement about the reference and not about the method.
+        if error_b <= error_a * ERROR_GROWTH_FACTOR:
+            continue
+
+        if eoc_b < EOC_NONCONVERGENT <= eoc_a:
+            kind = "new_nonconvergent"
+        elif eoc_b < eoc_a - EOC_DROP and eoc_b < EOC_SUSPICIOUS:
+            kind = "worse"
+        else:
+            continue
+
+        findings.append(EocFinding(
+            relative_path=relative_path,
+            method=method,
+            solution=solution,
+            key=error_key,
+            kind=kind,
+            eoc_a=eoc_a,
+            eoc_b=eoc_b,
+            error_a=error_a,
+            error_b=error_b,
+            level_a=index_a,
+            level_b=index_b,
+        ))
+
+    return findings
+
+
+def collect_json_methods(path: Path) -> List[str]:
+    """Method names of one convergence file, empty if it cannot be read."""
+    data, error = load_json_file(path)
+    if error is not None:
+        return []
+
+    convergence, schema_error = validate_convergence_root(data)
+    if schema_error is not None or convergence is None:
+        return []
+
+    return sorted(str(key) for key in convergence.keys())
+
+
+def build_method_inventory(
+    file_results: Sequence[FileResult],
+    methods_only_in_a: Mapping[str, Sequence[str]],
+    methods_only_in_b: Mapping[str, Sequence[str]],
+) -> MethodInventory:
+    """Count how many files each method name occurs in, per tree."""
+    counts_a: Counter[str] = Counter()
+    counts_b: Counter[str] = Counter()
+
+    for file_result in file_results:
+        counts_a.update(file_result.methods_a)
+        counts_b.update(file_result.methods_b)
+
+    for methods in methods_only_in_a.values():
+        counts_a.update(methods)
+    for methods in methods_only_in_b.values():
+        counts_b.update(methods)
+
+    return MethodInventory(
+        counts_a=dict(sorted(counts_a.items())),
+        counts_b=dict(sorted(counts_b.items())),
+        only_in_a=sorted(set(counts_a) - set(counts_b)),
+        only_in_b=sorted(set(counts_b) - set(counts_a)),
+    )
+
+
+def build_sim_time_analysis(file_results: Sequence[FileResult]) -> SimTimeAnalysis:
+    """Aggregate the compute time ratios of all files, normalized by the run."""
+    all_ratios: List[float] = []
+    files: List[FileSimTime] = []
+
+    for file_result in file_results:
+        ratios = file_result.sim_time_ratios
+        if not ratios:
+            continue
+        all_ratios.extend(ratios)
+        file_median = median(ratios)
+        assert file_median is not None
+        files.append(FileSimTime(
+            relative_path=file_result.relative_path,
+            n_values=len(ratios),
+            median_ratio=file_median,
+        ))
+
+    analysis = SimTimeAnalysis(n_values=len(all_ratios), files=files)
+
+    if not all_ratios:
+        return analysis
+
+    run_median = median(all_ratios)
+    assert run_median is not None
+
+    analysis.median_ratio = run_median
+    analysis.p10_ratio = quantile(all_ratios, 0.1)
+    analysis.p90_ratio = quantile(all_ratios, 0.9)
+    analysis.min_ratio = min(all_ratios)
+    analysis.max_ratio = max(all_ratios)
+
+    if run_median > 0.0:
+        for entry in files:
+            entry.normalized_ratio = entry.median_ratio / run_median
+
+        analysis.outliers = sorted(
+            (entry for entry in files
+             if entry.normalized_ratio is not None
+             and (entry.normalized_ratio > SIM_TIME_OUTLIER_FACTOR
+                  or entry.normalized_ratio < 1.0 / SIM_TIME_OUTLIER_FACTOR)),
+            key=lambda entry: entry.normalized_ratio or 0.0,
+            reverse=True,
+        )
+
+    analysis.files = sorted(files, key=lambda entry: entry.relative_path)
+    return analysis
+
+
 def compare_shared_file(
     relative_path: str,
     path_a: Path,
@@ -698,6 +1010,9 @@ def compare_shared_file(
 
     methods_a = sorted(str(k) for k in conv_a.keys())
     methods_b = sorted(str(k) for k in conv_b.keys())
+
+    result.methods_a = methods_a
+    result.methods_b = methods_b
 
     missing_methods_in_a = sorted(set(methods_b) - set(methods_a))
     missing_methods_in_b = sorted(set(methods_a) - set(methods_b))
@@ -836,6 +1151,15 @@ def compare_shared_file(
                 solution_payload_b,
             )
 
+            result.sim_time_ratios.extend(
+                collect_sim_time_ratios(solution_payload_a, solution_payload_b)
+            )
+
+            result.eoc_findings.extend(screen_eoc(
+                relative_path, method, solution,
+                solution_payload_a, solution_payload_b,
+            ))
+
             solution_result.comparisons = compare_solution_payload(solution_payload_a, solution_payload_b, tolerances)
             for entry in solution_result.comparisons:
                 solution_result.highest_severity = update_highest(solution_result.highest_severity, entry.severity)
@@ -891,6 +1215,8 @@ def make_report(
     tolerances: Tolerances,
     missing_files: MissingFiles,
     file_results: List[FileResult],
+    methods_only_in_a: Optional[Mapping[str, Sequence[str]]] = None,
+    methods_only_in_b: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Report:
     """Assemble the full report object."""
     counts = count_severities(file_results, missing_files)
@@ -926,6 +1252,13 @@ def make_report(
         summary=summary,
         missing_files=missing_files,
         files=file_results,
+        method_inventory=build_method_inventory(
+            file_results, methods_only_in_a or {}, methods_only_in_b or {}
+        ),
+        sim_time_analysis=build_sim_time_analysis(file_results),
+        eoc_findings=[finding
+                      for file_result in file_results
+                      for finding in file_result.eoc_findings],
     )
 
 
@@ -1011,6 +1344,79 @@ def has_non_ok_comparisons(entries: Sequence[ComparisonEntry]) -> bool:
     return any(entry.severity is not Severity.OK for entry in entries)
 
 
+def render_method_inventory_table(inventory: MethodInventory) -> str:
+    """Render the method inventory of both trees as a Markdown table."""
+    names = sorted(set(inventory.counts_a) | set(inventory.counts_b))
+
+    if not names:
+        return "_No methods found._"
+
+    rows = ["| Method | Files in A | Files in B | |", "|---|---:|---:|---|"]
+    for name in names:
+        count_a = inventory.counts_a.get(name, 0)
+        count_b = inventory.counts_b.get(name, 0)
+        if name in inventory.only_in_a:
+            note = "only in A"
+        elif name in inventory.only_in_b:
+            note = "only in B"
+        else:
+            note = ""
+        rows.append(f"| {markdown_escape(name)} | {count_a} | {count_b} | {note} |")
+
+    return "\n".join(rows)
+
+
+def render_eoc_findings_table(findings: Sequence[EocFinding]) -> str:
+    """Render the convergence screen findings as a Markdown table."""
+    if not findings:
+        return "_No norm lost order of convergence._"
+
+    rows = [
+        "| File | Method | Solution | Norm | Finding | EOC A | EOC B | Error A | Error B |",
+        "|---|---|---|---|---|---:|---:|---:|---:|",
+    ]
+    for finding in findings:
+        rows.append(
+            f"| `{finding.relative_path}` | {markdown_escape(finding.method)} "
+            f"| {markdown_escape(finding.solution)} | {markdown_escape(finding.key)} "
+            f"| {finding.kind} | {finding.eoc_a:.3f} | {finding.eoc_b:.3f} "
+            f"| {format_float(finding.error_a)} | {format_float(finding.error_b)} |"
+        )
+
+    return "\n".join(rows)
+
+
+def render_sim_time_analysis(analysis: SimTimeAnalysis) -> str:
+    """Render the compute time ratios and their outliers as Markdown."""
+    if analysis.median_ratio is None:
+        return "_No comparable compute times._"
+
+    lines = [
+        f"- Simulations compared: **{analysis.n_values}**",
+        f"- Median ratio B/A: **{analysis.median_ratio:.3f}**",
+        f"- p10 / p90: `{analysis.p10_ratio:.3f}` / `{analysis.p90_ratio:.3f}`",
+        f"- Minimum / maximum: `{analysis.min_ratio:.3f}` / `{analysis.max_ratio:.3f}`",
+        "",
+        "### Outliers, normalized by the median of the run",
+        "",
+    ]
+
+    if not analysis.outliers:
+        lines.append("_No file deviates from the median of the run._")
+        return "\n".join(lines)
+
+    lines.append("| File | Simulations | Median B/A | Normalized |")
+    lines.append("|---|---:|---:|---:|")
+    for entry in analysis.outliers:
+        normalized = entry.normalized_ratio if entry.normalized_ratio is not None else float("nan")
+        lines.append(
+            f"| `{entry.relative_path}` | {entry.n_values} "
+            f"| {entry.median_ratio:.3f} | {normalized:.2f}x |"
+        )
+
+    return "\n".join(lines)
+
+
 def render_markdown_report(report: Report) -> str:
     """Create the human-readable Markdown report."""
     lines: List[str] = []
@@ -1035,6 +1441,42 @@ def render_markdown_report(report: Report) -> str:
     lines.append("### Counts by severity")
     lines.append("")
     lines.append(render_summary_table(report.summary.counts_by_severity))
+    lines.append("")
+
+    lines.append("## Method inventory")
+    lines.append("")
+    lines.append(
+        "Number of files each method name occurs in. A method that lost files "
+        "in B while another gained them is a rename, which the per-file "
+        "comparison can only report as missing on both sides."
+    )
+    lines.append("")
+    lines.append(render_method_inventory_table(report.method_inventory))
+    lines.append("")
+
+    lines.append("## Convergence screen")
+    lines.append("")
+    lines.append(
+        "Norms whose order of convergence got worse from A to B, judged on the "
+        "finest refinement level whose error still fell, so that levels "
+        "saturated at the accuracy of the reference are left out. Advisory: "
+        "these findings do not enter the severity counts or the exit code."
+    )
+    lines.append("")
+    lines.append(render_eoc_findings_table(report.eoc_findings))
+    lines.append("")
+
+    lines.append("## Compute times")
+    lines.append("")
+    lines.append(
+        "Ratios B/A of simulations longer than "
+        f"{SIM_TIME_FLOOR} s. Runs on different machines differ by a factor "
+        "that applies to the whole run, which the median gives; the files "
+        "listed as outliers are the ones that deviate from it by more than a "
+        f"factor of {SIM_TIME_OUTLIER_FACTOR}."
+    )
+    lines.append("")
+    lines.append(render_sim_time_analysis(report.sim_time_analysis))
     lines.append("")
 
     lines.append("## Files only in A")
@@ -1155,6 +1597,22 @@ def print_terminal_summary(report: Report, markdown_path: Path, json_path: Path)
     print("Counts by severity:")
     for severity in sorted(report.summary.counts_by_severity.keys(), key=lambda s: SEVERITY_ORDER[s]):
         print(f"  {severity}: {report.summary.counts_by_severity[severity]}")
+
+    inventory = report.method_inventory
+    if inventory.only_in_a or inventory.only_in_b:
+        print(f"Method names only in A: {', '.join(inventory.only_in_a) or 'none'}")
+        print(f"Method names only in B: {', '.join(inventory.only_in_b) or 'none'}")
+
+    print(f"Convergence screen findings (advisory): {len(report.eoc_findings)}")
+
+    analysis = report.sim_time_analysis
+    if analysis.median_ratio is not None:
+        print(
+            f"Compute time ratio B/A: median {analysis.median_ratio:.3f} "
+            f"over {analysis.n_values} simulations, "
+            f"{len(analysis.outliers)} file(s) off the median of the run"
+        )
+
     print(f"Markdown report: {markdown_path}")
     print(f"JSON report: {json_path}")
 
@@ -1235,11 +1693,14 @@ def compare_directory_trees(
     path_b: Path,
     tolerances: Tolerances,
     verbose: bool = False,
-) -> Tuple[MissingFiles, List[FileResult]]:
+) -> Tuple[MissingFiles, List[FileResult], Dict[str, List[str]], Dict[str, List[str]]]:
     """
     Compare all JSON files in two directory trees.
 
     Matching is based on the normalized relative path under each root.
+
+    Returns the missing files, the per-file results, and the method names of the
+    files that exist on one side only, keyed by relative path.
     """
     files_a = collect_json_files(path_a)
     files_b = collect_json_files(path_b)
@@ -1260,7 +1721,13 @@ def compare_directory_trees(
         file_results.append(compare_shared_file(rel, files_a[rel], files_b[rel], tolerances))
 
     file_results.sort(key=lambda fr: fr.relative_path)
-    return missing_files, file_results
+
+    # The method inventory covers the one-sided files too, since a method that
+    # only occurs in a file added to B belongs in the overview.
+    methods_only_in_a = {rel: collect_json_methods(files_a[rel]) for rel in only_in_a}
+    methods_only_in_b = {rel: collect_json_methods(files_b[rel]) for rel in only_in_b}
+
+    return missing_files, file_results, methods_only_in_a, methods_only_in_b
 
 
 def compare_convergence_data(argv: Optional[Sequence[str]] = None) -> int:
@@ -1283,7 +1750,8 @@ def compare_convergence_data(argv: Optional[Sequence[str]] = None) -> int:
         return 2
 
     try:
-        missing_files, file_results = compare_directory_trees(
+        (missing_files, file_results,
+         methods_only_in_a, methods_only_in_b) = compare_directory_trees(
             path_a=path_a,
             path_b=path_b,
             tolerances=tolerances,
@@ -1296,6 +1764,8 @@ def compare_convergence_data(argv: Optional[Sequence[str]] = None) -> int:
             tolerances=tolerances,
             missing_files=missing_files,
             file_results=file_results,
+            methods_only_in_a=methods_only_in_a,
+            methods_only_in_b=methods_only_in_b,
         )
 
         markdown_name = "convergence_comparison_report.md"
