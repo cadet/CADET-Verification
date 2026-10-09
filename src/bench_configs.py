@@ -670,7 +670,7 @@ def langmuir_performance_benchmark(
     # the resolution. Table S5, the left panel of Fig. 7, lists FV from 32 to
     # 65536 cells and both DG degrees from 8 to 1024 elements; degree five
     # repeats the steps of degree four.
-    ax_methods = [0, 3, 4, 5]
+    ax_methods = [0]#, 3, 4, 5]
     steps = {0: (32, 12), 3: (8, 8), 4: (8, 8), 5: (8, 8)}
 
     ax_discs = []
@@ -748,7 +748,7 @@ def SMA_performance_benchmark(
     # shows FV up to 512 cells and 128 particle cells, DG P3 up to 32 and 8 and
     # DG P4 up to 16 and 4 elements; degree five repeats the steps of degree
     # four.
-    ax_methods = [0, 3, 4, 5]
+    ax_methods = [0]#, 3, 4, 5]
     if particle_type == 'GENERAL_RATE_PARTICLE':
         steps = {0: (4, 8), 3: (4, 4), 4: (4, 3), 5: (4, 3)}
     else:
