@@ -2492,7 +2492,10 @@ def generate_bulkDisc_name(disc):
           
         # todo once implemented: non-eq
         
-        exInt = False if get_case_insensitive(disc, "USE_COLLOCATION_DG") is None else get_case_insensitive(disc, "USE_COLLOCATION_DG")
+        # USE_COLLOCATION_DG = 1 selects collocation DG, 0 selects exact integration DG.
+        # If the field is absent, CADET-Core defaults to collocation DG on axial cylinders.
+        collocation = get_case_insensitive(disc, "USE_COLLOCATION_DG")
+        exInt = False if collocation is None else not collocation
         name = "exIntDG" if exInt else "DG" # "cDG"
         
         polyDeg = get_case_insensitive(disc, "POLYDEG")

@@ -63,7 +63,7 @@ def get_model(
 
     # Spatial discretization of interstitial / bulk volume
     column.discretization.spatial_method = 'DG'
-    column.discretization.USE_COLLOCATION_DG = 1
+    column.discretization.USE_COLLOCATION_DG = 0  # exact integration DG
     column.discretization.AX_POLYDEG = kwargs.get('axP', polyDeg)
     column.discretization.AX_NELEM = axNElem
     column.discretization.RADIAL_DISC_TYPE = 'EQUIDISTANT'
