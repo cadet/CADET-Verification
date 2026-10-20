@@ -190,7 +190,7 @@ def get_model(
     model.input.solver.time_integrator.ABSTOL = kwargs.get('idas_reftol', 1e-12)
     model.input.solver.time_integrator.ALGTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
     model.input.solver.time_integrator.INIT_STEP_SIZE = 1e-10
-    model.input.solver.time_integrator.MAX_STEPS = 10000
+    model.input.solver.time_integrator.MAX_STEPS = 1000000
     model.input.solver.time_integrator.RELTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
     
     # Return data

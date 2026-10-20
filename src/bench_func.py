@@ -250,6 +250,9 @@ def create_object_from_config(
                 else:
                     config_data['input']['model']['unit_' +
                                                   tmpID]['discretization']['SPATIAL_METHOD'] = "DG"
+                    if 'USE_COLLOCATION_DG' in kwargs:
+                        config_data['input']['model']['unit_' +
+                                                      tmpID]['discretization']['USE_COLLOCATION_DG'] = kwargs['USE_COLLOCATION_DG']
                     if rad_method is None:
                         config_data['input']['model']['unit_' +
                                                       tmpID]['discretization']['POLYDEG'] = ax_method
