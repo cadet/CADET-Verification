@@ -18,6 +18,7 @@ def pytest_addoption(parser):
     parser.addoption("--run-chromatography-tests", type=str2bool, default=True)
     parser.addoption("--run-chromatography-sensitivity-tests", type=str2bool, default=True)
     parser.addoption("--run-chromatography-system-tests", type=str2bool, default=True)
+    parser.addoption("--run-geometry-performance-tests", type=str2bool, default=True)
     parser.addoption("--run-crystallization-tests", type=str2bool, default=True)
     parser.addoption("--run-mct-tests", type=str2bool, default=True)
     parser.addoption("--run-2dmodels-tests", type=str2bool, default=True)

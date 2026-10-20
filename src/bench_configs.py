@@ -643,10 +643,46 @@ GEOMETRY_NAMES = {
     }
 
 
+# Refinement levels that a sweep of the verification suite runs fewer than the
+# sweep of the publication, per spatial method. The coarsest level of a sweep is
+# fixed, so these come off its fine end, where its cost sits: the finest finite
+# volume level alone takes longer than all the levels below it together, which is
+# why the finite volume sweeps are shortened by one level more than the DG ones.
+_SUITE_LEVELS_FEWER_ = {0: 2, 3: 1, 4: 1, 5: 1}
+
+# Refinement levels of a sweep of a shortened test run, the number of levels the
+# axial chromatography benchmarks run, see axial_flow_benchmark_fv.
+_SMALL_TEST_LEVELS_ = 3
+
+
+def _performance_benchmark_levels(ax_method, n_levels, small_test,
+                                  full_refinement, ref_file):
+    """Refinement levels of one sweep of a column geometry performance benchmark.
+
+    n_levels is the number of levels of the publication, which full_refinement
+    keeps; without it the sweep is shortened to what a verification run can
+    afford, and a small test runs the three levels of the other chromatography
+    benchmarks.
+
+    A sweep without a reference solution runs one level further, which is then
+    the level it takes as its own reference.
+    """
+
+    if small_test:
+        n_levels = _SMALL_TEST_LEVELS_
+    elif not full_refinement:
+        n_levels = max(n_levels - _SUITE_LEVELS_FEWER_[ax_method], 2)
+
+    if ref_file is None:
+        n_levels += 1
+
+    return n_levels
+
+
 def langmuir_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7,
-        idas_abstol=1e-10):
+        idas_abstol=1e-10, full_refinement=False):
     """Performance benchmark of the two-component LRM with Langmuir binding.
 
     Figs. 7 and 8 of Breuer et al. (2023),
@@ -657,6 +693,9 @@ def langmuir_performance_benchmark(
     ref_file is the reference solution, shared by every spatial method, which is
     what makes the methods comparable to one another. Without one every series
     runs one level further and takes its own finest level as its reference.
+
+    full_refinement carries the sweeps as far as the publication does; the
+    verification suite runs the shorter sweeps of _performance_benchmark_levels.
     """
 
     if column_geometry not in GEOMETRY_NAMES:
@@ -679,17 +718,11 @@ def langmuir_performance_benchmark(
 
         n_start, n_levels = steps[method]
 
-        # A small test runs two levels fewer per series, but never fewer than
-        # two, since a single level is not a convergence study.
-        if small_test:
-            n_levels = max(n_levels - 2, 2)
-
-        # Without a reference solution the series runs one level further, so
-        # that its finest level can serve as the reference of that method.
-        if ref_file is None:
-            n_levels += 1
-
-        ax_discs.append(bench_func.disc_list(n_start, n_levels))
+        ax_discs.append(bench_func.disc_list(
+            n_start,
+            _performance_benchmark_levels(
+                method, n_levels, small_test, full_refinement, ref_file)
+            ))
 
     n_methods = len(ax_methods)
 
@@ -722,7 +755,7 @@ def SMA_performance_benchmark(
         small_test=False, ref_file=None,
         column_geometry='AXIAL_FLOW_CYLINDER',
         particle_type='GENERAL_RATE_PARTICLE',
-        idas_abstol=None):
+        idas_abstol=None, full_refinement=False):
     """Performance benchmark of the four-component load-wash-elute SMA setting.
 
     Fig. 5 of Breuer et al. (2023), doi:10.1016/j.compchemeng.2023.108340, on
@@ -734,6 +767,9 @@ def SMA_performance_benchmark(
     ref_file is the reference solution, shared by every spatial method, which is
     what makes the methods comparable to one another. Without one every series
     runs one level further and takes its own finest level as its reference.
+
+    full_refinement carries the sweeps as far as the publication does; the
+    verification suite runs the shorter sweeps of _performance_benchmark_levels.
     """
 
     if column_geometry not in GEOMETRY_NAMES:
@@ -768,15 +804,8 @@ def SMA_performance_benchmark(
 
         n_start, n_levels = steps[method]
 
-        # A small test runs two levels fewer per series, but never fewer than
-        # two, since a single level is not a convergence study.
-        if small_test:
-            n_levels = max(n_levels - 2, 2)
-
-        # Without a reference solution the series runs one level further, so
-        # that its finest level can serve as the reference of that method.
-        if ref_file is None:
-            n_levels += 1
+        n_levels = _performance_benchmark_levels(
+            method, n_levels, small_test, full_refinement, ref_file)
 
         ax_discs.append(bench_func.disc_list(n_start, n_levels))
         par_discs.append(
