@@ -26,6 +26,7 @@ import src.bindings as bindings
 import src.crystallization as crystallization
 import src.MCT as MCT
 import src.chrom_systems as chrom_systems
+import src.column_geometry_performance as column_geometry_performance
 import src.twoDimChromatography as twoDimChromatography
 import src.chromatography_sensitivities as chromatography_sensitivities
 
@@ -62,6 +63,10 @@ def run_chromatography_system_tests(request):
     return request.config.getoption("--run-chromatography-system-tests")
 
 @pytest.fixture
+def run_geometry_performance_tests(request):
+    return request.config.getoption("--run-geometry-performance-tests")
+
+@pytest.fixture
 def run_crystallization_tests(request):
     return request.config.getoption("--run-crystallization-tests")
 
@@ -93,7 +98,7 @@ def branch_name(request):
 def test_selected_model_groups(
     commit_message, rdm_debug_mode, branch_name, rdm_push, small_test, n_jobs, delete_h5_files,
     run_transport_tests, run_binding_tests, run_chromatography_tests, run_chromatography_sensitivity_tests, run_chromatography_system_tests,
-    run_crystallization_tests, run_MCT_tests, run_2Dmodels_tests
+    run_geometry_performance_tests, run_crystallization_tests, run_MCT_tests, run_2Dmodels_tests
 ):
 
     sys.path.append(str(Path(".")))
@@ -153,6 +158,16 @@ def test_selected_model_groups(
             )
             if delete_h5_files:
                 convergence.delete_h5_files(str(output_path) + "/chromatography/systems")
+
+        if run_geometry_performance_tests:
+            column_geometry_performance.geometry_performance_tests(
+                n_jobs=n_jobs,
+                small_test=small_test,
+                output_path=str(output_path) + "/chromatography/geometries",
+                cadet_path=cadet_path
+            )
+            if delete_h5_files:
+                convergence.delete_h5_files(str(output_path) + "/chromatography/geometries")
 
         if run_crystallization_tests:
             crystallization.crystallization_tests(
