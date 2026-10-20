@@ -630,6 +630,410 @@ def paper_geometry_LRMPdynLin_benchmark(setting_name,
     return benchmark_config
 
 
+# %% Performance benchmarks of Breuer et al. (2023)
+
+
+# Column geometries of the performance benchmarks of the column geometry
+# publication, mapped to the prefix of their file names, so that the geometries
+# do not write over one another.
+GEOMETRY_NAMES = {
+    'AXIAL_FLOW_CYLINDER': 'axial',
+    'RADIAL_FLOW_CYLINDER_SHELL': 'radial',
+    'AXIAL_FLOW_FRUSTUM': 'frustum',
+    }
+
+
+def langmuir_performance_benchmark(
+        small_test=False, ref_file=None,
+        column_geometry='AXIAL_FLOW_CYLINDER', col_dispersion=1e-7,
+        idas_abstol=1e-10):
+    """Performance benchmark of the two-component LRM with Langmuir binding.
+
+    Figs. 7 and 8 of Breuer et al. (2023),
+    doi:10.1016/j.compchemeng.2023.108340, on the refinement steps of the
+    publication. col_dispersion defaults to the less disperse of its two
+    settings.
+
+    ref_file is the reference solution, shared by every spatial method, which is
+    what makes the methods comparable to one another. Without one every series
+    runs one level further and takes its own finest level as its reference.
+    """
+
+    if column_geometry not in GEOMETRY_NAMES:
+        raise ValueError(
+            'column_geometry must be one of ' + str(sorted(GEOMETRY_NAMES))
+            + ', got ' + str(column_geometry) + '.'
+            )
+
+    # The WENO finite volume scheme and DG of degrees three to five, with their
+    # refinement steps as (first level, number of levels), every level doubling
+    # the resolution. Table S5, the left panel of Fig. 7, lists FV from 32 to
+    # 65536 cells and both DG degrees from 8 to 1024 elements; degree five
+    # repeats the steps of degree four.
+    ax_methods = [0, 3, 4, 5]
+    steps = {0: (32, 12), 3: (8, 8), 4: (8, 8), 5: (8, 8)}
+
+    ax_discs = []
+
+    for method in ax_methods:
+
+        n_start, n_levels = steps[method]
+
+        # A small test runs two levels fewer per series, but never fewer than
+        # two, since a single level is not a convergence study.
+        if small_test:
+            n_levels = max(n_levels - 2, 2)
+
+        # Without a reference solution the series runs one level further, so
+        # that its finest level can serve as the reference of that method.
+        if ref_file is None:
+            n_levels += 1
+
+        ax_discs.append(bench_func.disc_list(n_start, n_levels))
+
+    n_methods = len(ax_methods)
+
+    return {
+        'cadet_config_jsons': [
+            setting_Col1D_langLRM_2comp_benchmark1.get_model(
+                spatial_method_bulk=0, column_geometry=column_geometry,
+                col_dispersion=col_dispersion
+                )
+            ],
+        'cadet_config_names': [
+            GEOMETRY_NAMES[column_geometry] + '_LRM_langmuir_2comp_benchmark1'
+            ],
+        'include_sens': [False],
+        'ref_files': [[ref_file] * n_methods],
+        'unit_IDs': ['001'],
+        'which': ['outlet'],
+        'idas_abstol': [[idas_abstol] * n_methods],
+        'ax_methods': [ax_methods],
+        'ax_discs': [ax_discs],
+        'par_methods': [[None] * n_methods],
+        'par_discs': [[None] * n_methods],
+        'disc_refinement_functions': [
+            [bench_func.create_object_from_config] * n_methods
+            ],
+        }
+
+
+def SMA_performance_benchmark(
+        small_test=False, ref_file=None,
+        column_geometry='AXIAL_FLOW_CYLINDER',
+        particle_type='GENERAL_RATE_PARTICLE',
+        idas_abstol=None):
+    """Performance benchmark of the four-component load-wash-elute SMA setting.
+
+    Fig. 5 of Breuer et al. (2023), doi:10.1016/j.compchemeng.2023.108340, on
+    the refinement steps of the publication. A general rate particle is resolved
+    in space and is refined along with the axial grid; any other particle type
+    carries no particle grid, which leaves the bulk discretizations as the only
+    difference between the methods.
+
+    ref_file is the reference solution, shared by every spatial method, which is
+    what makes the methods comparable to one another. Without one every series
+    runs one level further and takes its own finest level as its reference.
+    """
+
+    if column_geometry not in GEOMETRY_NAMES:
+        raise ValueError(
+            'column_geometry must be one of ' + str(sorted(GEOMETRY_NAMES))
+            + ', got ' + str(column_geometry) + '.'
+            )
+
+    # The WENO finite volume scheme and DG of degrees three to five, with their
+    # refinement steps as (first level, number of levels), every level doubling
+    # the resolution. Fig. 5 starts at four axial and one particle element and
+    # shows FV up to 512 cells and 128 particle cells, DG P3 up to 32 and 8 and
+    # DG P4 up to 16 and 4 elements; degree five repeats the steps of degree
+    # four.
+    ax_methods = [0, 3, 4, 5]
+    if particle_type == 'GENERAL_RATE_PARTICLE':
+        steps = {0: (4, 8), 3: (4, 4), 4: (4, 3), 5: (4, 3)}
+    else:
+        steps = {0: (4, 8), 3: (2, 4), 4: (2, 4), 5: (1, 4)}
+
+    # Particle elements of the coarsest level, refined along with the axial grid.
+    n_par_start = 1
+
+    resolves_particle = particle_type == 'GENERAL_RATE_PARTICLE'
+
+    if idas_abstol is None:
+        idas_abstol = 1e-10 if resolves_particle else 1e-12
+    ax_discs = []
+    par_discs = []
+
+    for method in ax_methods:
+
+        n_start, n_levels = steps[method]
+
+        # A small test runs two levels fewer per series, but never fewer than
+        # two, since a single level is not a convergence study.
+        if small_test:
+            n_levels = max(n_levels - 2, 2)
+
+        # Without a reference solution the series runs one level further, so
+        # that its finest level can serve as the reference of that method.
+        if ref_file is None:
+            n_levels += 1
+
+        ax_discs.append(bench_func.disc_list(n_start, n_levels))
+        par_discs.append(
+            bench_func.disc_list(n_par_start, n_levels)
+            if resolves_particle else None
+            )
+
+    n_methods = len(ax_methods)
+
+    return {
+        'cadet_config_jsons': [
+            setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+                spatial_method_bulk=0, column_geometry=column_geometry,
+                particle_type=particle_type,
+                **(dict(spatial_method_particle=0) if resolves_particle else {})
+                )
+            ],
+        'cadet_config_names': [
+            GEOMETRY_NAMES[column_geometry] + '_'
+            + ('GRM' if resolves_particle else 'LRMP')
+            + '_reqSMA_4comp_benchmark1'
+            ],
+        'include_sens': [False],
+        'ref_files': [[ref_file] * n_methods],
+        'unit_IDs': ['000'],
+        'which': ['outlet'],
+        'idas_abstol': [[idas_abstol] * n_methods],
+        'ax_methods': [ax_methods],
+        'ax_discs': [ax_discs],
+        'par_methods': [
+            [method if resolves_particle else None for method in ax_methods]
+            ],
+        'par_discs': [par_discs],
+        'disc_refinement_functions': [
+            [bench_func.create_object_from_config] * n_methods
+            ],
+        }
+
+
+# %% Reference solutions of the column geometry performance benchmarks
+
+
+# Discretization and time integration tolerance of the reference solution of each
+# setting of the column geometry performance benchmarks, see
+# scripts/verify_geometries.py. One reference per setting and geometry
+# is shared by all spatial methods of that sweep, which is what makes the methods
+# comparable to one another.
+#
+# Every resolution is beyond the finest level of the sweep it serves, at degree
+# five, where the DG scheme has long left the oscillatory regime of the Langmuir
+# setting. The Langmuir sweep already refines DG to 1024 elements, so its
+# reference is one level beyond that; the two SMA sweeps are much coarser and
+# their references sit several levels beyond their finest level.
+#
+# The tolerance is the one of Breuer et al. (2023),
+# doi:10.1016/j.compchemeng.2023.108340, chosen there so that the spatial error
+# dominates. create_object_from_config derives RELTOL and ALGTOL from ABSTOL as
+# ABSTOL * 100, so 1e-12 gives the relative tolerance 1e-10 of the publication.
+# At a looser tolerance every spatial method of a setting stops at the same
+# error, which for the Langmuir setting on the radial geometry is an L1 error of
+# about 2e-2, well above the range the benchmark is about.
+GEOMETRY_REFERENCES = {
+    'langmuir': {
+        'polydeg': 5,
+        'n_elements': 2048,
+        'n_par_elements': None,
+        'idas_abstol': 1e-10,
+        'use_collocation_dg': 0,
+        },
+    'sma_lrmp': {
+        'polydeg': 5,
+        'n_elements': 256,
+        'n_par_elements': None,
+        'idas_abstol': 1e-12,
+        'use_collocation_dg': 0,
+        },
+    'sma_grm': {
+        'polydeg': 5,
+        'n_elements': 64,
+        'n_par_elements': 16,
+        'idas_abstol': 1e-10,
+        'use_collocation_dg': 0,
+        },
+    }
+
+
+def geometry_reference(setting, column_geometry):
+    """The reference solution of one column geometry performance benchmark.
+
+    Returns everything needed to simulate the reference of the given setting on
+    the given geometry: the model, the name the sweep expects the file under and
+    the discretization and tolerance it is to be run with, which are the entry
+    of GEOMETRY_REFERENCES.
+
+    Parameters
+    ----------
+    setting : string
+        One of the keys of GEOMETRY_REFERENCES.
+    column_geometry : string
+        One of the keys of GEOMETRY_NAMES.
+
+    Returns
+    -------
+    dict
+    """
+    if setting not in GEOMETRY_REFERENCES:
+        raise ValueError(
+            'setting must be one of ' + str(sorted(GEOMETRY_REFERENCES))
+            + ', got ' + str(setting) + '.'
+            )
+
+    if column_geometry not in GEOMETRY_NAMES:
+        raise ValueError(
+            'column_geometry must be one of ' + str(sorted(GEOMETRY_NAMES))
+            + ', got ' + str(column_geometry) + '.'
+            )
+
+    reference = GEOMETRY_REFERENCES[setting]
+
+    prefix = GEOMETRY_NAMES[column_geometry]
+
+    if setting == 'langmuir':
+
+        cadet_config_json = setting_Col1D_langLRM_2comp_benchmark1.get_model(
+            spatial_method_bulk=0, column_geometry=column_geometry
+            )
+        setting_name = prefix + '_LRM_langmuir_2comp_benchmark1'
+        unit_id = '001'
+        par_method = None
+        par_cells = None
+
+    else:
+
+        resolves_particle = setting == 'sma_grm'
+        particle_type = (
+            'GENERAL_RATE_PARTICLE' if resolves_particle
+            else 'HOMOGENEOUS_PARTICLE'
+            )
+
+        cadet_config_json = setting_Col1D_SMA_4comp_LWE_benchmark1.get_model(
+            spatial_method_bulk=0, column_geometry=column_geometry,
+            particle_type=particle_type,
+            **(dict(spatial_method_particle=0) if resolves_particle else {})
+            )
+        setting_name = (
+            prefix + '_' + ('GRM' if resolves_particle else 'LRMP')
+            + '_reqSMA_4comp_benchmark1'
+            )
+        unit_id = '000'
+        par_method = reference['polydeg'] if resolves_particle else None
+        par_cells = reference['n_par_elements'] if resolves_particle else None
+
+        if resolves_particle and par_cells is None:
+            raise ValueError(
+                'the general rate particle of the SMA setting is resolved in '
+                'space and so needs a number of particle elements.'
+                )
+
+    return {
+        'cadet_config_json': cadet_config_json,
+        'setting_name': setting_name,
+        'unit_id': unit_id,
+        'ax_method': reference['polydeg'],
+        'ax_cells': reference['n_elements'],
+        'par_method': par_method,
+        'par_cells': par_cells,
+        'idas_abstol': reference['idas_abstol'],
+        'use_collocation_dg': reference['use_collocation_dg'],
+        }
+
+# Subdirectory of the data directory holding the reference solutions of the
+# performance benchmarks, next to the transport references of the EOC studies,
+# see src/geometry_references.py.
+GEOMETRY_REFERENCE_SUBDIR = os.path.join('CADET-Core_reference', 'chromatography')
+
+
+def geometry_reference_path(setting, column_geometry, data_dir):
+    """Path of the stored reference solution of a performance benchmark.
+
+    The file is named as the sweep names its own simulations, so that it is
+    recognisable as the resolution it was computed at, see
+    scripts/verify_geometries.py, which computes it.
+
+    Parameters
+    ----------
+    setting : string
+        One of the keys of GEOMETRY_REFERENCES.
+    column_geometry : string
+        One of the keys of GEOMETRY_NAMES.
+    data_dir : string
+        Path of the data directory.
+
+    Returns
+    -------
+    string
+    """
+    reference = geometry_reference(setting, column_geometry)
+
+    return bench_func.create_object_from_config(
+        config_data=reference['cadet_config_json'],
+        setting_name=reference['setting_name'],
+        unit_id=reference['unit_id'],
+        ax_method=reference['ax_method'],
+        ax_cells=reference['ax_cells'],
+        par_method=reference['par_method'],
+        par_cells=reference['par_cells'],
+        output_path=os.path.join(data_dir, GEOMETRY_REFERENCE_SUBDIR),
+        only_return_name=True,
+        include_sens=False,
+        )
+
+
+def geometry_reference_simulation(setting, column_geometry, data_dir,
+                                  verbose=True):
+    """The stored reference solution of a performance benchmark, or None.
+
+    Handed to the benchmark configuration as its ref_file, which makes all of
+    its spatial methods comparable to one another. A setting whose reference has
+    not been computed yet is reported as None, upon which
+    bench_func.run_convergence_analysis falls back to self-convergence, i.e.
+    every method computes one level beyond its sweep and takes that as its own
+    reference.
+
+    Parameters
+    ----------
+    setting : string
+        One of the keys of GEOMETRY_REFERENCES.
+    column_geometry : string
+        One of the keys of GEOMETRY_NAMES.
+    data_dir : string
+        Path of the data directory. None disables the references.
+    verbose : bool
+        Report which reference is used.
+
+    Returns
+    -------
+    Cadet object or None
+    """
+    if data_dir is None:
+        return None
+
+    path = geometry_reference_path(setting, column_geometry, data_dir)
+    name = os.path.basename(path)
+
+    if os.path.exists(path):
+        if verbose:
+            print(f"{setting} on {GEOMETRY_NAMES[column_geometry]}: "
+                  f"reference {name} for all methods")
+        return convergence.get_simulation(path)
+
+    if verbose:
+        print(f"WARNING {setting} on {GEOMETRY_NAMES[column_geometry]}: the "
+              f"reference {name} is not in the reference data directory, "
+              "falling back to self-convergence")
+
+    return None
+
 # %% Further sensitivity benchmark configuration used in CADET-Core tests (FV and DG)
 
 
