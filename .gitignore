@@ -30,3 +30,7 @@ pip-wheel-metadata/
 .copilot/
 .continue/
 .codeium/
+
+# Editor settings and local helper scripts
+.vscode/
+CLAUDE/
