@@ -1,7 +1,8 @@
 """
 
 This script defines the EOC studies of the column geometries, i.e. of the radial
-flow cylinder shell, the frustum, and the smoothly varying cross section.
+flow cylinder shell, the frustum, and the smoothly varying cross section, and of an
+axially varying bulk porosity on top of them.
 
 Every physical setting is compared against exactly one reference, which all spatial
 methods of that setting share: the analytical solution of the initial value problem
@@ -55,6 +56,16 @@ _TRANSPORT_SETTINGS_ = [
      'smoothlyVaryingDispDPFR_1comp_benchmark1_DG_P4Z8192.h5'),
     ('smoothlyVaryingDPFR_1comp_benchmark1', 'SMOOTHLY_VARYING', True, True, [1, 2, 3, 4],
      'smoothlyVaryingDPFR_1comp_benchmark1_DG_P4Z8192.h5'),
+]
+
+# A packing that varies along the flow path, once run through GEOMETRY = SMOOTHLY_VARYING,
+# and once on the analytic axial flow cylinder where its passed as nodal values to COL_POROSITY,
+# Both have to converge at the order.
+_VARYING_POROSITY_SETTINGS_ = [
+    ('varyingPorositySmoothlyVaryingDPFR_1comp_benchmark1', 'SMOOTHLY_VARYING', [4],
+     None),
+    ('varyingPorosityCylinderDPFR_1comp_benchmark1', 'AXIAL_FLOW_CYLINDER', [4],
+     None),
 ]
 
 # Linear binding LRMP settings: setting name, geometry, CADET reference. No analytical
@@ -151,6 +162,21 @@ def geometry_tests(n_jobs, small_test, output_path, cadet_path,
             cadet_reference=cadet_reference,
             user_solution_times_unit_state=_USER_SOLUTION_TIMES_UNIT_STATE_,
             **model_kwargs
+            ))
+
+    for (setting_name, geometry, methods,
+         cadet_reference) in _VARYING_POROSITY_SETTINGS_:
+
+        add(bench_configs.paper_geometry_transport_benchmark(
+            setting_name=setting_name,
+            small_test=small_test, ref_filepath=reference_data_path,
+            cadet_reference=cadet_reference,
+            user_solution_times_unit_state=_USER_SOLUTION_TIMES_UNIT_STATE_,
+            advection=True,
+            dispersion=True,
+            column_geometry=geometry,
+            varying_porosity=True,
+            ax_methods=list(methods),
             ))
 
     for setting_name, geometry, cadet_reference in _LRMP_SETTINGS_:

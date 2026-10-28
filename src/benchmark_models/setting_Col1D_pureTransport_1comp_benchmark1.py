@@ -597,6 +597,57 @@ def get_cross_sectional_area_profile(**kwargs):
     return sine_hump
 
 
+def get_porosity_profile(**kwargs):
+    """Return the bulk porosity profile eps_c(z/L) of an axially varying packing.
+
+    Defaults to the sine hump
+
+        eps_c(z*) = porosity * (1 + porosity_amplitude * sin(pi z*))
+
+    in normalized coordinates z* = z/L, which starts at the constant porosity of the
+    setting, rises, falls and returns to it at the outlet. It is smooth, and for
+    0 < porosity * (1 + porosity_amplitude) <= 1 it is a valid porosity everywhere.
+
+    The profile is deliberately independent of the column geometry. CADET-Core
+    multiplies it with the geometric cross section area of whichever geometry is
+    selected, so the very same packing can be carried by a user prescribed cross
+    section and by an analytic one.
+
+    Parameters
+    ----------
+    porosity_profile : callable, optional
+        Custom profile: takes normalized coordinates z/L in [0, 1] as np.array and
+        returns the bulk porosities. Overrides the sine hump.
+    porosity : float
+        Porosity at z = 0 and z = L, defaults to 0.37 as in the constant case.
+    porosity_amplitude : float
+        Relative amplitude of the hump, defaults to 0.5.
+
+    Returns
+    -------
+    callable
+        Profile function z/L in [0, 1] (np.array) -> bulk porosity (np.array).
+    """
+    if 'porosity_profile' in kwargs:
+        return kwargs['porosity_profile']
+
+    base_porosity = kwargs.get('porosity', 0.37)
+    amplitude = kwargs.get('porosity_amplitude', 0.5)
+
+    if not 0.0 < base_porosity * (1.0 + amplitude) <= 1.0:
+        raise ValueError(
+            "The porosity hump leaves (0, 1]: porosity * (1 + porosity_amplitude) = "
+            + str(base_porosity * (1.0 + amplitude))
+        )
+
+    def sine_hump(normed_coords):
+        return base_porosity * (
+            1.0 + amplitude * np.sin(np.pi * np.asarray(normed_coords))
+        )
+
+    return sine_hump
+
+
 def get_model(
         spatial_method_bulk,
         refinement=1,
@@ -625,6 +676,9 @@ def get_model(
         write_solution_bulk (1), initial profile parameters
         (see get_initial_profile) and axRefinement, weno_order,
         USE_COLLOCATION_DG  as in setting_Col1D_lin_1comp_benchmark1.
+        varying_porosity (False) prescribes COL_POROSITY at the DG nodes from
+        get_porosity_profile instead of using the constant porosity, for any
+        column_geometry.
 
     Returns
     -------
@@ -716,6 +770,32 @@ def get_model(
         grid = get_grid_coordinates(spatial_method_bulk, axNElem)
         column.cross_sectional_area_at_nodes = np.asarray(
             area_profile(grid), dtype=float
+        ).tolist()
+
+    # An axially varying COL_POROSITY is prescribed at every DG node in the same
+    # ordering, and is likewise rebuilt for every refinement level. It is independent
+    # of the geometry: the transport operator multiplies the profile with its own
+    # geometric cross section area, so a packing that varies along the flow path can
+    # be carried by the prescribed cross section and by an analytic geometry alike.
+    if kwargs.get('varying_porosity', False):
+        if spatial_method_bulk == 0:
+            raise ValueError(
+                "An axially varying COL_POROSITY is only available for the DG "
+                "spatial method (spatial_method_bulk > 0)."
+            )
+
+        # The collocation operator bakes a constant coefficient into its operators
+        # and has no place to put a profile, so a varying porosity has to be routed
+        # to the variable coefficient operator even for the axial flow cylinder,
+        # which is the geometry the collocation operator is the default for.
+        # CADET-Core rejects the combination rather than ignoring the profile.
+        column.discretization.USE_COLLOCATION_DG = kwargs.get(
+            'USE_COLLOCATION_DG', 0)
+
+        porosity_profile = get_porosity_profile(**kwargs)
+        grid = get_grid_coordinates(spatial_method_bulk, axNElem)
+        column.col_porosity = np.asarray(
+            porosity_profile(grid), dtype=float
         ).tolist()
 
     # Initial condition.
