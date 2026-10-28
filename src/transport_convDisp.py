@@ -14,6 +14,7 @@ from functools import partial
 from pathlib import Path
 import re
 
+from src.column_geometries import geometry_tests
 import src.benchmark_models.setting_COL1D_axial_transport as setting_axial_transport
 import src.benchmark_models.setting_COL1D_radial_transport as setting_radial_transport
 import src.benchmark_models.setting_COL1D_frustum_transport as setting_frustum_transport
@@ -856,13 +857,6 @@ def transport_tests(n_jobs, small_test,
     )
 
     #%% Column geometries
-
-    # The EOC studies of the radial, frustum and smoothly varying cross section
-    # geometries are defined in src/column_geometries.py and run from here, so that
-    # all transport EOC studies have a single entry point. They cover the DG
-    # polynomial degrees of those geometries, which is why the blocks above only
-    # consider the FV variants for the radial and the frustum column.
-    from src.column_geometries import geometry_tests
 
     geometry_tests(
         n_jobs=n_jobs,
