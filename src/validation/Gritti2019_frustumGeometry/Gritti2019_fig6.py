@@ -292,26 +292,29 @@ def plot_fig5_verification(output_path):
     v_dense = ph.interstitial_velocity(Fv_dense, ET)
     H_dense = (VD_A + VD_B / v_dense + VD_C * v_dense) / MICRON
 
+    # The curve spans 9.4-11.6 um and dips in the middle, so the free space is
+    # the band below it: the legend goes there and the residuals sit top left,
+    # both inside the axes and clear of the data.
     fontsize = 15
-    fig, ax = plt.subplots(figsize=(6.5, 5))
+    fig, ax = plt.subplots(figsize=(7.0, 5.0))
     ax.plot(xi, H_measured, 'o', ms=8, color='tab:blue',
-            label='Measured $H_{1/2}$, valerophenone (Gritti et al.)')
+            label=r'Measured $H_{1/2}$ (Gritti et al.)')
     ax.plot(xi_dense, H_dense, '-', color='tab:orange', lw=2,
-            label='VAN_DEEMTER fit used in CADET (VD_A, VD_B, VD_C)')
+            label=r'van Deemter fit, $a + b/v + c\,v$')
     ax.axhline(9.50, ls='--', color='tab:cyan',
-               label='Cylinder @ 0.35 mL/min (H=9.50 um, paper text p.43)')
+               label=r'Cylinder @ 0.35 mL/min, $H = 9.50\,\mu$m')
     ax.set_xlabel(r'Dimensionless axial position $\xi = z/L$', fontsize=fontsize)
     ax.set_ylabel(r'Local plate height $H$ [$\mu$m]', fontsize=fontsize)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 14)
     ax.tick_params(axis='both', labelsize=fontsize)
-    ax.set_title('Verification: measured plate heights vs. CADET VAN_DEEMTER fit')
-    ax.legend(loc='lower right', fontsize=fontsize)
+    ax.legend(loc='lower center', fontsize=fontsize - 3, framealpha=0.9)
     ax.grid(alpha=0.3)
-    ax.text(0.02, 0.02,
-            f'RMSE={rmse/MICRON:.3f} um\nmax|resid|={maxabs/MICRON:.3f} um',
-            transform=ax.transAxes,
-            fontsize=fontsize, va='bottom', ha='left', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+    ax.text(0.03, 0.97,
+            f'RMSE = {rmse/MICRON:.3f} ' + r'$\mu$m' + '\n'
+            f'max|resid| = {maxabs/MICRON:.3f} ' + r'$\mu$m',
+            transform=ax.transAxes, fontsize=fontsize - 3, va='top', ha='left',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
     fig.tight_layout()
     outpath = os.path.join(output_path, 'Gritti2019_fig6_fig5H_verification.png')
     fig.savefig(outpath, dpi=150)
