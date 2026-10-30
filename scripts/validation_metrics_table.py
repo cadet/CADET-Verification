@@ -77,8 +77,10 @@ TABLES = [
             r'Gritti et al. $\Delta \mu_1$ and $\Delta \mu_2$ are the relative '
             r'errors of the first and the second central moment against the '
             r"moments measured in the paper's own Tables 1--3; the NRMSE is taken "
-            r'against the digitized chromatogram and normalised by its peak '
-            r'height.'),
+            r'against the measured chromatograms as the figures plot them and is '
+            r'normalised by their peak height. Those traces carry the display '
+            r'alignment of Sec.~4.2.2, so the NRMSE measures peak shape while '
+            r'$\Delta \mu_1$ carries the retention-time error.'),
         # Appended to the caption only when the mass balance column is shown.
         caption_mass_balance=(
             r' The mass balance compares the simulated outlet integral with the '

@@ -34,8 +34,8 @@ whose local value modulates the analyte's retention as the band migrates, so
 the simulation carries two components even though only the analyte is compared
 against data.
 
-The references are the digitized chromatogram in
-`Gritti2019_fig8_digitized.csv` and the retention times, moments and
+The references are the measured chromatograms in
+`data/Gritti2019_fig8_measured.csv` and the retention times, moments and
 half-height widths of Table 3.
 
 ## Model choice
@@ -79,8 +79,9 @@ F = (1-eps_t)/eps_t, equals k0*exp(-S*(phi-phi0)).
 **Axial dispersion.** The paper measures the plate height only for the
 alkanophenones (Sec. 4.2.1, Fig. 5), not for bombesin, but reuses that curve for
 its own bombesin prediction on p. 45. This script does the same, reusing the
-digitized Fig. 5 curve and the van Deemter fit VD_A, VD_B, VD_C shared with
-`Gritti2019_fig6.py` and `Gritti2019_fig7.py`, so that
+measured plate heights and the van Deemter fit VD_A, VD_B, VD_C shared with
+`Gritti2019_fig6.py` and `Gritti2019_fig7.py` through
+`data/Gritti2019_plate_height.py`, so that
 D_ax(z) = scale*H(v(z))*v(z)/2 through `COL_DISPERSION_DEP='VAN_DEEMTER'`.
 Gritti2019_fig6.md derives D_ax = H(v)*v/2 from the paper's plate-height
 definition and describes the fit.
@@ -146,22 +147,21 @@ test of the frustum geometry.
 
 ## Reference data
 
-Table 3 gives only summary moments, so the three traces were digitized from the
-figure by pixel colour classification:
+Table 3 gives only summary moments, so the three measured traces are used as
+the curve reference. `data/Gritti2019_fig8_measured.csv` holds the three
+chromatograms that Fig. 8 plots: time in seconds, absorbance in AU, 0.1 s
+sampling, over the panel's own 272-306 s window, columns time_s, cylinder_AU,
+cone_s2_AU and cone_s05_AU, with peak heights 0.0193, 0.0167 and 0.0179 AU.
+They are the authors' measured traces, taken from the `CylGrdBombesin`
+worksheet of their Origin project for Figs. 6-8, which holds the cylinder run
+together with both cone runs at the positions the published panel uses. The
+project, its worksheet exports and `make_measured_csv.py`, which rebuilds the
+file from them, are all in `data/`.
+Bombesin elutes as a single peak, so no peak selection is needed.
 
-1. The page was rendered at 600 dpi and cropped to the axes box; the pixel-to-
-   data calibration uses the tick marks themselves (x: the 280 and 300 s ticks;
-   y: the 0.000–0.020 AU ticks in 0.005 steps).
-2. The curve colours were checked by sampling pixels directly — black, red and
-   blue, roughly (0,0,0), (200,20,20) and (35,5,250) — after masking the title
-   box border and the legend.
-3. The three curves overlap over long stretches, near the baseline and along
-   much of both flanks, because this compares one cylinder against the same
-   conical column in both flow directions. Where they coincide only the
-   last-drawn colour is visible, so overlapping curves are given the same value
-   at that pixel column rather than being interpolated separately through the
-   gap.
-4. The traces are resampled onto a uniform 0.2 s grid and written to
-   `Gritti2019_fig8_digitized.csv` with columns time_s, cylinder_AU,
-   cone_s2_AU and cone_s05_AU. The recovered peak heights are 0.0193, 0.0166
-   and 0.0179 AU, matching the figure.
+The two cone traces in that worksheet are the standalone cone runs moved in
+time by +0.529 and -0.126 s, with values otherwise identical to the last
+digit, so the NRMSE measures peak shape and the retention-time error is
+carried by Delta mu_1 against Table 3. The offsets are small here in any case.
+Gritti2019_fig6.md works through the same point for Fig. 6, where it matters
+most.

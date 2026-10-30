@@ -26,24 +26,37 @@ if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
+# The reference chromatograms, the measured plate heights and the script that
+# builds the former all live in data/, next to the raw exports they come from.
+DATA = os.path.join(HERE, 'data')
+if DATA not in sys.path:
+    sys.path.insert(0, DATA)
+import Gritti2019_plate_height as ph  # noqa: E402
+
 # ===========================================================================
-# Reference data, digitized from Fig. 8; see the markdown file
+# Reference data, measured; see the markdown file
 # ===========================================================================
-def load_digitized(path=None):
+def load_measured(path=None):
+    """Load the measured CSV, each curve on its own x-grid.
+
+    The three traces were recorded on their own time grids and are windowed
+    around their own retention times, so they do not share every sample.
+    """
     if path is None:
-        path = os.path.join(HERE, 'Gritti2019_fig8_digitized.csv')
+        path = os.path.join(DATA, 'Gritti2019_fig8_measured.csv')
     data = np.genfromtxt(path, delimiter=',', names=True)
     t = data['time_s']
-    return {
-        'cylinder': (t, data['cylinder_AU']),
-        'cone_s2': (t, data['cone_s2_AU']),
-        'cone_s05': (t, data['cone_s05_AU']),
-    }
+    out = {}
+    for key in ('cylinder', 'cone_s2', 'cone_s05'):
+        y = data[key + '_AU']
+        valid = ~np.isnan(y)
+        out[key] = (t[valid], y[valid])
+    return out
 
 
-REFERENCE = load_digitized()
+REFERENCE = load_measured()
 
-# Table 3, measured independently of the figure digitization. tR is the
+# Table 3, measured independently of the chromatograms. tR is the
 # retention time and mu1 the first moment; they are distinct quantities but
 # nearly equal for these near-Gaussian peaks. mu2 is the second central
 # moment and w50 the half-height width, in minutes and minutes^2.
@@ -81,12 +94,10 @@ QMAX1 = 1000.0                     # arbitrary reference solid-phase capacity
 C_INJ = 1.0                        # arbitrary reference injected concentration
 KD1 = 1.0                          # arbitrary reference desorption rate [1/s]
 
-# Van Deemter fit to Fig. 5, H(v) = A + B/v + C*v. Same values as in
-# Gritti2019_fig6.py and fig7.py, repeated here so that this script runs on
-# its own; Gritti2019_fig6.md describes the digitization and the fit.
-VD_A = 3.15452704e-06   # m
-VD_B = 4.52688414e-09   # m^2/s
-VD_C = 2.23971679e-03   # s
+# Van Deemter fit, H(v) = A + B/v + C*v, to the measured plate heights in
+# Gritti2019_plate_height.py. Shared with Gritti2019_fig6.py and
+# Gritti2019_fig7.py; Gritti2019_fig6.md describes the fit.
+VD_A, VD_B, VD_C = ph.fit_van_deemter()
 
 # --- check EPS_T against the worked example of Sec. 4.1.4 ---
 _u0_check = Q_CONE / (EPS_T * np.pi * R_SMALL ** 2) * 100.0 * 60.0  # cm/min
@@ -361,6 +372,7 @@ def compute_metrics(config, t_sim, c_sim, t_ref, c_ref):
         mu1_ref=ref['mu1'] * 60.0,        # Table 3 [min] -> [s]
         mu2_ref=ref['mu2'] * 3600.0,      # Table 3 [min^2] -> [s^2]
         ref_label='Gritti Table 3',
+        ref_curve_label='measured',
         mu2_calibrated=(config == 'cylinder'),
         amplitude='lsq',
         mass_in=C_INJ * t_inj,

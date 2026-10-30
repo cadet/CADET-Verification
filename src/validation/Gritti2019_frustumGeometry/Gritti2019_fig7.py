@@ -26,6 +26,13 @@ if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
+# The reference chromatograms, the measured plate heights and the script that
+# builds the former all live in data/, next to the raw exports they come from.
+DATA = os.path.join(HERE, 'data')
+if DATA not in sys.path:
+    sys.path.insert(0, DATA)
+import Gritti2019_plate_height as ph  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Physical parameters (SI units)
 # ---------------------------------------------------------------------------
@@ -52,14 +59,12 @@ PHI_ISO = 0.75
 
 H_VALEROPHENONE = 9.5e-6         # m, isocratic plate height, cylinder, 0.35 mL/min
                                  # (p. 43); kept for reference, the simulation
-                                 # uses the Fig. 5 H(v) curve below
+                                 # uses the measured H(v) curve below
 
-# Van Deemter fit to Fig. 5, H(v) = A + B/v + C*v. Same values as in
-# Gritti2019_fig6.py, repeated here so that this script runs on its own;
-# Gritti2019_fig6.md describes the digitization and the fit.
-VD_A = 3.15452704e-06   # m
-VD_B = 4.52688414e-09   # m^2/s
-VD_C = 2.23971679e-03   # s
+# Van Deemter fit, H(v) = A + B/v + C*v, to the measured plate heights in
+# Gritti2019_plate_height.py. Shared with Gritti2019_fig6.py and
+# Gritti2019_fig8.py; Gritti2019_fig6.md describes the fit.
+VD_A, VD_B, VD_C = ph.fit_van_deemter()
 
 VINJ = 0.5e-9                    # m^3, injection volume (0.5 uL, Sec. 3.4.2)
 
@@ -329,17 +334,17 @@ def run_column(cadet_path, output_path, column, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# Digitized reference data
+# Measured reference data
 # ---------------------------------------------------------------------------
-def load_digitized(path=None):
-    """Load the digitized CSV, each curve on its own x-grid.
+def load_measured(path=None):
+    """Load the measured CSV, each curve on its own x-grid.
 
-    The three curves do not share all pixel columns in the source image: the
-    red rho_s=2 trace is partly hidden where the other two cross it. Keeping
-    only each curve's own valid samples avoids assuming a shared grid.
+    The three traces were recorded on their own time grids and are windowed
+    around their own retention times, so they do not share every sample.
+    Keeping only each curve's own valid samples avoids assuming a shared grid.
     """
     if path is None:
-        path = os.path.join(HERE, 'Gritti2019_fig7_digitized.csv')
+        path = os.path.join(DATA, 'Gritti2019_fig7_measured.csv')
     data = np.genfromtxt(path, delimiter=',', names=True)
     t = data['time_s']
     out = {}
@@ -374,6 +379,7 @@ def compute_metrics(column, t_sim, c_sim, t_ref, c_ref):
         mu1_ref=cfg['tR_ref'] * 60.0,          # Table 2 [min] -> [s]
         mu2_ref=cfg['mu2_ref'] * 3600.0,       # Table 2 [min^2] -> [s^2]
         ref_label='Gritti Table 2',
+        ref_curve_label='measured',
         amplitude='lsq',
         mass_in=1.0 * t_inj,   # inlet valerophenone concentration is 1.0 (arbitrary units)
         mass_label='simulated outlet integral vs. the analytically known '
@@ -408,8 +414,8 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         print(f"  {col:10s}: analytic tR={tR_pred:.4f} min  Table 2={tR_actual:.4f} min  "
               f"rel.err={100*abs(tR_pred-tR_actual)/tR_actual:.3g}%")
 
-    print("\nLoading digitized reference data...")
-    ref = load_digitized()
+    print("\nLoading measured reference data...")
+    ref = load_measured()
 
     print("\nRunning CADET simulations")
 
@@ -424,7 +430,7 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         results[col] = (t, c_mod, c_val)
 
     print("\nFitting a least-squares absorbance scale factor per column "
-          "(simulated vs. digitized).")
+          "(simulated vs. measured).")
 
     print("\nValidation metrics:")
     all_metrics = {}

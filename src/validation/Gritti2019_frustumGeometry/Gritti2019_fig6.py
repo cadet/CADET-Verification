@@ -7,7 +7,7 @@ Reproduction of Fig. 6 from:
     (2019) 34-46. https://doi.org/10.1016/j.chroma.2019.01.055
 
 The model, the source of the parameters and the van Deemter fit to the
-paper's Fig. 5 are explained in detail in Gritti2019_fig6.md.
+measured plate heights are explained in detail in Gritti2019_fig6.md.
 """
 import os
 import sys
@@ -26,8 +26,14 @@ if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 import validation_metrics as vm  # noqa: E402
 
-DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_digitized.csv')
-FIG5_DIGITIZED_CSV = os.path.join(HERE, 'Gritti2019_fig6_fig5H_digitized.csv')
+# The reference chromatograms, the measured plate heights and the script that
+# builds the former all live in data/, next to the raw exports they come from.
+DATA = os.path.join(HERE, 'data')
+if DATA not in sys.path:
+    sys.path.insert(0, DATA)
+import Gritti2019_plate_height as ph  # noqa: E402
+
+MEASURED_CSV = os.path.join(DATA, 'Gritti2019_fig6_measured.csv')
 
 # ---------------------------------------------------------------------------
 # Parameters from the paper, converted to SI here
@@ -71,12 +77,10 @@ KEQ = K_RET * ET / (1.0 - ET)                         # LINEAR isotherm ka/kd (k
 
 V_BED_CONE = np.pi / 3.0 * L_BED * (R_SMALL ** 2 + R_SMALL * R_LARGE + R_LARGE ** 2)  # matches "1.21 cm^3"
 
-# Van Deemter fit to Fig. 5, H(v) = A + B/v + C*v. The digitization and the
-# fit are described in the markdown file; the digitized points are in
-# Gritti2019_fig6_fig5H_digitized.csv.
-VD_A = 3.15452704e-06   # m
-VD_B = 4.52688414e-09   # m^2/s
-VD_C = 2.23971679e-03   # s
+# Van Deemter fit, H(v) = A + B/v + C*v, to the measured plate heights in
+# Gritti2019_plate_height.py. ET is passed explicitly so that the
+# velocity the fit is made against is the one this script's model runs on.
+VD_A, VD_B, VD_C = ph.fit_van_deemter(ET)
 
 CONFIGS = {
     'cylinder': dict(
@@ -256,45 +260,43 @@ def run_model(cadet_path, output_path, config_key, fname=None, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# Reference (digitized) data
+# Reference (measured) data
 # ---------------------------------------------------------------------------
-def load_digitized():
-    data = np.genfromtxt(DIGITIZED_CSV, delimiter=',', names=True)
+def load_measured():
+    data = np.genfromtxt(MEASURED_CSV, delimiter=',', names=True)
     return data
 
 
 def plot_fig5_verification(output_path):
-    """Plot the digitized Fig. 5 plate-height data against the van Deemter fit.
+    """Plot the measured plate heights against the van Deemter fit.
 
-    Drawn on Fig. 5's own axes, H [um] over xi = z/L, so that it can be held
-    next to the paper figure to check the digitization.
+    Drawn on Fig. 5's own axes, H [um] over xi = z/L, using the paper's own
+    assignment of each flow rate to an axial position of the 4.2 -> 2.1 mm
+    cone, so that the panel can be held next to the paper figure. The fit
+    itself is made against velocity and does not use that assignment.
     """
-    fig5 = np.genfromtxt(FIG5_DIGITIZED_CSV, delimiter=',', names=True)
-    xi = fig5['xi']
-    H_digitized = fig5['H_um']
+    table = ph.load_table()
+    Fv_mL_min = table['Fv_mL_min']
+    H_measured = table['valerophenone_H50_um']
+    xi = table['zL_cone_4p2_to_2p1']
 
-    # Local interstitial velocity along the column Fig. 5 was measured on:
-    # r_e=2.1 mm, s=0.5 (wide to narrow), Fv=0.40 mL/min, divided by ET.
-    r_e_fig5 = 2.10 * MM
-    s_fig5 = 0.5
-    Fv_fig5 = 0.40 * ML_MIN
-    r_xi = r_e_fig5 * (1.0 + (s_fig5 - 1.0) * xi)
-    v_interstitial = Fv_fig5 / (np.pi * r_xi ** 2) / ET
+    rmse, maxabs = ph.fit_residuals(ET)
+    print(f"Measured plate heights vs. VAN_DEEMTER fit: RMSE={rmse/MICRON:.4f} um, "
+          f"max|resid|={maxabs/MICRON:.4f} um "
+          f"(measured H range {H_measured.min():.2f}-{H_measured.max():.2f} um, "
+          f"n={len(Fv_mL_min)} flow rates)")
 
-    H_fit = (VD_A + VD_B / v_interstitial + VD_C * v_interstitial) / MICRON
-
-    resid = H_fit - H_digitized
-    rmse = np.sqrt(np.mean(resid ** 2))
-    maxabs = np.max(np.abs(resid))
-    print(f"Fig. 5 digitization vs. VAN_DEEMTER fit: RMSE={rmse:.4f} um, max|resid|={maxabs:.4f} um "
-          f"(digitized H range {H_digitized.min():.2f}-{H_digitized.max():.2f} um, n={len(xi)} points)")
+    # A dense curve over the same velocity range, for drawing only.
+    xi_dense = np.linspace(xi.min(), xi.max(), 400)
+    Fv_dense = np.interp(xi_dense, xi, Fv_mL_min)
+    v_dense = ph.interstitial_velocity(Fv_dense, ET)
+    H_dense = (VD_A + VD_B / v_dense + VD_C * v_dense) / MICRON
 
     fontsize = 15
     fig, ax = plt.subplots(figsize=(6.5, 5))
-    ax.plot(xi, H_digitized, '.', ms=3, color='tab:blue', alpha=0.4,
-            label='Digitized (this work), Fig. 5 solid curve')
-    order = np.argsort(xi)
-    ax.plot(xi[order], H_fit[order], '-', color='tab:orange', lw=2,
+    ax.plot(xi, H_measured, 'o', ms=8, color='tab:blue',
+            label='Measured $H_{1/2}$, valerophenone (Gritti et al.)')
+    ax.plot(xi_dense, H_dense, '-', color='tab:orange', lw=2,
             label='VAN_DEEMTER fit used in CADET (VD_A, VD_B, VD_C)')
     ax.axhline(9.50, ls='--', color='tab:cyan',
                label='Cylinder @ 0.35 mL/min (H=9.50 um, paper text p.43)')
@@ -303,16 +305,18 @@ def plot_fig5_verification(output_path):
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 14)
     ax.tick_params(axis='both', labelsize=fontsize)
-    ax.set_title('Verification: Gritti et al. (2019) Fig. 5 digitization vs. CADET VAN_DEEMTER fit')
+    ax.set_title('Verification: measured plate heights vs. CADET VAN_DEEMTER fit')
     ax.legend(loc='lower right', fontsize=fontsize)
     ax.grid(alpha=0.3)
-    ax.text(0.02, 0.02, f'RMSE={rmse:.3f} um\nmax|resid|={maxabs:.3f} um', transform=ax.transAxes,
+    ax.text(0.02, 0.02,
+            f'RMSE={rmse/MICRON:.3f} um\nmax|resid|={maxabs/MICRON:.3f} um',
+            transform=ax.transAxes,
             fontsize=fontsize, va='bottom', ha='left', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
     fig.tight_layout()
     outpath = os.path.join(output_path, 'Gritti2019_fig6_fig5H_verification.png')
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
-    print(f"Saved Fig. 5 digitization/fit verification plot to {outpath}")
+    print(f"Saved plate-height/fit verification plot to {outpath}")
 
 
 # ---------------------------------------------------------------------------
@@ -322,15 +326,16 @@ def compute_metrics(config_key, t_sim, c_sim, c_inj_area, ref_t, ref_c):
     """The validation metrics, see src/validation/validation_metrics.py.
 
     Delta mu_1 and Delta mu_2 are taken against the moments measured on the
-    real columns in Table 1. The dispersion coefficient comes from the Fig. 5
-    H(v) curve and was not fitted to Table 1, so Delta mu_2 is a prediction
+    real columns in Table 1. The dispersion coefficient comes from the
+    measured H(v) and was not fitted to Table 1, so Delta mu_2 is a prediction
     here, unlike in Gritti2019_fig8.py's cylinder, where the dispersion was
     calibrated against the tabulated mu_2 and the entry is left empty.
 
-    Sec. 4.2.2 notes that the peaks printed in Fig. 6 were slightly adjusted
-    in time for display, so a few tenths of a percent of the NRMSE are that
-    display artifact rather than a shape mismatch. The moments are taken
-    against Table 1 and are unaffected.
+    The NRMSE is against the measured chromatograms as Fig. 6 plots them.
+    Sec. 4.2.2 notes that the peaks printed there were adjusted in time for
+    display, and the authors' own worksheet holds the cone traces at those
+    adjusted positions, so the NRMSE measures peak shape and the
+    retention-time error stays in Delta mu_1 against Table 1.
     """
     ref = TABLE1[config_key]
     m = vm.standard_metrics(
@@ -338,6 +343,7 @@ def compute_metrics(config_key, t_sim, c_sim, c_inj_area, ref_t, ref_c):
         t_sim=t_sim, c_sim=c_sim, t_ref=ref_t, c_ref=ref_c,
         kind=vm.PULSE,
         mu1_ref=ref['mu1'], mu2_ref=ref['mu2'], ref_label='Gritti Table 1',
+        ref_curve_label='measured',
         amplitude='lsq',
         mass_in=c_inj_area,
         mass_label='simulated outlet integral vs. the analytically known '
@@ -371,9 +377,9 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
 
     plot_fig5_verification(output_path)
 
-    digitized = load_digitized()
-    ref_time = digitized['time_s']
-    ref_cols = {'cylinder': 'cylinder_black', 'cone_s2': 'cone_s2_red', 'cone_s05': 'cone_s05_blue'}
+    measured = load_measured()
+    ref_time = measured['time_s']
+    ref_cols = {'cylinder': 'cylinder_AU', 'cone_s2': 'cone_s2_AU', 'cone_s05': 'cone_s05_AU'}
 
     all_metrics = {}
     sim_results = {}
@@ -394,13 +400,16 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         c_inj_area = 1.0 * t_inj_duration  # C0=1 * pulse duration (analytic inlet integral)
         sim_results[key] = (t_sim, c_sim)
 
-        ref_c = digitized[ref_cols[key]]
+        ref_c = measured[ref_cols[key]]
         m = compute_metrics(key, t_sim, c_sim, c_inj_area, ref_time, ref_c)
         all_metrics[key] = m
 
         # The CADET curve is drawn on its own time axis, without any peak
-        # realignment, and scaled by the same least-squares absorbance factor
-        # that the metrics use. Gritti2019_fig7.py and fig8.py do the same.
+        # realignment, so that the plot shows the true retention-time error;
+        # the NRMSE in the box is the shape-only value, with the shift it was
+        # measured at printed underneath. The absorbance factor is the same
+        # least-squares scale the metrics use.
+        # Gritti2019_fig7.py and fig8.py do the same.
         valid = ~np.isnan(ref_c)
         rt = ref_time[valid]
         rc = ref_c[valid]
@@ -449,9 +458,12 @@ def main(cadet_path=CADET_PATH, output_path=OUTPUT_PATH):
         print(f"  {m['name']:10s}: H_bar from the simulated moments = "
               f"{m['H_bar_sim_micron']:.3f} micron "
               f"(paper, full flow-dependent H: {H_BAR_PAPER_FULL / MICRON:.1f} micron)")
-    print("  Note: Sec. 4.2.2 states that the peaks printed in Fig. 6 were "
-          "slightly adjusted in time for display, so part of the NRMSE above "
-          "is that display artifact.")
+    print("  Note: the NRMSE is against the measured chromatograms as Fig. 6 "
+          "plots them, i.e. with the cone traces time-aligned onto the "
+          "cylinder as Sec. 4.2.2 describes, so it measures peak shape. The "
+          "retention-time error is in Delta mu_1 against Table 1: at their "
+          "recorded times the cone peaks sit 1.8 and 2.7 s later than the "
+          "model puts them.")
     vm.dump_metrics(output_path, 'Gritti2019_fig6',
                     'Isocratic valerophenone', metrics, time_unit='s')
     return metrics

@@ -57,7 +57,8 @@ column, the geometry used here for rho_s = 0.5. The paper obtains it by
 measuring H at seven flow rates on the 3.0 mm i.d. cylindrical reference column
 and assigning each measurement to the axial position at which the cone's local
 velocity matches, assuming both columns are equally well packed. The curve drawn
-is the one for valerophenone, one of the five n-alkanophenones measured.
+is the one for valerophenone, one of the five n-alkanophenones measured. The
+seven measured values themselves are used here, not the drawn curve; see below.
 
 Gritti et al. work in plate heights throughout and never introduce a dispersion
 coefficient, so the measurement has to be translated. They define the local
@@ -90,20 +91,30 @@ moment of valerophenone (3.869 min, Table 1) and the retention factor
     et    = t_0 * Fv / V_bed             total porosity
     K_eq  = k * et / (1 - et)            LINEAR ka, with kd = 1
 
-The van Deemter coefficients come from Fig. 5 in three steps:
+The van Deemter coefficients come from the measurements behind Fig. 5, which
+Gritti et al. provided as a table per personal correspondence and which is
+hardcoded as `PLATE_HEIGHT_TABLE` in `data/Gritti2019_plate_height.py`: H_1/2 from
+the half-height peak width of six n-alkanophenones on the 3.0 mm i.d.
+cylindrical reference column at the seven flow rates, together with the
+paper's own assignment of each flow rate to an axial position in each cone.
+Two steps remain:
 
-1. The solid valerophenone curve of Fig. 5 is digitized at 600 DPI into
-   `Gritti2019_fig6_fig5H_digitized.csv` (1749 points; axis calibration
-   residuals below 0.015 units; title and legend regions excluded; stray
-   misclassified pixels dropped by a rolling-median filter). Its position
-   column is named xi; the paper writes the same coordinate as zeta.
-2. The paper's assignment is inverted, converting xi back to the local
-   interstitial velocity of the column Fig. 5 was measured on (r_e = 2.1 mm,
-   s = 0.5, Fv = 0.40 mL/min), divided by the total porosity above.
-3. A, B and C are fitted to H(v) = A + B/v + C*v by least squares, giving an
-   RMSE of 0.071 µm and a maximum error of 0.39 µm over a 9.5–12 µm range.
-   `plot_fig5_verification()` in the script redraws the fit against the
-   digitized points.
+1. Each flow rate is converted to the interstitial velocity of the column the
+   plate heights were measured on, Fv / (pi*r_e^2) / et with r_e = 1.5 mm and
+   the total porosity above. The z/L columns are not used: the assignment
+   Fig. 5 draws is a presentation of the same seven points, not an extra
+   measurement.
+2. A, B and C are fitted to H(v) = A + B/v + C*v by least squares over the
+   valerophenone column, giving an RMSE of 0.019 µm and a maximum error of
+   0.039 µm over the measured 9.47–11.54 µm range. `fit_van_deemter()` in
+   `data/Gritti2019_plate_height.py` performs the fit, so the coefficients are
+   derived from the table rather than written out; the three scripts
+   import it and share one H(v). `plot_fig5_verification()` in
+   `Gritti2019_fig6.py` redraws the fit against the measured points on
+   Fig. 5's own axes.
+
+As a check on the result, the fit gives H = 9.48 µm at 0.35 mL/min on the
+cylindrical column, against the 9.5 µm the paper states on p. 43.
 
 The van Deemter form is ours: the paper draws a smooth best curve through the
 points and states no functional form. It serves as an interpolant, not as a
@@ -129,7 +140,7 @@ volume — is the reported physical geometry, and nothing else is fitted.
     Fv (both cones) = 0.40 mL/min            (Sec. 4.2.2 / Table 1)
     V_inj           = 0.5 microL             (Sec. 3.4.2)
     k (valerophenone) = 1.08                 (p. 43)
-    H(xi)           = Fig. 5, digitized      (see above)
+    H(v)            = measured, 7 flow rates (data/Gritti2019_plate_height.py)
     mu_1, mu_2'     = Table 1, p. 44         (used for et and as validation target)
 
 The paper also quotes two mean plate heights on p. 43: 10.8 µm (12.1 % loss)
@@ -139,10 +150,62 @@ script for reference.
 
 All unit conversions to SI are done explicitly in the code.
 
-## A caveat on the NRMSE
+## Reference data
 
-Sec. 4.2.2 notes that the peaks *printed* in Fig. 6 were slightly adjusted in
-time for display. A few tenths of a percent of the NRMSE are therefore that
-display artifact rather than a shape mismatch. Delta mu_1 and Delta mu_2 are
-unaffected, since they are taken against Table 1 rather than against the
-digitized curve. No comparable statement exists for Figs. 7 and 8.
+`data/Gritti2019_fig6_measured.csv` holds the three measured chromatograms that
+Fig. 6 plots: time in seconds, absorbance in AU, 0.1 s sampling, over the
+panel's own 221.7-247.7 s window. They are the authors' measured traces,
+taken from the `CylIsoAlkano` worksheet of their Origin project for
+Figs. 6-8, which holds the cylinder run together with both cone runs at the
+positions the published panel uses. The project, its worksheet exports and
+`make_measured_csv.py`, which rebuilds the file from them, are all in `data/`. The analyte is valerophenone, the fourth
+of the five n-alkanophenones in the isocratic run.
+
+The two cone traces in that worksheet are the standalone cone runs moved in
+time, by -1.897 and -2.889 s, so that all three peaks coincide; the values are
+otherwise identical to the standalone runs to the last digit, and the
+s = 2 copy additionally carries a 1.00046 amplitude factor. This is the
+display adjustment Sec. 4.2.2 refers to, and it is what the published figure
+shows, so it is what a comparison against the figure has to use. Replacing the
+digitized curves with these exact traces therefore changes the precision of
+the reference, not its time base.
+
+What the adjustment costs is that the NRMSE no longer sees the retention-time
+error. The recorded, unshifted retention times are 232.1, 234.0 and 235.0 s
+against the model's 232.2, 232.3 and 232.3 s, and that error is reported in
+full by Delta mu_1, which is taken against Table 1 and is unaffected by any
+display alignment. See the section below: it is a real discrepancy of about
+1 % in cone void volume, not an artifact of the reference data.
+
+## The retention-time discrepancy hidden by the display alignment
+
+Because the reference traces carry the figure's alignment, the NRMSE measures
+peak shape and the retention-time error lives entirely in Delta mu_1. For the
+cones that error is 0.74 % and 1.17 % against Table 1, and it is worth setting
+out where it comes from, since it is easy to lose sight of behind a 1 % NRMSE.
+
+It is also worth knowing how large an effect it is. On peaks whose half-height
+width is about 4.8 s, the 1.8-2.7 s offset is roughly half the full width, and
+the pointwise difference along the flanks becomes comparable to the peak height
+itself: compared at the recorded times instead of the figure's, the same
+simulations score 21.5 % and 29.2 % rather than about 1 %. Sliding a measured
+trace against *itself* by the same offset produces 21.6 %, so that figure is
+retention time alone and says nothing about shape.
+
+Extracolumn volume does not explain the offset. Working in
+transported volume, mu_1*Fv, the cylinder gives 1.3542 mL and the cones 1.5600
+and 1.5668 mL. Calibrating epsilon_t on the cylinder with no extracolumn
+volume reproduces the cylinder exactly by construction and leaves the cones
+11.8 and 18.6 µL short. A shared extracolumn volume makes that worse rather
+than better: the cylinder runs at the lower flow rate, 0.35 against
+0.40 mL/min, so a given dead volume costs it more time, and absorbing it into
+epsilon_t lowers the cone prediction further — 25 µL moves the predicted cone
+mu_1 from 232.2 s to 231.7 s, away from the measured 234-235 s. Solving for
+the extracolumn volume that would reconcile cylinder and cone gives -82 and
+-130 µL, which is not a volume. The two cone directions also differ from each
+other by 6.8 µL, or 1.02 s, in the same tube at the same flow rate, which no
+fixed volume can produce and which the model structurally cannot reproduce
+either, since the first moment of a frustum does not depend on flow direction.
+What remains are the cone's real internal volume and its packing: about 1 %
+more void volume than the nominal frustum, which is the open question noted in
+the geometry discussion.

@@ -210,7 +210,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
                      mu2_calibrated=False, mu2_fallback=MU2_PEAK_HEIGHT,
                      amplitude='lsq', mass_in=None, mass_retained=0.0,
                      mass_extra_out=0.0, mass_label=None, mass_exact=True,
-                     tail_frac=0.1):
+                     tail_frac=0.1, ref_curve_label='digitized'):
     """Compute the four metrics for one simulated/reference curve pair.
 
     Parameters
@@ -220,7 +220,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     t_sim, c_sim : array
         Simulated outlet in its native units, NOT amplitude-calibrated.
     t_ref, c_ref : array
-        Digitized reference curve; NaNs are dropped.
+        Reference curve, digitized or measured; NaNs are dropped.
     kind : {PULSE, FRONTAL}
         Whether the curve returns to baseline or approaches a plateau; see
         the module docstring for how the moments of a frontal curve are
@@ -231,6 +231,10 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
         digitized curve are used instead.
     ref_label : str
         How to name the tabulated source in the printout, e.g. ``'Table 1'``.
+    ref_curve_label : str
+        How to name the reference curve in the printout: ``'digitized'`` when
+        it was read off a published figure, ``'measured'`` when it is the
+        authors' own recorded data.
     mu2_calibrated : bool
         True when the model's dispersion coefficient was calibrated so as to
         reproduce ``mu2_ref``. Delta mu_2 is then left empty, since it
@@ -286,7 +290,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     # --- moments -----------------------------------------------------------
     # Against a tabulated reference, the moments are taken over the full
     # simulated window, which is what a measured moment represents. Against
-    # the digitized curve, both sides use the shared window so that they see
+    # the reference curve, both sides use the shared window so that they see
     # the same tail truncation.
     _, mu1_sim_full, mu2_sim_full = curve_moments(t_sim, c_sim, kind, tail_frac=tail_frac)
     _, mu1_sim_win, mu2_sim_win = curve_moments(t_sim_w, c_sim_w, kind, tail_frac=tail_frac)
@@ -295,6 +299,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     m['mu2_sim_full'] = mu2_sim_full
     m['mu1_sim_window'] = mu1_sim_win
     m['mu2_sim_window'] = mu2_sim_win
+    m['ref_curve_label'] = ref_curve_label
     m['mu1_digitized'] = mu1_ref_win
     m['mu2_digitized'] = mu2_ref_win
 
@@ -306,7 +311,7 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
     else:
         m['mu1_sim'] = mu1_sim_win
         m['mu1_ref'] = mu1_ref_win
-        m['mu1_ref_source'] = 'digitized'
+        m['mu1_ref_source'] = ref_curve_label
     m['delta_mu1_%'] = _relerr(m['mu1_sim'], m['mu1_ref'])
 
     # --- peak height (also the mu_2 fallback) ------------------------------
@@ -336,16 +341,16 @@ def standard_metrics(name, t_sim, c_sim, t_ref, c_ref, kind=PULSE,
         m['mu2_mode'] = MU2_FROM_DIGITIZED
         m['mu2_sim'] = mu2_sim_win
         m['mu2_ref'] = mu2_ref_win
-        m['mu2_ref_source'] = 'digitized'
+        m['mu2_ref_source'] = ref_curve_label
         m['delta_mu2_%'] = _relerr(m['mu2_sim'], m['mu2_ref'])
     else:
         m['mu2_mode'] = MU2_PEAK_HEIGHT
         m['mu2_sim'] = m['peak_height_sim']
         m['mu2_ref'] = m['peak_height_ref']
-        m['mu2_ref_source'] = 'digitized'
+        m['mu2_ref_source'] = ref_curve_label
         m['delta_mu2_%'] = m['delta_peak_height_%']
 
-    # 3) NRMSE against the digitized chromatogram
+    # 3) NRMSE against the reference chromatogram
     ref_amplitude = float(np.nanmax(np.abs(c_ref_w)))
     m['ref_amplitude'] = ref_amplitude
     m['mse'] = float(np.nanmean((scale * c_sim_on_ref - c_ref_w) ** 2))
@@ -401,7 +406,7 @@ def format_metrics(m, time_unit='s'):
     lines.append(f"                        {note}")
     lines.append(
         f"  NRMSE           [%] : {_fmt(m['nrmse_%'], '.4g'):<10s}"
-        f"  (vs. digitized chromatogram, normalised by reference"
+        f"  (vs. {m.get('ref_curve_label', 'digitized')} chromatogram, normalised by reference"
         f" amplitude {_fmt(m['ref_amplitude'])})")
     lines.append(
         f"  Mass balance    [%] : {_fmt(m['mass_balance_%'], '.4g'):<10s}"
