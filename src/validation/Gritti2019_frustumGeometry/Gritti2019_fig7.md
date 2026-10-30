@@ -55,8 +55,9 @@ confirms the convention: the mean transit time is the same in both directions
 can do in principle; the experimental comparison of Sec. 4.2.1, which is what
 this script reproduces, accounts for the change of plate height along the column
 shown in Fig. 5. This script therefore uses the measured H(v) — the same
-digitized curve and van Deemter coefficients VD_A, VD_B, VD_C as
-`Gritti2019_fig6.py` — through `COL_DISPERSION_DEP='VAN_DEEMTER'`, which gives
+plate-height table and van Deemter coefficients VD_A, VD_B, VD_C as
+`Gritti2019_fig6.py`, imported from `data/Gritti2019_plate_height.py` — through
+`COL_DISPERSION_DEP='VAN_DEEMTER'`, which gives
 D_ax(z) = H(v(z))*v(z)/2 along the frustum's own velocity field rather than one
 column-averaged value. Gritti2019_fig6.md derives that relation from the paper's
 plate-height definition and describes the fit.
@@ -131,14 +132,27 @@ with the same H-derived dispersion field.
 
 ## Reference data
 
-Fig. 7 shows the three chromatograms overlaid on one time axis (270–295 s) and
-one absorbance axis. They were digitized by pixel colour thresholding: the axis
-tick marks locate the frame, each curve is isolated by its RGB range
-(black/red/blue), and the title box and in-plot legend are masked out first.
-The result is in `Gritti2019_fig7_digitized.csv`. The red rho_s = 2 curve
-recovers fewer points than the others (436 against roughly 845), because the
-other two traces occlude it where the curves cross. The digitized peak heights
-(0.201/0.180/0.189 AU) match the plotted values.
+`data/Gritti2019_fig7_measured.csv` holds the three measured chromatograms that
+Fig. 7 plots: time in seconds, absorbance in AU, 0.1 s sampling, over the
+panel's own 269.9-295.0 s window, with peak heights 0.201/0.180/0.189 AU. They
+are the authors' measured traces, taken from the `CylGrdAlkano` worksheet of
+their Origin project for Figs. 6-8, which holds the cylinder run together with
+both cone runs at the positions the published panel uses. The project, its
+worksheet exports and `make_measured_csv.py`, which rebuilds the file from
+them, are all in `data/`. The analyte is
+valerophenone, the fourth of the five n-alkanophenones in the gradient run.
+
+The two cone traces in that worksheet are the standalone cone runs moved in
+time by -0.189 and -1.027 s so that the peaks coincide, with values otherwise
+identical to the last digit. Fig. 6's markdown describes the same treatment in
+Fig. 6, where the paper states it explicitly in Sec. 4.2.2; no comparable
+statement exists for Fig. 7, but the project file shows the same thing.
+
+The NRMSE therefore measures peak shape, and the retention-time error is
+carried by Delta mu_1 against Table 2, which no display alignment touches: at
+the recorded times the cone peaks sit 0.2 and 1.0 s later than the model puts
+them. Gritti2019_fig6.md works through where that discrepancy comes from and
+rules out extracolumn volume as the cause.
 
 ## Numerical resolution
 
@@ -154,7 +168,7 @@ any reported metric.
 ## The absorbance scale factor
 
 CADET's simulated concentration is in arbitrary units (C0 = 1) and the
-digitized reference is an uncalibrated detector absorbance; the paper gives no
+measured reference is an uncalibrated detector absorbance; the paper gives no
 detector calibration. A least-squares scale factor is therefore fitted per
 column and used only for plotting and for the peak-height and NRMSE numbers, so
 that they can be reported in the paper's own absorbance units. It does not
