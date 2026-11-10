@@ -1,3 +1,4 @@
+# %%
 """
 
 This script defines linear adsorption case studies used for numerical
@@ -82,8 +83,8 @@ def get_model(
         0.e+00, 1.e+00,-1.e+00,-1.e+00, 6.e-05, 1.e+00, 2.e+00,-1.e+00,-1.e+00, 6.e-05
         ]
     model.input.model.connections.switch_000.section = 0
-    
-    #%% Column unit
+
+    # %% Column unit
     column = Dict()
     if column_geometry not in ['AXIAL_FLOW_CYLINDER', 'RADIAL_FLOW_CYLINDER_SHELL', 'AXIAL_FLOW_FRUSTUM']:
         raise ValueError(f"Unknown column geometry: {column_geometry}")
@@ -92,7 +93,7 @@ def get_model(
     column.forward_flow = 1
     
     column.ncomp = 1
-    column.col_dispersion = 5.75e-08
+    column.col_dispersion = kwargs.get('col_dispersion', 5.75e-08)
     column.col_porosity = 0.37
     if particle_type == 'EQUILIBRIUM_PARTICLE':
         column.total_porosity = 0.37 + (1.0 - 0.37) * 0.75
@@ -174,8 +175,8 @@ def get_model(
         column.particle_type_000.init_cs = [ 0.0 ]
     
     model.input.model.unit_001 = column
-    
-    #%% time integration parameters
+
+    # %% time integration parameters
     if spatial_method_bulk >= 0:
         # non-linear solver
         model.input.model.solver.gs_type = 1
@@ -192,14 +193,25 @@ def get_model(
         model.input.solver.time_integrator.MAX_STEPS = 10000
         model.input.solver.time_integrator.RELTOL = kwargs['idas_reftol'] * 100 if 'idas_reftol' in kwargs else 1e-10
     
+    # The simulation end time defaults to the value used in the publication but
+    # can be shortened, e.g. for pure transport settings whose pulse has left
+    # the column long before t = 1500 s.
+    t_end = kwargs.get('t_end', 1500.0)
+    pulse_end = kwargs.get('pulse_end', 10.0)
+    if pulse_end >= t_end:
+        raise ValueError(
+            f"pulse_end ({pulse_end}) must be smaller than t_end ({t_end})")
+
     model.input.solver.sections.nsec = 2
     model.input.solver.sections.section_continuity = [ 0 ]
-    model.input.solver.sections.section_times = [ 0.0, 10.0, 1500.0 ]
-    model.input.solver.user_solution_times = np.linspace(0.0, 1500.0, 1500*4 + 1)
+    model.input.solver.sections.section_times = [ 0.0, pulse_end, t_end ]
+    # four solution times per second, as in the publication
+    model.input.solver.user_solution_times = np.linspace(
+        0.0, t_end, round(t_end * 4) + 1)
     if 'user_solution_times_unit_state' in kwargs:
         model.input.solver.user_solution_times_unit_state = kwargs['user_solution_times_unit_state']
 
-    #%% auxiliary units: inlet and outlet
+    # %% auxiliary units: inlet and outlet
     model.input.model.unit_000.inlet_type = 'PIECEWISE_CUBIC_POLY'
     model.input.model.unit_000.ncomp = 1
     model.input.model.unit_000.sec_000.const_coeff = [1.]
@@ -214,9 +226,9 @@ def get_model(
     
     model.input.model.unit_002.ncomp = 1
     model.input.model.unit_002.UNIT_TYPE = 'OUTLET'
-    
-    
-    #%% return data
+
+
+    # %% return data
     model.input['return'].split_components_data = 0
     model.input['return'].split_ports_data = 0
     model.input['return'].unit_000.write_solution_inlet = 0
@@ -236,7 +248,7 @@ def get_model(
     return model
 
 
-#%% sensitivities
+# %% sensitivities
 
 
 def add_sensitivity_LRM_dynLin_1comp_benchmark1(model, sensName):
