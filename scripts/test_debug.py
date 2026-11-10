@@ -20,6 +20,7 @@ import src.MCT as MCT
 import src.chrom_systems as chrom_systems
 import src.twoDimChromatography as twoDimChromatography
 import src.chromatography_sensitivities as chromatography_sensitivities
+import src.consistent_initialization as consistent_initialization
 
 small_test = True
 n_jobs = -1
@@ -27,12 +28,13 @@ delete_h5_files = False
 
 run_transport_tests = False
 run_binding_tests = False
-run_chromatography_tests = True
+run_chromatography_tests = False
 run_MCT_tests = False
 run_chromatography_sensitivity_tests = False
 run_chromatography_system_tests = False
 run_crystallization_tests = False
 run_2Dmodels_tests = False
+run_consistent_initialization_tests = True
 
 output_path = Path.cwd() / "output" / "test_cadet-core"
 
@@ -120,3 +122,14 @@ if run_2Dmodels_tests:
     )
     if delete_h5_files:
         convergence.delete_h5_files(str(output_path) + "/2Dchromatography")
+
+if run_consistent_initialization_tests:
+    consistent_initialization.consistent_initialization_tests(
+        n_jobs=n_jobs,
+        small_test=small_test,
+        output_path=str(output_path) + "/consistent_initialization",
+        cadet_path=cadet_path
+    )
+    if delete_h5_files:
+        convergence.delete_h5_files(
+            str(output_path) + "/consistent_initialization")
