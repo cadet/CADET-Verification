@@ -294,7 +294,12 @@ def train_ann_for_cadet(
         else:
             norm_factor = 1.0 / (np.max(X, axis=0) + 1e-12)
 
-        X_norm = X / norm_factor
+        # CADET evaluates the ANN on x = c_p * NORM_FACTOR (element-wise), so the network
+        # must be trained on exactly that scaling. NORM_FACTOR is therefore the reciprocal
+        # of the characteristic concentration scale, e.g. 1 / max(c_p), which maps the
+        # training inputs to values of order one.
+        norm_factor = np.broadcast_to(np.asarray(norm_factor, dtype=float), (X.shape[1],)).copy()
+        X_norm = X * norm_factor
 
         weights, _ = _train_single_ann(
             X_norm,

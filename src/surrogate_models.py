@@ -153,7 +153,8 @@ class ANNSurrogate(BaseSurrogate):
             else:
                 norm_factor = self.normalization_factor
 
-            X_norm = X_array / norm_factor
+            # Must match CADET's convention x = c_p * NORM_FACTOR (see training_ann.py).
+            X_norm = X_array * np.asarray(norm_factor, dtype=float)
             predictions = model.predict(X_norm, verbose=0).reshape(-1)
             outputs.append(predictions)
 
