@@ -3774,6 +3774,12 @@ def recalculate_results(file_path, model,
         Simulation names, defaults to None, i.e. standard simulation names based on model and discretization are generated
     export_results : bool
         Specifies whether result table should be written to a csv file
+    signal_metrics : bool, optional (keyword)
+        Adds the qualitative outlet signal metrics of
+        src/utility/signal_metrics.py as columns (one set per component).
+        Requires which='outlet'. Defaults to False.
+    signal_metrics_options : dict, optional (keyword)
+        Options passed to signal_metrics.signal_metrics (noise, window).
 
     """
 
@@ -4031,6 +4037,24 @@ def recalculate_results(file_path, model,
     if incl_min_val:
         table = np.column_stack((np.array(table), min_val))
         header.append('Min. value')
+
+    # Qualitative metrics of the outlet signal (oscillation, peak, elution
+    # signal, moments), see src/utility/signal_metrics.py
+    if kwargs.get('signal_metrics', False):
+        if which != 'outlet':
+            raise ValueError(
+                "signal_metrics are only available for which='outlet', got which='" + str(which) + "'.")
+        from src.utility.signal_metrics import signal_metric_columns
+
+        sims = list(np.ravel(np.array(simulation_names, dtype=object)))
+        sm_header, sm_values = signal_metric_columns(
+            get_solution_times(sims[0]),
+            [get_solution(sim, 'unit_' + unit, which) for sim in sims],
+            reference,
+            **kwargs.get('signal_metrics_options', {})
+        )
+        table = np.column_stack((np.array(table), sm_values))
+        header = list(header) + sm_header
 
     convergence_tables = table
 
