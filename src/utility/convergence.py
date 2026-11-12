@@ -2533,9 +2533,35 @@ def generate_bulkDisc_name(disc):
             polyDeg = get_case_insensitive(disc, "AX_POLYDEG")
         if polyDeg is None:
             return name
-        return name + "_P" + str(polyDeg)
+        return name + "_P" + str(polyDeg) + generate_stabilization_name(disc)
     else:
         return name
+
+
+def generate_stabilization_name(disc):
+    """Name suffix of the nonlinear stabilization of a DG discretization.
+
+    Distinguishes stabilized from unstabilized DG of the same polynomial
+    degree, which would otherwise share one group in the convergence json.
+    Returns an empty string without stabilization.
+    """
+    stab = get_case_insensitive(disc, 'stabilization')
+    if stab is None:
+        return ""
+    method = get_case_insensitive(stab, 'STABILIZATION_METHOD')
+    if isinstance(method, bytes):
+        method = method.decode()
+    if method is None or method == 'NONE':
+        return ""
+    if method == 'SUBCELL_FLUX_LIMITING':
+        limiter = get_case_insensitive(stab, 'LIMITER')
+        if isinstance(limiter, bytes):
+            limiter = limiter.decode()
+        return "_lim" + {'POSITIVITY': 'POS', 'HYBRID': 'HYB'}.get(limiter, 'HYB')
+    if method == 'SUBCELL_FV_LIMITING':
+        order = get_case_insensitive(stab, 'SUBCELL_FV_ORDER')
+        return "_subFV" + str(1 if order is None else int(order))
+    return "_" + str(method)
 
 
 def generate_parDisc_name(disc, bulkDiscName=None):
