@@ -3777,7 +3777,7 @@ def recalculate_results(file_path, model,
     signal_metrics : bool, optional (keyword)
         Adds the qualitative outlet signal metrics of
         src/utility/signal_metrics.py as columns (one set per component).
-        Requires which='outlet'. Defaults to False.
+        Only applies to which='outlet'. Defaults to False.
     signal_metrics_options : dict, optional (keyword)
         Options passed to signal_metrics.signal_metrics (noise, window).
 
@@ -4040,10 +4040,8 @@ def recalculate_results(file_path, model,
 
     # Qualitative metrics of the outlet signal (oscillation, peak, elution
     # signal, moments), see src/utility/signal_metrics.py
-    if kwargs.get('signal_metrics', False):
-        if which != 'outlet':
-            raise ValueError(
-                "signal_metrics are only available for which='outlet', got which='" + str(which) + "'.")
+    # (outlet tables only, e.g. sensitivity tables of the same analysis are left as they are)
+    if kwargs.get('signal_metrics', False) and which == 'outlet':
         from src.utility.signal_metrics import signal_metric_columns
 
         sims = list(np.ravel(np.array(simulation_names, dtype=object)))
