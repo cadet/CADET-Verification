@@ -694,10 +694,9 @@ def study_langmuir(rerun=False, small=False):
         tables = {}
         for s in schemes:
             series = dofs + ([4096] if s['poly_deg'] == 0 and not small else [])
-            # multiples of the nodes per element
-            series = [d for d in series if d % (s['poly_deg'] + 1) == 0] if s['poly_deg'] else series
-            if s['poly_deg'] == 4:
-                series = [5 * round(d / 5) for d in dofs]
+            # nearest multiples of the nodes per element
+            nodes = s['poly_deg'] + 1
+            series = [nodes * round(d / nodes) for d in series]
             table = refinement_series(case, s, series, solver, out_dir, json_name, rerun, repetitions=repetitions)
             if table is not None:
                 tables[s['key']] = table
