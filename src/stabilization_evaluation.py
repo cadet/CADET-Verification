@@ -14,6 +14,7 @@ Studies, selected on the command line (default: all):
     limiter      amount of limiting on the Langmuir case (plots and videos)
     parameters   sensitivity of the results to the limiter parameters
     sensitivity  smoke test of parameter sensitivities with the limiter
+    grm          held-out robustness case: GRM with SMA binding
 
     python -m src.stabilization_evaluation [study ...] [--rerun] [--small]
 
@@ -979,6 +980,97 @@ def study_sensitivity(rerun=False, small=False):
                    'relative_L1_difference': summary}, fh, indent=4)
 
 
+def study_grm(rerun=False, small=False):
+    """Held-out robustness case: GRM with SMA binding, four components, load-wash-elute.
+
+    No limiter parameter was tuned on this case. Bulk schemes at equal axial
+    DoF with a DG and an FV particle discretization, against a refined DG
+    reference (bulk P5 with 64 elements, particles P5 with 8 elements).
+    """
+    from src.benchmark_models import setting_Col1D_SMA_4comp_LWE_benchmark1 as sma_setting
+    from src.utility.signal_metrics import signal_metric_columns
+
+    out_dir = OUTPUT_PATH / 'grm'
+    out_dir.mkdir(parents=True, exist_ok=True)
+    times = np.linspace(0.0, 1500.0, 1501)
+    c_ref = [100.0, 1.0, 1.0, 1.0]
+    dof = 48 if small else 64
+
+    def run(name, poly_deg, n, par_method, par_n, stabilization=None, tol=1e-6):
+        file_name = out_dir / (name + '.h5')
+        stats_name = out_dir / (name + '.stats.json')
+        if not rerun and file_name.exists() and stats_name.exists():
+            with open(stats_name) as fh:
+                stats = json.load(fh)
+            return (str(file_name), stats) if stats.get('ok') else (None, None)
+        cfg = sma_setting.get_model(spatial_method_bulk=poly_deg, particle_type='GENERAL_RATE_PARTICLE',
+                                    spatial_method_particle=par_method, parZ=par_n)
+        disc = cfg.input.model.unit_000.discretization
+        _set_ci(disc, 'NCOL' if poly_deg == 0 else 'NELEM', n)
+        if stabilization is not None:
+            _set_ci(disc, 'stabilization', dict(stabilization, REFERENCE_CONCENTRATION=c_ref))
+        _set_ci(cfg.input.solver, 'time_integrator', {
+            'ABSTOL': tol, 'RELTOL': tol, 'ALGTOL': tol, 'INIT_STEP_SIZE': 1e-10, 'MAX_STEPS': 1000000,
+            'USE_MODIFIED_NEWTON': 1})
+        _set_ci(cfg.input.solver, 'user_solution_times', times)
+        _set_ci(cfg.input['return'].unit_000, 'write_solution_outlet', 1)
+        sim = Cadet(install_path=CADET_PATH)
+        sim.root.input = copy.deepcopy(cfg.input)
+        sim.filename = str(file_name)
+        sim.save()
+        result = sim.run_simulation()
+        if result.return_code != 0:
+            print(f"  FAILED {name}: {(result.error_message or '')[-200:]}", flush=True)
+            with open(stats_name, 'w') as fh:
+                json.dump({'ok': False}, fh)
+            return None, None
+        stats = {'ok': True, 'time': float(np.squeeze(sim.root.meta.time_sim)),
+                 'steps': int(np.squeeze(sim.root.meta.idas.idas_ntimesteps))}
+        with open(stats_name, 'w') as fh:
+            json.dump(stats, fh)
+        return str(file_name), stats
+
+    def solution(file_name):
+        return np.asarray(convergence.get_simulation(file_name).root.output.solution.unit_000.solution_outlet)
+
+    print('grm', flush=True)
+    ref_file, _ = run('GRM_SMA_4comp_reference_DG_P5Z64parP5parZ8', 5, 64, 5, 8, tol=1e-9)
+    reference = solution(ref_file)
+
+    results = {}
+    schemes = [weno()]
+    for poly_deg in (3, 5):
+        schemes += [dg(poly_deg), flux_limited(poly_deg, 'POSITIVITY'), flux_limited(poly_deg, 'HYBRID')]
+    for par_label, par_method, par_n in (('parDG_P3Z2', 3, 2), ('parFV_Z16', 0, 16)):
+        for s in schemes:
+            n = dof if s['poly_deg'] == 0 else max(1, round(dof / (s['poly_deg'] + 1)))
+            name = f"GRM_SMA_4comp_{s['key']}_Z{n}_{par_label}"
+            file_name, stats = run(name, s['poly_deg'], n, par_method, par_n, s['stabilization'])
+            entry = {'label': s['label'], 'particles': par_label, 'failed': file_name is None}
+            if file_name is not None:
+                c = solution(file_name)
+                err = np.abs(c - reference)
+                header, values = signal_metric_columns(times, [c[:, 1:]], reference[:, 1:])
+                entry.update({
+                    'Max. error (proteins)': float(err[:, 1:].max()),
+                    '$L^1$ error (proteins)': float(err[:, 1:].sum(axis=0).max()),
+                    'Min. value (proteins)': float(c[:, 1:].min()),
+                    'Sim. time': stats['time'], 'Time steps': stats['steps'],
+                    'Bulk DoF': n * (s['poly_deg'] + 1) if s['poly_deg'] else n,
+                    'signal_metrics': dict(zip(header, [float(v) for v in values[0]])),
+                })
+                print(f"  {par_label:11s} {s['label']:8s} max={entry['Max. error (proteins)']:.2e} "
+                      f"min={entry['Min. value (proteins)']:.1e} steps={stats['steps']} t={stats['time']:.1f}s", flush=True)
+            results[name] = entry
+
+    with open(out_dir / 'robustness_GRM_SMA_4comp.json', 'w') as fh:
+        json.dump({'meta': {'case': 'GRM, SMA, 4 components, load-wash-elute',
+                            'time_integrator': 'modified Newton, ABSTOL = RELTOL = ALGTOL = 1e-6',
+                            'reference': 'DG P5 with 64 elements, particles DG P5 with 8 elements, tolerance 1e-9',
+                            'note': 'Errors and metrics of the three protein components.'},
+                   'robustness': results}, fh, indent=4)
+
+
 STUDIES = {
     'comparison': study_comparison,
     'stepcount': study_stepcount,
@@ -987,6 +1079,7 @@ STUDIES = {
     'limiter': study_limiter,
     'parameters': study_parameters,
     'sensitivity': study_sensitivity,
+    'grm': study_grm,
 }
 
 
