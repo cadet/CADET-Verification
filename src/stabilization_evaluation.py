@@ -129,12 +129,13 @@ def flux_limited(poly_deg, limiter, **options):
 def bounded(poly_deg, **options):
     """Subcell flux limiting with the local bounds enforced everywhere (no sensor), provably non-oscillatory.
 
-    Uses the exact limiter Jacobian: the bounds are active on the dispersive
-    part of the flux in the whole column, where the Jacobian of the unlimited
-    scheme makes the Newton iteration restrict the step size to O(h^2 / D_ax).
+    Needs the exact limiter Jacobian (the default of CADET-Core): the bounds
+    are active on the dispersive part of the flux in the whole column, where
+    the Jacobian of the unlimited scheme (LIMITER_JACOBIAN = 0) makes the
+    Newton iteration restrict the step size to O(h^2 / D_ax).
     """
     named = flux_limited(poly_deg, 'HYBRID', **options)
-    scheme = flux_limited(poly_deg, 'HYBRID', **{'SENSOR_TYPE': 'ALWAYS', 'LIMITER_JACOBIAN': 1, **options})
+    scheme = flux_limited(poly_deg, 'HYBRID', **{'SENSOR_TYPE': 'ALWAYS', **options})
     scheme['key'] = named['key'].replace('limHYB', 'limLED')
     scheme['label'] = named['label'].replace('HYB', 'LED')
     return scheme
@@ -945,7 +946,8 @@ def study_parameters(rerun=False, small=False):
     schemes += [flux_limited(p, 'POSITIVITY', **plain), flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE'),
                 flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE', **plain)]
     # local bounds everywhere, and the width of their regularised positive part
-    schemes += [bounded(p), bounded(p, LIMITER_JACOBIAN=0), bounded(p, BOUND_SMOOTHING=1.0), bounded(p, BOUND_SMOOTHING=1000.0),
+    schemes += [flux_limited(p, 'POSITIVITY', LIMITER_JACOBIAN=0), flux_limited(p, 'HYBRID', LIMITER_JACOBIAN=0),
+                bounded(p), bounded(p, LIMITER_JACOBIAN=0), bounded(p, BOUND_SMOOTHING=1.0), bounded(p, BOUND_SMOOTHING=1000.0),
                 flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE', BOUND_SMOOTHING=1000.0)]
 
     print('parameters', flush=True)
