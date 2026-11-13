@@ -82,6 +82,8 @@ def solver_setting(tol, modified_newton, abstol=None, tag=None):
 
 #: Modified Newton at the tolerance beyond which no spatial error improves.
 SOLVER_EFFICIENT = solver_setting(1e-6, True, tag='efficient')
+#: Absolute tolerance relaxed to 1e-5 of the feed concentration of the Langmuir case.
+SOLVER_MODERATE = solver_setting(1e-6, True, abstol=1e-4, tag='moderate')
 #: Setting of the reference solution and of the earlier DG publication.
 SOLVER_REFERENCE = solver_setting(1e-8, False, abstol=1e-10, tag='reference')
 
@@ -110,7 +112,7 @@ def flux_limited(poly_deg, limiter, **options):
     short = {'POSITIVITY': 'POS', 'HYBRID': 'HYB'}[limiter]
     names = {'SMOOTH_CLIP_EXPONENT': 'p', 'SENSOR_THRESHOLD': 'tau', 'SENSOR_SHIFT': 'sigma',
              'POSITIVITY_SLACK': 'eps', 'LIMITER_JACOBIAN': 'jac', 'BOUND_RELAXATION': 'kappa',
-             'CLIP_IDENTITY_FRACTION': 'theta', 'SENSOR_TYPE': 'sensor'}
+             'CLIP_IDENTITY_FRACTION': 'theta', 'SENSOR_TYPE': 'sensor', 'BOUND_SMOOTHING': 'beta'}
     fmt = lambda v: v.lower() if isinstance(v, str) else f'{v:g}'
     tag = ''.join(f'_{names.get(k, k.lower())}{fmt(v)}' for k, v in sorted(options.items()))
     sharp = options.get('SMOOTH_CLIP_EXPONENT', 4.0) == 0.0
@@ -122,6 +124,20 @@ def flux_limited(poly_deg, limiter, **options):
     stabilization.update(options)
     return {'key': f'DG_P{poly_deg}_lim{short}{tag}', 'label': label,
             'poly_deg': poly_deg, 'stabilization': stabilization}
+
+
+def bounded(poly_deg, **options):
+    """Subcell flux limiting with the local bounds enforced everywhere (no sensor), provably non-oscillatory.
+
+    Uses the exact limiter Jacobian: the bounds are active on the dispersive
+    part of the flux in the whole column, where the Jacobian of the unlimited
+    scheme makes the Newton iteration restrict the step size to O(h^2 / D_ax).
+    """
+    named = flux_limited(poly_deg, 'HYBRID', **options)
+    scheme = flux_limited(poly_deg, 'HYBRID', **{'SENSOR_TYPE': 'ALWAYS', 'LIMITER_JACOBIAN': 1, **options})
+    scheme['key'] = named['key'].replace('limHYB', 'limLED')
+    scheme['label'] = named['label'].replace('HYB', 'LED')
+    return scheme
 
 
 def elementwise(poly_deg, fv_order=1, shift=0.0, threshold=0.0, indicator='MODAL_ENERGY_LEGENDRE'):
@@ -282,10 +298,17 @@ def _accumulate(counter):
     return counter
 
 
+def _total_steps(idas):
+    """Time steps over all sections. idas_ntimesteps only counts the last section."""
+    if 'idas_kumulative_ntimesteps' in idas:
+        return int(_accumulate(np.squeeze(idas.idas_kumulative_ntimesteps))[-1])
+    return int(np.squeeze(idas.idas_ntimesteps))
+
+
 def _statistics(sim, scheme, times):
     """Solver statistics and amount of limiting of a finished simulation."""
-    stats = {'steps': int(np.squeeze(sim.root.meta.idas.idas_ntimesteps))}
     idas = sim.root.meta.idas
+    stats = {'steps': _total_steps(idas)}
     for key, name in (('idas_n_residual_calls', 'residual_calls'),
                       ('idas_n_linsolver_setup_calls', 'linear_setups'),
                       ('idas_n_local_error_test_failures', 'error_test_failures')):
@@ -569,7 +592,7 @@ def study_comparison(rerun=False, small=False):
         for p in (3, 5):
             schemes += [dg(p),
                         elementwise(p, 1, shift=0.1), elementwise(p, 2, shift=0.1),
-                        flux_limited(p, 'POSITIVITY'), flux_limited(p, 'HYBRID')]
+                        flux_limited(p, 'POSITIVITY'), flux_limited(p, 'HYBRID'), bounded(p)]
         print(f"comparison: {case['name']}", flush=True)
         tables = {}
         for s in schemes:
@@ -680,8 +703,9 @@ def study_stepcount(rerun=False, small=False):
         plt.close(fig)
 
 
-def langmuir_schemes():
-    return [weno(), dg(3), dg(4), dg(5), flux_limited(5, 'POSITIVITY'), flux_limited(5, 'HYBRID')]
+def langmuir_schemes(with_bounded=True):
+    schemes = [weno(), dg(3), dg(4), dg(5), flux_limited(5, 'POSITIVITY'), flux_limited(5, 'HYBRID')]
+    return schemes + [bounded(5)] if with_bounded else schemes
 
 
 def study_langmuir(rerun=False, small=False):
@@ -691,9 +715,10 @@ def study_langmuir(rerun=False, small=False):
     dofs = [128, 256] if small else [128, 256, 512, 1024, 2048]
     repetitions = 1 if small else 3
 
-    for solver in (SOLVER_EFFICIENT, SOLVER_REFERENCE):
+    for solver in (SOLVER_EFFICIENT, SOLVER_MODERATE, SOLVER_REFERENCE):
         json_name = out_dir / f"convergence_{case['name']}_{solver['tag']}.json"
-        schemes = langmuir_schemes()
+        # the fully bounded scheme is left out at the tight setting, where it takes too many steps
+        schemes = langmuir_schemes(with_bounded=solver is not SOLVER_REFERENCE)
         print(f"langmuir: {solver['tag']}", flush=True)
         tables = {}
         for s in schemes:
@@ -919,6 +944,9 @@ def study_parameters(rerun=False, small=False):
     plain = {'BOUND_RELAXATION': 0.0, 'CLIP_IDENTITY_FRACTION': 0.0}
     schemes += [flux_limited(p, 'POSITIVITY', **plain), flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE'),
                 flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE', **plain)]
+    # local bounds everywhere, and the width of their regularised positive part
+    schemes += [bounded(p), bounded(p, LIMITER_JACOBIAN=0), bounded(p, BOUND_SMOOTHING=1.0), bounded(p, BOUND_SMOOTHING=1000.0),
+                flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE', BOUND_SMOOTHING=1000.0)]
 
     print('parameters', flush=True)
     rows = []
@@ -1026,6 +1054,7 @@ def study_grm(rerun=False, small=False):
             'USE_MODIFIED_NEWTON': 1})
         _set_ci(cfg.input.solver, 'user_solution_times', times)
         _set_ci(cfg.input['return'].unit_000, 'write_solution_outlet', 1)
+        _set_ci(cfg.input['return'], 'write_idas_meta', 1)
         sim = Cadet(install_path=CADET_PATH)
         sim.root.input = copy.deepcopy(cfg.input)
         sim.filename = str(file_name)
@@ -1037,7 +1066,7 @@ def study_grm(rerun=False, small=False):
                 json.dump({'ok': False}, fh)
             return None, None
         stats = {'ok': True, 'time': float(np.squeeze(sim.root.meta.time_sim)),
-                 'steps': int(np.squeeze(sim.root.meta.idas.idas_ntimesteps))}
+                 'steps': _total_steps(sim.root.meta.idas)}
         with open(stats_name, 'w') as fh:
             json.dump(stats, fh)
         return str(file_name), stats
