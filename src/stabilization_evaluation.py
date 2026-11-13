@@ -103,18 +103,21 @@ def flux_limited(poly_deg, limiter, **options):
     """Nodal subcell flux limiting, limiter is POSITIVITY or HYBRID.
 
     options are fields of the stabilization group, e.g. SMOOTH_CLIP_EXPONENT,
-    SENSOR_THRESHOLD, SENSOR_SHIFT, POSITIVITY_SLACK, LIMITER_JACOBIAN.
+    BOUND_RELAXATION, CLIP_IDENTITY_FRACTION, SENSOR_TYPE, SENSOR_THRESHOLD,
+    SENSOR_SHIFT, POSITIVITY_SLACK, LIMITER_JACOBIAN.
     SMOOTH_CLIP_EXPONENT = 0 selects the sharp counterpart of every switch.
     """
     short = {'POSITIVITY': 'POS', 'HYBRID': 'HYB'}[limiter]
     names = {'SMOOTH_CLIP_EXPONENT': 'p', 'SENSOR_THRESHOLD': 'tau', 'SENSOR_SHIFT': 'sigma',
-             'POSITIVITY_SLACK': 'eps', 'LIMITER_JACOBIAN': 'jac'}
-    tag = ''.join(f'_{names.get(k, k.lower())}{v:g}' for k, v in sorted(options.items()))
+             'POSITIVITY_SLACK': 'eps', 'LIMITER_JACOBIAN': 'jac', 'BOUND_RELAXATION': 'kappa',
+             'CLIP_IDENTITY_FRACTION': 'theta', 'SENSOR_TYPE': 'sensor'}
+    fmt = lambda v: v.lower() if isinstance(v, str) else f'{v:g}'
+    tag = ''.join(f'_{names.get(k, k.lower())}{fmt(v)}' for k, v in sorted(options.items()))
     sharp = options.get('SMOOTH_CLIP_EXPONENT', 4.0) == 0.0
     label = f'{short} P{poly_deg}' + (' sharp' if sharp else '')
     extra = {k: v for k, v in options.items() if not (sharp and k == 'SMOOTH_CLIP_EXPONENT')}
     if extra:
-        label += ' (' + ', '.join(f'{names.get(k, k.lower())}={v:g}' for k, v in sorted(extra.items())) + ')'
+        label += ' (' + ', '.join(f'{names.get(k, k.lower())}={fmt(v)}' for k, v in sorted(extra.items())) + ')'
     stabilization = {'STABILIZATION_METHOD': 'SUBCELL_FLUX_LIMITING', 'LIMITER': limiter}
     stabilization.update(options)
     return {'key': f'DG_P{poly_deg}_lim{short}{tag}', 'label': label,
@@ -897,7 +900,7 @@ def study_limiter(rerun=False, small=False):
 
 
 def study_parameters(rerun=False, small=False):
-    """Sensitivity of the results to the limiter parameters (half and double the defaults)."""
+    """Sensitivity of the results to the limiter parameters, varied one at a time around the defaults."""
     out_dir = OUTPUT_PATH / 'parameters'
     case = langmuir_case()
     solver = SOLVER_EFFICIENT
@@ -905,12 +908,17 @@ def study_parameters(rerun=False, small=False):
     dofs = [126, 258] if small else [258, 510, 1020]
     json_name = out_dir / f"convergence_{case['name']}_{solver['tag']}.json"
 
-    schemes = [flux_limited(p, 'POSITIVITY'), flux_limited(p, 'HYBRID')]
-    for key, low, high in (('SMOOTH_CLIP_EXPONENT', 2.0, 8.0), ('POSITIVITY_SLACK', 5e-7, 2e-6)):
+    schemes = [dg(p), flux_limited(p, 'POSITIVITY'), flux_limited(p, 'HYBRID')]
+    for key, low, high in (('SMOOTH_CLIP_EXPONENT', 2.0, 8.0), ('POSITIVITY_SLACK', 1e-6, 1e-4),
+                           ('BOUND_RELAXATION', 0.0, 3.0), ('CLIP_IDENTITY_FRACTION', 0.0, 0.8)):
         for limiter in ('POSITIVITY', 'HYBRID'):
             schemes += [flux_limited(p, limiter, **{key: low}), flux_limited(p, limiter, **{key: high})]
     for key, low, high in (('SENSOR_THRESHOLD', 0.1, 0.4), ('SENSOR_SHIFT', 0.05, 0.2)):
         schemes += [flux_limited(p, 'HYBRID', **{key: low}), flux_limited(p, 'HYBRID', **{key: high})]
+    # plain bounds without relaxation and identity fraction, and the curvature magnitude sensor
+    plain = {'BOUND_RELAXATION': 0.0, 'CLIP_IDENTITY_FRACTION': 0.0}
+    schemes += [flux_limited(p, 'POSITIVITY', **plain), flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE'),
+                flux_limited(p, 'HYBRID', SENSOR_TYPE='CURVATURE', **plain)]
 
     print('parameters', flush=True)
     rows = []
@@ -921,11 +929,11 @@ def study_parameters(rerun=False, small=False):
         for i, d in enumerate(table['Bulk DoF']):
             rows.append((s['label'], int(d), table['$L^1$ error'][i], table['Sim. time'][i], table['Time steps'][i],
                          table['Min. value'][i], max(table[f'Local overshoot (comp {c})'][i] for c in range(2))))
-    write_meta(json_name, case, solver, schemes, note='Limiter parameters at half and double their defaults.')
+    write_meta(json_name, case, solver, schemes, note='Variations of the limiter parameters around their defaults.')
     with open(out_dir / 'parameters.txt', 'w') as fh:
-        fh.write(f"{'scheme':38s} {'DoF':>5s} {'L1 error':>10s} {'time/s':>8s} {'steps':>7s} {'min':>10s} {'overshoot':>10s}\n")
+        fh.write(f"{'scheme':52s} {'DoF':>5s} {'L1 error':>10s} {'time/s':>8s} {'steps':>7s} {'min':>10s} {'overshoot':>10s}\n")
         for row in sorted(rows, key=lambda r: (r[1], r[0])):
-            fh.write(f"{row[0]:38s} {row[1]:5d} {row[2]:10.4g} {row[3]:8.2f} {row[4]:7.0f} {row[5]:10.2e} {row[6]:10.2e}\n")
+            fh.write(f"{row[0]:52s} {row[1]:5d} {row[2]:10.4g} {row[3]:8.2f} {row[4]:7.0f} {row[5]:10.2e} {row[6]:10.2e}\n")
     print(open(out_dir / 'parameters.txt').read(), flush=True)
 
 
@@ -996,7 +1004,7 @@ def study_grm(rerun=False, small=False):
     c_ref = [100.0, 1.0, 1.0, 1.0]
     dof = 48 if small else 64
 
-    def run(name, poly_deg, n, par_method, par_n, stabilization=None, tol=1e-6):
+    def run(name, poly_deg, n, par_method, par_n, stabilization=None, tol=1e-6, par_limiter=False):
         file_name = out_dir / (name + '.h5')
         stats_name = out_dir / (name + '.stats.json')
         if not rerun and file_name.exists() and stats_name.exists():
@@ -1009,6 +1017,10 @@ def study_grm(rerun=False, small=False):
         _set_ci(disc, 'NCOL' if poly_deg == 0 else 'NELEM', n)
         if stabilization is not None:
             _set_ci(disc, 'stabilization', dict(stabilization, REFERENCE_CONCENTRATION=c_ref))
+        if par_limiter:
+            par_disc = cfg.input.model.unit_000.particle_type_000.discretization
+            _set_ci(par_disc, 'stabilization', {'STABILIZATION_METHOD': 'SUBCELL_FLUX_LIMITING',
+                                                'REFERENCE_CONCENTRATION': c_ref})
         _set_ci(cfg.input.solver, 'time_integrator', {
             'ABSTOL': tol, 'RELTOL': tol, 'ALGTOL': tol, 'INIT_STEP_SIZE': 1e-10, 'MAX_STEPS': 1000000,
             'USE_MODIFIED_NEWTON': 1})
@@ -1041,11 +1053,15 @@ def study_grm(rerun=False, small=False):
     schemes = [weno()]
     for poly_deg in (3, 5):
         schemes += [dg(poly_deg), flux_limited(poly_deg, 'POSITIVITY'), flux_limited(poly_deg, 'HYBRID')]
-    for par_label, par_method, par_n in (('parDG_P3Z2', 3, 2), ('parFV_Z16', 0, 16)):
+    for par_label, par_method, par_n, par_limiter in (('parDG_P3Z2', 3, 2, False), ('parDG_P3Z2_lim', 3, 2, True),
+                                                      ('parFV_Z16', 0, 16, False)):
         for s in schemes:
+            if par_limiter and (s['stabilization'] is None):
+                continue  # the particle limiter is combined with the limited bulk schemes only
             n = dof if s['poly_deg'] == 0 else max(1, round(dof / (s['poly_deg'] + 1)))
             name = f"GRM_SMA_4comp_{s['key']}_Z{n}_{par_label}"
-            file_name, stats = run(name, s['poly_deg'], n, par_method, par_n, s['stabilization'])
+            file_name, stats = run(name, s['poly_deg'], n, par_method, par_n, s['stabilization'],
+                                   par_limiter=par_limiter)
             entry = {'label': s['label'], 'particles': par_label, 'failed': file_name is None}
             if file_name is not None:
                 c = solution(file_name)
@@ -1059,7 +1075,7 @@ def study_grm(rerun=False, small=False):
                     'Bulk DoF': n * (s['poly_deg'] + 1) if s['poly_deg'] else n,
                     'signal_metrics': dict(zip(header, [float(v) for v in values[0]])),
                 })
-                print(f"  {par_label:11s} {s['label']:8s} max={entry['Max. error (proteins)']:.2e} "
+                print(f"  {par_label:15s} {s['label']:8s} max={entry['Max. error (proteins)']:.2e} "
                       f"min={entry['Min. value (proteins)']:.1e} steps={stats['steps']} t={stats['time']:.1f}s", flush=True)
             results[name] = entry
 
