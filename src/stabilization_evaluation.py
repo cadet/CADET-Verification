@@ -141,6 +141,27 @@ def bounded(poly_deg, **options):
     return scheme
 
 
+def log_mean(scheme, floor=None):
+    """Variant of a DG scheme (dg, flux_limited, bounded) with the logarithmic mean volume flux.
+
+    Flux differencing with the entropy conservative two-point flux u * logmean(c_i, c_j)
+    (VOLUME_FLUX = LOG_MEAN) instead of the standard DGSEM volume term. floor is
+    LOG_MEAN_FLOOR, the floor of the arguments of the mean relative to the reference
+    concentration of the case (CADET-Core default 1e-9).
+    """
+    variant = copy.deepcopy(scheme)
+    disc = {'VOLUME_FLUX': 'LOG_MEAN'}
+    tag = '_lm'
+    if floor is not None:
+        disc['LOG_MEAN_FLOOR'] = floor
+        tag += f'{floor:g}'
+    prefix = f"DG_P{scheme['poly_deg']}"
+    variant['key'] = prefix + tag + scheme['key'][len(prefix):]
+    variant['label'] = 'LM ' + scheme['label'] + (f' (floor={floor:g})' if floor is not None else '')
+    variant['discretization'] = disc
+    return variant
+
+
 def elementwise(poly_deg, fv_order=1, shift=0.0, threshold=0.0, indicator='MODAL_ENERGY_LEGENDRE'):
     """Element-wise blending of DGSEM with subcell FV by a smoothness indicator.
 
@@ -270,6 +291,12 @@ def build_model(case, scheme, dof, solver, write_bulk=False, write_limiter=False
     cfg = case['model'](scheme['poly_deg'])
     disc = cfg.input.model.unit_001.discretization
     _set_ci(disc, 'NCOL' if scheme['poly_deg'] == 0 else 'NELEM', n_cells(scheme, dof))
+
+    # further fields of the discretization group, e.g. the volume flux (see log_mean)
+    for key, value in scheme.get('discretization', {}).items():
+        _set_ci(disc, key, value)
+    if 'VOLUME_FLUX' in scheme.get('discretization', {}):
+        _set_ci(disc, 'REFERENCE_CONCENTRATION', case['c_ref'])
 
     if scheme['stabilization'] is not None:
         stabilization = copy.deepcopy(scheme['stabilization'])
