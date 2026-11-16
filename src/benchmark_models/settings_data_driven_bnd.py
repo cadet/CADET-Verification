@@ -144,7 +144,7 @@ def set_discretization(
         unit.particle_type_000.nbound = list(n_bound) if n_bound is not None else unit.ncomp * [0]
         unit.particle_type_000.discretization.spatial_method = "FV"
         unit.particle_type_000.discretization.ncells = n_par
-        unit.particle_type_000.discretization.par_disc_type = "EQUIDISTANT_PAR"
+        unit.particle_type_000.discretization.par_disc_type = "EQUIDISTANT"
         unit.discretization.spatial_method = "FV"
         unit.discretization.ncol = n_col
         unit.discretization.use_analytic_jacobian = 1

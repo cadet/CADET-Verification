@@ -260,12 +260,12 @@ def get_model(ncol=200, par_ncells=4, n_points=900, spatial_method='FV',
 
     if spatial_method == 'DG':
         col.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
-        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         col.particle_type_000.discretization.PAR_NELEM = par_ncells
         col.particle_type_000.discretization.PAR_POLYDEG = 2
     elif spatial_method == 'FV':
         col.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
-        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         col.particle_type_000.discretization.NCELLS = par_ncells
         col.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
     else:

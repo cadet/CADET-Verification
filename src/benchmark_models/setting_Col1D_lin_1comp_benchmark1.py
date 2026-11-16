@@ -157,7 +157,7 @@ def get_model(
                 column.particle_type_000.discretization.NCELLS = parNElem
                 column.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
             if kwargs['spatial_method_particle'] >= 0:  
-                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
             
         else:
             column.particle_type_000.has_pore_diffusion = 0

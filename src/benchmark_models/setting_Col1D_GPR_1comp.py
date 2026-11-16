@@ -136,7 +136,7 @@ def get_model(kernel):
     # Discretization
     config.model.unit_001.particle_type_000.discretization.spatial_method = "FV"
     config.model.unit_001.particle_type_000.discretization.ncells = np.int32(15)
-    config.model.unit_001.particle_type_000.discretization.par_disc_type = np.bytes_(b'EQUIDISTANT_PAR')
+    config.model.unit_001.particle_type_000.discretization.par_disc_type = np.bytes_(b'EQUIDISTANT')
 
     
     config.model.unit_002.ncomp = np.int32(1)

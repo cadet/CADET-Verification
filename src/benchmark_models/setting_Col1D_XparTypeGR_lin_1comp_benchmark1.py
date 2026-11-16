@@ -99,7 +99,7 @@ def get_model(
             column[particle_group].discretization.NCELLS = parNElem
             column[particle_group].discretization.FV_BOUNDARY_ORDER = 2
             
-        column[particle_group].discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        column[particle_group].discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         
         column[particle_group].adsorption.is_kinetic = 1 if 'is_kinetic' not in kwargs else kwargs['is_kinetic'][parType]
         column[particle_group].adsorption.lin_ka = [ 3.55 ] if 'lin_ka' not in kwargs else [kwargs['lin_ka'][parType]]

@@ -87,7 +87,7 @@ def get_model(cadet_path, output_path, run_simulation, plot_result):
         ])
     model.root.input.model.unit_001.particle_type_000.discretization.spatial_method = np.bytes_(b'FV')
     model.root.input.model.unit_001.particle_type_000.discretization.ncells = np.int32(15)
-    model.root.input.model.unit_001.particle_type_000.discretization.par_disc_type = np.bytes_(b'EQUIDISTANT_PAR')
+    model.root.input.model.unit_001.particle_type_000.discretization.par_disc_type = np.bytes_(b'EQUIDISTANT')
     
     
     model.root.input.model.unit_002.unit_type = np.bytes_(b'OUTLET')

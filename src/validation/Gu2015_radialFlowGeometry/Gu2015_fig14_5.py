@@ -215,12 +215,12 @@ def get_model(ncol=120, par_ncells=4, n_points=800, bulk_discretization='FV',
 
     if bulk_discretization == 'DG':
         col.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
-        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         col.particle_type_000.discretization.PAR_NELEM = par_ncells
         col.particle_type_000.discretization.PAR_POLYDEG = dg_polydeg
     else:
         col.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
-        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        col.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         col.particle_type_000.discretization.NCELLS = par_ncells
         col.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
 

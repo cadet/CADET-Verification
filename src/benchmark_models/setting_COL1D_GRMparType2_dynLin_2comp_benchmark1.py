@@ -132,22 +132,22 @@ def get_model(spatial_method_bulk, spatial_method_particle):
         model.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
         model.input.model.unit_001.particle_type_000.discretization.PAR_POLYDEG = spatial_method_particle
         model.input.model.unit_001.particle_type_000.discretization.PAR_NELEM = 1
-        model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         
         model.input.model.unit_001.particle_type_001.discretization.SPATIAL_METHOD = 'DG'
         model.input.model.unit_001.particle_type_001.discretization.PAR_POLYDEG = spatial_method_particle
         model.input.model.unit_001.particle_type_001.discretization.PAR_NELEM = 1
-        model.input.model.unit_001.particle_type_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        model.input.model.unit_001.particle_type_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
     else:
         model.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
         model.input.model.unit_001.particle_type_000.discretization.NCELLS = 2
         model.input.model.unit_001.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
-        model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        model.input.model.unit_001.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         
         model.input.model.unit_001.particle_type_001.discretization.SPATIAL_METHOD = 'FV'
         model.input.model.unit_001.particle_type_001.discretization.NCELLS = 2
         model.input.model.unit_001.particle_type_001.discretization.FV_BOUNDARY_ORDER = 2
-        model.input.model.unit_001.particle_type_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        model.input.model.unit_001.particle_type_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
     
     # Outlet unit
     model.input.model.unit_002.ncomp = 2

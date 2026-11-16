@@ -98,7 +98,7 @@ def get_model(
                 }
         
         # Spatial discretization of particle volume
-        column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+        column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
         column.particle_type_000.discretization.PAR_POLYDEG = kwargs.get('parP', polyDeg)
         column.particle_type_000.discretization.PAR_NELEM = parNElem
     

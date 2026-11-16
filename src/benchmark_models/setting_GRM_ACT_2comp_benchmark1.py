@@ -112,7 +112,7 @@ def get_model(use_ion_conc: bool, cadet_path, output_path, run_simulation, plot_
     
     ### discretization
     model.root.input.model.unit_001.particle_type_000.discretization.SPATIAL_METHOD = "FV"
-    model.root.input.model.unit_001.particle_type_000.discretization.par_disc_type = 'EQUIDISTANT_PAR'    
+    model.root.input.model.unit_001.particle_type_000.discretization.par_disc_type = 'EQUIDISTANT'    
     model.root.input.model.unit_001.particle_type_000.discretization.NCELLS = 12
     
     

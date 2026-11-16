@@ -96,7 +96,7 @@ def SMB_model1(nelem, polydeg, exactInt):
     # exactInt == 1 requests exact integration DG, i.e. USE_COLLOCATION_DG = 0
     smb_model.model.unit_004.discretization.USE_COLLOCATION_DG = 0 if exactInt else 1
 
-    smb_model.model.unit_004.discretization.par_disc_type = 'EQUIDISTANT_PAR'
+    smb_model.model.unit_004.discretization.par_disc_type = 'EQUIDISTANT'
     smb_model.model.unit_004.discretization.use_analytic_jacobian = 1
     smb_model.model.unit_004.discretization.reconstruction = 'WENO'
     smb_model.model.unit_004.discretization.gs_type = 1
@@ -384,7 +384,7 @@ def Cyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     # exactInt == 1 requests exact integration DG, i.e. USE_COLLOCATION_DG = 0
     Cyclic_model.root.input.model.unit_001.discretization.USE_COLLOCATION_DG = 0 if exactInt else 1
 
-    Cyclic_model.root.input.model.unit_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+    Cyclic_model.root.input.model.unit_001.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
     Cyclic_model.root.input.model.unit_001.discretization.USE_ANALYTIC_JACOBIAN = 1
     Cyclic_model.root.input.model.unit_001.discretization.RECONSTRUCTION = 'WENO'
     Cyclic_model.root.input.model.unit_001.discretization.GS_TYPE = 1
@@ -542,7 +542,7 @@ def Acyclic_model1(nelem, polydeg, exactInt, analytical_reference=False):
     # exactInt == 1 requests exact integration DG, i.e. USE_COLLOCATION_DG = 0
     Acyclic_model.root.input.model.unit_002.discretization.USE_COLLOCATION_DG = 0 if exactInt else 1
 
-    Acyclic_model.root.input.model.unit_002.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+    Acyclic_model.root.input.model.unit_002.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
     Acyclic_model.root.input.model.unit_002.discretization.USE_ANALYTIC_JACOBIAN = 1
     Acyclic_model.root.input.model.unit_002.discretization.RECONSTRUCTION = 'WENO'
     Acyclic_model.root.input.model.unit_002.discretization.GS_TYPE = 1

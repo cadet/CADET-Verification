@@ -2545,7 +2545,8 @@ def generate_parDisc_name(disc, bulkDiscName=None):
     suffix = ""
     
     if get_case_insensitive(disc, 'PAR_DISC_TYPE') is not None:
-        suffix = "" if get_case_insensitive(disc, 'PAR_DISC_TYPE') == "EQUIDISTANT_PAR" else "nonEq"
+        # EQUIDISTANT_PAR is kept for simulation files written before CADET-Core rejected it
+        suffix = "" if get_case_insensitive(disc, 'PAR_DISC_TYPE') in ("EQUIDISTANT", "EQUIDISTANT_PAR") else "nonEq"
     
     if name == "parFV":
         if suffix == "" and re.search("FV", bulkDiscName):
