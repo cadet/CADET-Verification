@@ -23,6 +23,10 @@ def pytest_addoption(parser):
     parser.addoption("--run-mct-tests", type=str2bool, default=True)
     parser.addoption("--run-2dmodels-tests", type=str2bool, default=True)
 
+    parser.addoption("--benchmark-method", type=str, default="dg")
+    parser.addoption("--benchmark-settings", type=str, default="all")
+    parser.addoption("--n-reruns", type=int, default=3)
+
     parser.addoption("--commit-message", type=str, default="CADET model test run")
     parser.addoption("--rdm-debug-mode", type=str2bool, default=True)
     parser.addoption("--rdm-push", type=str2bool, default=False)

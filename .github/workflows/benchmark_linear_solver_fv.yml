@@ -1,0 +1,166 @@
+name: Benchmark linear solver, FV
+
+# Performance benchmark of the FV discretization, comparing the dedicated arrow head FV
+# unit operations against the generalized ones, the latter both with the Eigen sparse LU
+# and with the block elimination, over all chromatography benchmarks.
+#
+# Dispatch only. One job computes one setting with every compared series, because
+# compute time is not comparable across runners and a figure must not be split.
+#
+# The jobs do not push their results. Each uploads its convergence jsons, figures and
+# metadata as an artifact; merge them and push locally. Convergence jsons of different
+# settings are disjoint files, so merging them is a plain copy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cadet_core_ref:
+        description: "CADET-Core ref to build and benchmark"
+        required: true
+        default: "feature/generalized-lrm-fv-operator"
+      verification_branch:
+        description: "CADET-Verification branch"
+        required: true
+        default: "main"
+      n_reruns:
+        description: "Simulation repetitions, fastest is kept"
+        required: true
+        default: "3"
+      small_test:
+        description: "Reduced refinement levels, for testing the workflow only"
+        required: true
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    strategy:
+      fail-fast: false
+      matrix:
+        setting:
+          - LRM_dynLin_1comp_benchmark1
+          - LRMP_dynLin_1comp_benchmark1
+          - GRM_dynLin_1comp_benchmark1
+          - GRMsd_dynLin_1comp_benchmark1
+          - LRM_reqSMA_4comp_benchmark1
+          - LRMP_reqSMA_4comp_benchmark1
+          - GRM_reqSMA_4comp_benchmark1
+          - GRM_4parTypeLin_4comp_benchmark1
+          - LRM_langmuir_2comp_benchmark1
+          - radLRM_dynLin_1comp_benchmark1
+          - radLRMP_dynLin_1comp_benchmark1
+          - radGRM_dynLin_1comp_benchmark1
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    env:
+      SRC_DIR: ${{ github.workspace }}/core
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+
+    steps:
+      - name: Check out CADET-Core
+        uses: actions/checkout@v6
+        with:
+          repository: cadet/CADET-Core
+          ref: ${{ github.event.inputs.cadet_core_ref }}
+          submodules: true
+          path: core
+
+      - name: Install GCC-14
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y \
+            build-essential \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev
+
+      - name: Build Eigen
+        run: |
+          git clone https://gitlab.com/libeigen/eigen.git
+          cd eigen
+          git checkout --detach origin/5.0
+          cmake -S . -B build \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DEIGEN_BUILD_BLAS=OFF \
+            -DEIGEN_BUILD_LAPACK=OFF \
+            -DBUILD_TESTING=OFF
+          cmake --install build
+
+      - name: Build and install CADET-Core
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
+            "${SRC_DIR}" \
+            -DENABLE_TESTS=OFF \
+            -DNUM_MAX_AD_DIRS=161
+          make install -j$(nproc)
+
+      - name: Record the binary under test
+        run: |
+          export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
+          echo "CADET_CORE_COMMIT=$(git -C "${SRC_DIR}" rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check out CADET-Verification
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.verification_branch }}
+          path: verification
+
+      - name: Install CADET-Verification
+        run: |
+          cd verification
+          pip install .
+
+      - name: Run benchmark
+        run: |
+          export PATH="${INSTALL_PREFIX}/bin:$PATH"
+          export LD_LIBRARY_PATH="${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH"
+          cd verification
+          pytest -s scripts/benchmark_linear_solver.py \
+            --benchmark-method=fv \
+            --benchmark-settings=${{ matrix.setting }} \
+            --n-reruns=${{ github.event.inputs.n_reruns }} \
+            --small-test=${{ github.event.inputs.small_test }} \
+            --rdm-debug-mode=true \
+            --rdm-push=false \
+            --branch-name=${{ github.event.inputs.verification_branch }} \
+            --commit-message="Linear solver benchmark, FV, ${{ matrix.setting }}, CADET-Core $CADET_CORE_COMMIT, GitHub runner"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-fv-${{ matrix.setting }}
+          path: |
+            verification/output/benchmark_linear_solver/**/*.json
+            verification/output/benchmark_linear_solver/**/*.png
+          if-no-files-found: warn
