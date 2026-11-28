@@ -127,7 +127,7 @@ def get_model(
                 column.particle_type_000.pore_diffusion = [7.00e-10, 6.07e-11, 6.07e-11, 6.07e-11]
                 column.particle_type_000.has_surface_diffusion = 0
                 column.particle_type_000.surface_diffusion = [0.,0.,0.,0.]
-                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
                 if kwargs['spatial_method_particle'] > 0:
                     column.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
                     column.particle_type_000.discretization.PAR_POLYDEG = kwargs['spatial_method_particle']

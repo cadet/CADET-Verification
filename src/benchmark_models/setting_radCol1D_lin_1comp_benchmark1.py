@@ -99,12 +99,12 @@ def get_model(
             
             if kwargs['spatial_method_par'] > 0:
                 column.particle_type_000.discretization.SPATIAL_METHOD = 'DG'
-                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
                 column.particle_type_000.discretization.PAR_POLYDEG = kwargs['spatial_method_par']
                 column.particle_type_000.discretization.PAR_NELEM = 1 * refinement
             else:
                 column.particle_type_000.discretization.SPATIAL_METHOD = 'FV'
-                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT_PAR'
+                column.particle_type_000.discretization.PAR_DISC_TYPE = 'EQUIDISTANT'
                 column.particle_type_000.discretization.NCELLS = 2 * refinement
                 column.particle_type_000.discretization.FV_BOUNDARY_ORDER = 2
             
